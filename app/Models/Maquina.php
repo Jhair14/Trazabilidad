@@ -5,5 +5,5 @@ class Maquina extends Model {
     protected $table = 'Maquina';
     protected $primaryKey = 'IdMaquina';
     public $timestamps = false;
-    protected $fillable = ['Nombre', 'Imagen'];
+    protected $fillable = ['Nombre', 'ImagenUrl'];
 }

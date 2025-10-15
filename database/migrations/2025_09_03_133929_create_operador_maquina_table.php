@@ -15,14 +15,6 @@ return new class extends Migration
             $table->integer('IdOperador');
             $table->integer('IdMaquina');
             $table->primary(['IdOperador', 'IdMaquina']);
-
-            // Relaciones
-            $table->foreign('IdOperador')
-                ->references('IdOperador')->on('Operador')
-                ->onDelete('cascade');
-            $table->foreign('IdMaquina')
-                ->references('IdMaquina')->on('Maquina')
-                ->onDelete('cascade');
         });
     }
 

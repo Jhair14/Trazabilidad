@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -12,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('ProcesoMaquinaRegistro', function (Blueprint $table) {
-            $table->integer('Id')->primary()->generatedAs();
+            $table->integer('Id')->primary()->generatedAs()->always();
             $table->integer('IdLote');
             $table->integer('NumeroMaquina');
             $table->string('NombreMaquina', 100);
@@ -20,14 +21,6 @@ return new class extends Migration
             $table->boolean('CumpleEstandar');
             $table->timestamp('FechaRegistro')->nullable()->default(DB::raw('now()'));
             $table->integer('IdProcesoMaquina')->nullable();
-
-            // Relaciones
-            $table->foreign('IdLote')
-                ->references('IdLote')->on('Lote')
-                ->onDelete('cascade');
-            $table->foreign('IdProcesoMaquina')
-                ->references('IdProcesoMaquina')->on('ProcesoMaquina')
-                ->onDelete('set null');
         });
     }
 

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('VariableEstandar', function (Blueprint $table) {
-            $table->integer('IdVariableEstandar')->primary()->generatedAs();
+            $table->integer('IdVariableEstandar')->primary()->generatedAs()->always();
             $table->string('Nombre', 100);
             $table->string('Unidad', 50)->nullable();
             $table->string('Descripcion', 255)->nullable();

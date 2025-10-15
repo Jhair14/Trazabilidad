@@ -16,14 +16,6 @@ return new class extends Migration
             $table->integer('IdMateriaPrima');
             $table->decimal('Cantidad', 10, 2)->default(0);
             $table->primary(['IdLote', 'IdMateriaPrima']);
-
-            // Relaciones
-            $table->foreign('IdLote')
-                ->references('IdLote')->on('Lote')
-                ->onDelete('cascade');
-            $table->foreign('IdMateriaPrima')
-                ->references('IdMateriaPrima')->on('MateriaPrima')
-                ->onDelete('cascade');
         });
     }
 

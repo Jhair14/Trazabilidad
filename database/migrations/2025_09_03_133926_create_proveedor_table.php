@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -12,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('Proveedor', function (Blueprint $table) {
-            $table->integer('IdProveedor')->primary()->generatedAs();
+            $table->integer('IdProveedor')->primary()->generatedAs()->always();
             $table->string('Nombre', 100);
             $table->string('Contacto', 100)->nullable();
             $table->string('Telefono', 20)->nullable();

@@ -5,5 +5,5 @@ class Operador extends Model {
     protected $table = 'Operador';
     protected $primaryKey = 'IdOperador';
     public $timestamps = false;
-    protected $fillable = ['Nombre', 'Cargo'];
+    protected $fillable = ['Nombre', 'Cargo', 'Usuario', 'PasswordHash', 'Email'];
 }

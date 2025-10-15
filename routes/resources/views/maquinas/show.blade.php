@@ -1,0 +1,21 @@
+@extends('layouts.app')
+@section('content')
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h3 class="card-title m-0">Máquina #{{ $maquina->IdMaquina }}</h3>
+    <div class="btn-group btn-group-sm" role="group">
+      <a href="{{ route('maquinas.edit',$maquina->IdMaquina) }}" class="btn btn-primary"><i class="far fa-edit mr-1"></i> Editar</a>
+      <a href="{{ route('maquinas.index') }}" class="btn btn-secondary"><i class="fas fa-arrow-left mr-1"></i> Volver</a>
+    </div>
+  </div>
+  <div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Nombre</dt><dd class="col-sm-9">{{ $maquina->Nombre }}</dd>
+      <dt class="col-sm-3">ImagenUrl</dt><dd class="col-sm-9"><a target="_blank" href="{{ $maquina->ImagenUrl }}">{{ $maquina->ImagenUrl }}</a></dd>
+    </dl>
+  </div>
+</div>
+@endsection
+
+
+
