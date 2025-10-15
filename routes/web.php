@@ -8,7 +8,7 @@ use App\Http\Controllers\Web\MaquinaWebController;
 use App\Http\Controllers\ProveedorController;
 use Illuminate\Support\Facades\Auth;
 
-Route::view('/', 'welcome')->name('welcome');
+Route::redirect('/', '/login');
 
 // Login
 Route::get('/login', function () {
