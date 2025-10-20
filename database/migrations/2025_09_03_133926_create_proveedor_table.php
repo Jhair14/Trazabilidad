@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('Telefono', 20)->nullable();
             $table->string('Email', 100)->nullable();
             $table->string('Direccion', 255)->nullable();
-            $table->timestamp('FechaCreacion')->nullable()->default(DB::raw('now()'));
+            $table->timestamp('FechaCreacion')->nullable()->default(DB::raw('CURRENT_TIMESTAMP'));
         });
     }
 

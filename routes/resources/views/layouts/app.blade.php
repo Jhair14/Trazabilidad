@@ -5,36 +5,36 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ config('app.name', 'Laravel') }}</title>
         <!-- AdminLTE 3 CSS with Bootstrap Icons and FontAwesome -->
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-dyZtM6qYbCwq+oC8NwJ+Y7mV3C8t8eLk9c1mF2Kc8wCkNnqf1b6uYHqf7b0Qx2V3jJ6Qf+fHqZf7d7w1n8VQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" crossorigin="anonymous" />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
-        
+
         <!-- Custom CSS for Active Menu States and Arrow Rotation -->
         <style>
         .sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active {
             background-color: #007bff !important;
             color: #fff !important;
         }
-        
+
         .sidebar-dark-primary .nav-sidebar .nav-treeview > .nav-item > .nav-link.active {
             background-color: rgba(255, 255, 255, 0.1) !important;
             color: #fff !important;
         }
-        
+
         .sidebar-dark-primary .nav-sidebar .nav-treeview > .nav-item > .nav-link {
             color: #c2c7d0;
         }
-        
+
         .sidebar-dark-primary .nav-sidebar .nav-treeview > .nav-item > .nav-link:hover {
             background-color: rgba(255, 255, 255, 0.05);
             color: #fff;
         }
-        
+
         /* Ensure arrow rotation works correctly */
         .nav-sidebar .nav-item.has-treeview > .nav-link > .right {
             transition: transform 0.3s ease-in-out;
         }
-        
+
         .nav-sidebar .nav-item.has-treeview.menu-open > .nav-link > .right {
             transform: rotate(-90deg);
         }
@@ -47,18 +47,7 @@
         <div class="wrapper">
             <!-- Navbar -->
             <nav class="main-header navbar navbar-expand navbar-white navbar-light">
-                <!-- Left navbar links -->
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
-                    </li>
-                    <li class="nav-item d-none d-sm-inline-block">
-                        <a href="index3.html" class="nav-link">Home</a>
-                    </li>
-                    <li class="nav-item d-none d-sm-inline-block">
-                        <a href="#" class="nav-link">Contact</a>
-                    </li>
-                </ul>
+
 
                 <!-- Right navbar links -->
                 <ul class="navbar-nav ml-auto">
@@ -373,29 +362,29 @@
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
-        
+
         <!-- Sidebar State Management -->
         <script>
         $(document).ready(function() {
             // Detectar página actual y marcar como activa
             setActiveMenuItem();
         });
-        
+
         function setActiveMenuItem() {
             var currentPath = window.location.pathname;
-            
+
             // Remover todas las clases active existentes
             $('.nav-link').removeClass('active');
             $('.nav-item').removeClass('menu-open');
-            
+
             // Buscar el enlace que coincida con la ruta actual
             $('.nav-link[href]').each(function() {
                 var linkPath = $(this).attr('href');
-                
+
                 // Comparar rutas (ignorar parámetros de query)
                 if (linkPath && currentPath.indexOf(linkPath) === 0) {
                     $(this).addClass('active');
-                    
+
                     // Si es un submenú, marcar el menú padre como activo también
                     var $parentMenu = $(this).closest('li.nav-item.has-treeview');
                     if ($parentMenu.length > 0) {

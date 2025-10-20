@@ -16,7 +16,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-lg-3 col-6">
         <div class="small-box bg-success">
             <div class="inner">
@@ -28,7 +28,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-lg-3 col-6">
         <div class="small-box bg-warning">
             <div class="inner">
@@ -40,7 +40,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-lg-3 col-6">
         <div class="small-box bg-danger">
             <div class="inner">
@@ -74,6 +74,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Nombre</th>
+                        <th>Imagen</th>
                         <th>Tipo</th>
                         <th>Ubicación</th>
                         <th>Estado</th>
@@ -85,6 +86,7 @@
                     <tr>
                         <td>#M001</td>
                         <td>Mezcladora Industrial</td>
+                        <td><img class="w-30" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPhH7sMQFO0IYgFvtbpf7PDe39VSIwHc0F_w&s" alt="Mezcladora Industrial"></td>
                         <td><span class="badge badge-primary">Mezclado</span></td>
                         <td>Línea A - Estación 1</td>
                         <td><span class="badge badge-success">Operativa</span></td>
@@ -104,6 +106,7 @@
                     <tr>
                         <td>#M002</td>
                         <td>Horno Convectivo</td>
+                        <td><img class="w-30" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPhH7sMQFO0IYgFvtbpf7PDe39VSIwHc0F_w&s" alt="Horno Convectivo"></td>
                         <td><span class="badge badge-info">Horneado</span></td>
                         <td>Línea A - Estación 2</td>
                         <td><span class="badge badge-success">Operativa</span></td>
@@ -123,6 +126,7 @@
                     <tr>
                         <td>#M003</td>
                         <td>Enfriador Industrial</td>
+                        <td><img class="w-30" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPhH7sMQFO0IYgFvtbpf7PDe39VSIwHc0F_w&s" alt="Enfriador Industrial"></td>
                         <td><span class="badge badge-secondary">Enfriamiento</span></td>
                         <td>Línea B - Estación 1</td>
                         <td><span class="badge badge-warning">Mantenimiento</span></td>
@@ -185,7 +189,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -200,7 +204,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">

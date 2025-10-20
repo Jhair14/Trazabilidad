@@ -13,11 +13,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('Almacenaje', function (Blueprint $table) {
-            $table->integer('IdAlmacenaje')->primary()->generatedAs()->always();
+            $table->id('IdAlmacenaje');
             $table->integer('IdLote');
             $table->string('Ubicacion', 100);
             $table->string('Condicion', 100);
-            $table->timestamp('FechaAlmacenaje')->nullable()->default(DB::raw('now()'));
+            $table->timestamp('FechaAlmacenaje')->nullable();
         });
     }
 

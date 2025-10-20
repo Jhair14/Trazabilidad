@@ -17,7 +17,7 @@ return new class extends Migration
             $table->integer('IdLote');
             $table->string('EstadoFinal', 50);
             $table->string('Motivo', 255)->nullable();
-            $table->timestamp('FechaEvaluacion')->nullable()->default(DB::raw('now()'));
+            $table->timestamp('FechaEvaluacion')->nullable()->default(DB::raw('CURRENT_TIMESTAMP'));
         });
     }
 

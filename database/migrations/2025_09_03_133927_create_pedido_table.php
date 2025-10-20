@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('Pedido', function (Blueprint $table) {
             $table->integer('IdPedido')->primary()->generatedAs()->always();
             $table->integer('IdCliente');
-            $table->timestamp('FechaCreacion')->nullable()->default(DB::raw('now()'));
+            $table->timestamp('FechaCreacion')->nullable()->default(DB::raw('CURRENT_TIMESTAMP'));
             $table->string('Estado', 50)->nullable()->default('pendiente');
             $table->text('Observaciones')->nullable();
             $table->text('Descripcion')->nullable();

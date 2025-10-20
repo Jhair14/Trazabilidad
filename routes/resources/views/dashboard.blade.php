@@ -19,7 +19,7 @@
             </a>
         </div>
     </div>
-    
+
     <div class="col-lg-3 col-6">
         <div class="small-box bg-success">
             <div class="inner">
@@ -34,22 +34,22 @@
             </a>
         </div>
     </div>
-    
+
     <div class="col-lg-3 col-6">
-        <div class="small-box bg-warning">
-            <div class="inner">
+        <div class="small-box bg-warning ">
+            <div class="inner ">
                 <h3>44</h3>
                 <p>Pedidos Pendientes</p>
             </div>
             <div class="icon">
                 <i class="fas fa-clock"></i>
             </div>
-            <a href="{{ route('gestion-pedidos') }}" class="small-box-footer">
-                Más información <i class="fas fa-arrow-circle-right"></i>
+            <a href="{{ route('gestion-pedidos') }}" class=" small-box-footer">
+                Más información <i class="fas fa-arrow-circle-right "></i>
             </a>
         </div>
     </div>
-    
+
     <div class="col-lg-3 col-6">
         <div class="small-box bg-danger">
             <div class="inner">
@@ -86,7 +86,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Gráfica de Estado de Lotes -->
     <div class="col-md-6">
         <div class="card">
@@ -159,7 +159,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Últimos Lotes -->
     <div class="col-md-6">
         <div class="card">
@@ -227,7 +227,7 @@ var pedidosChart = new Chart(pedidosCtx, {
             data: [44, 23, 35, 28, 15, 5],
             backgroundColor: [
                 '#facc15',
-                '#fb923c', 
+                '#fb923c',
                 '#60a5fa',
                 '#22c55e',
                 '#a78bfa',

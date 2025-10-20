@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('NombreMaquina', 100);
             $table->text('VariablesIngresadas');
             $table->boolean('CumpleEstandar');
-            $table->timestamp('FechaRegistro')->nullable()->default(DB::raw('now()'));
+            $table->timestamp('FechaRegistro')->nullable()->default(DB::raw('CURRENT_TIMESTAMP'));
             $table->integer('IdProcesoMaquina')->nullable();
         });
     }

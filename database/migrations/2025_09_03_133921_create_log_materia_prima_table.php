@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('LogMateriaPrima', function (Blueprint $table) {
             $table->integer('IdLog')->primary()->generatedAs()->always();
             $table->integer('IdMateriaPrimaBase');
-            $table->timestamp('Fecha')->default(DB::raw('now()'));
+            $table->timestamp('Fecha')->default(DB::raw('CURRENT_TIMESTAMP'));
             $table->string('TipoMovimiento', 20);
             $table->decimal('Cantidad', 10, 2);
             $table->string('Descripcion', 255)->nullable();
