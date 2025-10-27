@@ -74,63 +74,7 @@
                     </li>
 
                     <!-- Messages Dropdown Menu -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link" data-toggle="dropdown" href="#">
-                            <i class="far fa-comments"></i>
-                            <span class="badge badge-danger navbar-badge">3</span>
-                        </a>
-                        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-                            <a href="#" class="dropdown-item">
-                                <!-- Message Start -->
-                                <div class="media">
-                                    <img src="https://adminlte.io/themes/v3/dist/img/user1-128x128.jpg" alt="User Avatar" class="img-size-50 mr-3 img-circle">
-                                    <div class="media-body">
-                                        <h3 class="dropdown-item-title">
-                                            Brad Diesel
-                                            <span class="float-right text-sm text-danger"><i class="fas fa-star"></i></span>
-                                        </h3>
-                                        <p class="text-sm">Call me whenever you can...</p>
-                                        <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>
-                                    </div>
-                                </div>
-                                <!-- Message End -->
-                            </a>
-                            <div class="dropdown-divider"></div>
-                            <a href="#" class="dropdown-item">
-                                <!-- Message Start -->
-                                <div class="media">
-                                    <img src="https://adminlte.io/themes/v3/dist/img/user8-128x128.jpg" alt="User Avatar" class="img-size-50 img-circle mr-3">
-                                    <div class="media-body">
-                                        <h3 class="dropdown-item-title">
-                                            John Pierce
-                                            <span class="float-right text-sm text-muted"><i class="fas fa-star"></i></span>
-                                        </h3>
-                                        <p class="text-sm">I got your message bro</p>
-                                        <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>
-                                    </div>
-                                </div>
-                                <!-- Message End -->
-                            </a>
-                            <div class="dropdown-divider"></div>
-                            <a href="#" class="dropdown-item">
-                                <!-- Message Start -->
-                                <div class="media">
-                                    <img src="https://adminlte.io/themes/v3/dist/img/user3-128x128.jpg" alt="User Avatar" class="img-size-50 img-circle mr-3">
-                                    <div class="media-body">
-                                        <h3 class="dropdown-item-title">
-                                            Nora Silvester
-                                            <span class="float-right text-sm text-warning"><i class="fas fa-star"></i></span>
-                                        </h3>
-                                        <p class="text-sm">The subject goes here</p>
-                                        <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>
-                                    </div>
-                                </div>
-                                <!-- Message End -->
-                            </a>
-                            <div class="dropdown-divider"></div>
-                            <a href="#" class="dropdown-item dropdown-footer">See All Messages</a>
-                        </div>
-                    </li>
+
                     <!-- Notifications Dropdown Menu -->
                     <li class="nav-item dropdown">
                         <a class="nav-link" data-toggle="dropdown" href="#">
@@ -179,14 +123,7 @@
         <span class="brand-text font-weight-light">Trazabilidad</span>
     </a>
     <div class="sidebar">
-        <div class="user-panel mt-3 pb-3 mb-3 d-flex">
-            <div class="image">
-                <img src="https://adminlte.io/themes/v3/dist/img/user2-160x160.jpg" class="img-circle elevation-2" alt="User">
-            </div>
-            <div class="info">
-                <a href="#" class="d-block">{{ Auth::user()->name ?? 'Usuario' }}</a>
-            </div>
-        </div>
+
         <nav class="mt-2">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                 <!-- INICIO -->
@@ -379,17 +316,22 @@
 
             // Buscar el enlace que coincida con la ruta actual
             $('.nav-link[href]').each(function() {
-                var linkPath = $(this).attr('href');
+                var linkHref = $(this).attr('href');
 
-                // Comparar rutas (ignorar parámetros de query)
-                if (linkPath && currentPath.indexOf(linkPath) === 0) {
-                    $(this).addClass('active');
+                if (linkHref) {
+                    // Obtener la pathname del enlace para comparación precisa
+                    var linkPathname = new URL(linkHref, window.location.origin).pathname;
 
-                    // Si es un submenú, marcar el menú padre como activo también
-                    var $parentMenu = $(this).closest('li.nav-item.has-treeview');
-                    if ($parentMenu.length > 0) {
-                        $parentMenu.find('> a').addClass('active');
-                        $parentMenu.addClass('menu-open');
+                    // Comparar rutas exactas
+                    if (linkPathname === currentPath) {
+                        $(this).addClass('active');
+
+                        // Si es un submenú, marcar el menú padre como activo también
+                        var $parentMenu = $(this).closest('li.nav-item.has-treeview');
+                        if ($parentMenu.length > 0) {
+                            $parentMenu.find('> a').addClass('active');
+                            $parentMenu.addClass('menu-open');
+                        }
                     }
                 }
             });

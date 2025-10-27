@@ -3,8 +3,9 @@
 @section('page_title', 'Gestión de Máquinas')
 
 @section('content')
+
 <!-- Estadísticas de Máquinas -->
-<div class="row">
+<div class="row ">
     <div class="col-lg-3 col-6">
         <div class="small-box bg-info">
             <div class="inner">
@@ -67,84 +68,100 @@
             </button>
         </div>
     </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nombre</th>
-                        <th>Imagen</th>
-                        <th>Tipo</th>
-                        <th>Ubicación</th>
-                        <th>Estado</th>
-                        <th>Último Mantenimiento</th>
-                        <th class="text-right">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>#M001</td>
-                        <td>Mezcladora Industrial</td>
-                        <td><img class="w-30" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPhH7sMQFO0IYgFvtbpf7PDe39VSIwHc0F_w&s" alt="Mezcladora Industrial"></td>
-                        <td><span class="badge badge-primary">Mezclado</span></td>
-                        <td>Línea A - Estación 1</td>
-                        <td><span class="badge badge-success">Operativa</span></td>
-                        <td>15/01/2024</td>
-                        <td class="text-right">
-                            <button class="btn btn-sm btn-info" title="Ver">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn btn-sm btn-warning" title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-secondary" title="Mantenimiento">
-                                <i class="fas fa-tools"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>#M002</td>
-                        <td>Horno Convectivo</td>
-                        <td><img class="w-30" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPhH7sMQFO0IYgFvtbpf7PDe39VSIwHc0F_w&s" alt="Horno Convectivo"></td>
-                        <td><span class="badge badge-info">Horneado</span></td>
-                        <td>Línea A - Estación 2</td>
-                        <td><span class="badge badge-success">Operativa</span></td>
-                        <td>10/01/2024</td>
-                        <td class="text-right">
-                            <button class="btn btn-sm btn-info" title="Ver">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn btn-sm btn-warning" title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-secondary" title="Mantenimiento">
-                                <i class="fas fa-tools"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>#M003</td>
-                        <td>Enfriador Industrial</td>
-                        <td><img class="w-30" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPhH7sMQFO0IYgFvtbpf7PDe39VSIwHc0F_w&s" alt="Enfriador Industrial"></td>
-                        <td><span class="badge badge-secondary">Enfriamiento</span></td>
-                        <td>Línea B - Estación 1</td>
-                        <td><span class="badge badge-warning">Mantenimiento</span></td>
-                        <td>20/01/2024</td>
-                        <td class="text-right">
-                            <button class="btn btn-sm btn-info" title="Ver">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn btn-sm btn-warning" title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-secondary" title="Mantenimiento">
-                                <i class="fas fa-tools"></i>
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+    <div class="card-body">
+        <div class="row">
+            <!-- Tarjeta 1 -->
+            <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
+                <div style="border-top: 3px solid #007bff !important;" class="card h-100 card shadow-sm">
+                    <div class="card-body flex flex-column justify-center items-center">
+                        <div class="text-center">
+                            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPhH7sMQFO0IYgFvtbpf7PDe39VSIwHc0F_w&s" class="img-fluid mb-3" alt="Mezcladora Industrial" style="max-height: 150px; object-fit: cover;">
+                            <h5 class="card-title">Mezcladora Industrial</h5>
+                        </div>
+                        <p class="card-text">
+                            <span class="badge badge-primary">Mezclado</span><br>
+                            <strong>Ubicación:</strong> Línea A - Estación 1<br>
+                            <strong>Estado:</strong> <span class="badge badge-success">Operativa</span><br>
+                            <strong>Último Mantenimiento:</strong> 15/01/2024
+                        </p>
+                        <div class="text-center">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-info" title="Ver">
+                                    <i class="fas fa-eye"></i> Ver
+                                </button>
+                                <button class="btn btn-sm btn-warning" title="Editar">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn btn-sm btn-secondary" title="Mantenimiento">
+                                    <i class="fas fa-tools"></i> Mantenimiento
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta 2 -->
+            <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
+                <div style="border-top: 3px solid #007bff !important;" class="card h-100 shadow-sm">
+                    <div class="card-body flex flex-column justify-center items-center">
+                        <div class="text-center">
+                            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPhH7sMQFO0IYgFvtbpf7PDe39VSIwHc0F_w&s" class="img-fluid mb-3" alt="Horno Convectivo" style="max-height: 150px; object-fit: cover;">
+                            <h5 class="card-title">Horno Convectivo</h5>
+                        </div>
+                        <p class="card-text">
+                            <span class="badge badge-info">Horneado</span><br>
+                            <strong>Ubicación:</strong> Línea A - Estación 2<br>
+                            <strong>Estado:</strong> <span class="badge badge-success">Operativa</span><br>
+                            <strong>Último Mantenimiento:</strong> 10/01/2024
+                        </p>
+                        <div class="text-center">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-info" title="Ver">
+                                    <i class="fas fa-eye"></i> Ver
+                                </button>
+                                <button class="btn btn-sm btn-warning" title="Editar">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn btn-sm btn-secondary" title="Mantenimiento">
+                                    <i class="fas fa-tools"></i> Mantenimiento
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta 3 -->
+            <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
+                <div style="border-top: 3px solid #007bff !important;" class="card h-100 shadow-sm">
+                    <div class="card-body flex flex-column justify-center items-center">
+                        <div class="text-center">
+                            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPhH7sMQFO0IYgFvtbpf7PDe39VSIwHc0F_w&s" class="img-fluid mb-3" alt="Enfriador Industrial" style="max-height: 150px; object-fit: cover;">
+                            <h5 class="card-title">Enfriador Industrial</h5>
+                        </div>
+                        <p class="card-text">
+                            <span class="badge badge-secondary">Enfriamiento</span><br>
+                            <strong>Ubicación:</strong> Línea B - Estación 1<br>
+                            <strong>Estado:</strong> <span class="badge badge-warning">Mantenimiento</span><br>
+                            <strong>Último Mantenimiento:</strong> 20/01/2024
+                        </p>
+                        <div class="text-center">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-info" title="Ver">
+                                    <i class="fas fa-eye"></i> Ver
+                                </button>
+                                <button class="btn btn-sm btn-warning" title="Editar">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn btn-sm btn-secondary" title="Mantenimiento">
+                                    <i class="fas fa-tools"></i> Mantenimiento
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <div class="card-footer clearfix">

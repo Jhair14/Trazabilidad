@@ -11,12 +11,7 @@
                 <h3>150</h3>
                 <p>Pedidos Totales</p>
             </div>
-            <div class="icon">
-                <i class="fas fa-shopping-cart"></i>
-            </div>
-            <a href="{{ route('gestion-pedidos') }}" class="small-box-footer">
-                Más información <i class="fas fa-arrow-circle-right"></i>
-            </a>
+
         </div>
     </div>
 
@@ -26,12 +21,7 @@
                 <h3>53</h3>
                 <p>Lotes Totales</p>
             </div>
-            <div class="icon">
-                <i class="fas fa-boxes"></i>
-            </div>
-            <a href="{{ route('gestion-lotes') }}" class="small-box-footer">
-                Más información <i class="fas fa-arrow-circle-right"></i>
-            </a>
+
         </div>
     </div>
 
@@ -41,12 +31,7 @@
                 <h3>44</h3>
                 <p>Pedidos Pendientes</p>
             </div>
-            <div class="icon">
-                <i class="fas fa-clock"></i>
-            </div>
-            <a href="{{ route('gestion-pedidos') }}" class=" small-box-footer">
-                Más información <i class="fas fa-arrow-circle-right "></i>
-            </a>
+
         </div>
     </div>
 
@@ -56,12 +41,7 @@
                 <h3>65</h3>
                 <p>Lotes Certificados</p>
             </div>
-            <div class="icon">
-                <i class="fas fa-certificate"></i>
-            </div>
-            <a href="{{ route('certificados') }}" class="small-box-footer">
-                Más información <i class="fas fa-arrow-circle-right"></i>
-            </a>
+
         </div>
     </div>
 </div>
