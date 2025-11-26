@@ -18,12 +18,19 @@
                 </div>
             </div>
             <div class="card-body">
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show">
+                        {{ session('success') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+
                 <!-- Estadísticas -->
                 <div class="row mb-4">
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
                             <div class="inner">
-                                <h3>70</h3>
+                                <h3>{{ $stats['total'] }}</h3>
                                 <p>Total Lotes</p>
                             </div>
                             <div class="icon">
@@ -34,8 +41,8 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>55</h3>
-                                <p>Disponibles</p>
+                                <h3>{{ $stats['buen_estado'] }}</h3>
+                                <p>Buen Estado</p>
                             </div>
                             <div class="icon">
                                 <i class="fas fa-check-circle"></i>
@@ -45,8 +52,8 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>10</h3>
-                                <p>Por Vencer</p>
+                                <h3>{{ $stats['regular'] }}</h3>
+                                <p>Estado Regular</p>
                             </div>
                             <div class="icon">
                                 <i class="fas fa-exclamation-triangle"></i>
@@ -54,13 +61,13 @@
                         </div>
                     </div>
                     <div class="col-lg-3 col-6">
-                        <div class="small-box bg-danger">
+                        <div class="small-box bg-primary">
                             <div class="inner">
-                                <h3>5</h3>
-                                <p>Vencidos</p>
+                                <h3>{{ number_format($stats['total_cantidad'], 2) }}</h3>
+                                <p>Total Cantidad</p>
                             </div>
                             <div class="icon">
-                                <i class="fas fa-times-circle"></i>
+                                <i class="fas fa-cubes"></i>
                             </div>
                         </div>
                     </div>
@@ -174,107 +181,48 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @forelse($lotes_almacenados as $almacen)
                             <tr>
-                                <td>#L001</td>
-                                <td>Producto A</td>
-                                <td>A-01</td>
-                                <td>Estante 1, Nivel 3</td>
-                                <td>100 unidades</td>
-                                <td>2024-01-15</td>
-                                <td>2024-07-15</td>
-                                <td>180 días</td>
-                                <td><span class="badge badge-success">Disponible</span></td>
+                                <td>#{{ $almacen->batch->batch_code ?? $almacen->batch->batch_id }}</td>
+                                <td>{{ $almacen->batch->name ?? 'Sin nombre' }}</td>
+                                <td>{{ $almacen->location ?? 'N/A' }}</td>
+                                <td>{{ $almacen->location ?? 'N/A' }}</td>
+                                <td>{{ number_format($almacen->quantity, 2) }} unidades</td>
+                                <td>{{ \Carbon\Carbon::parse($almacen->storage_date)->format('Y-m-d') }}</td>
+                                <td>N/A</td>
+                                <td>N/A</td>
                                 <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
+                                    <span class="badge badge-info">{{ $almacen->condition ?? 'N/A' }}</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-info btn-sm" title="Ver Almacenajes" onclick="verAlmacenajes({{ $almacen->batch->batch_id }}, '{{ $almacen->batch->batch_code ?? $almacen->batch->batch_id }}')">
+                                        <i class="fas fa-eye"></i> Ver
                                     </button>
-                                    <button class="btn btn-warning btn-sm" title="Mover">
-                                        <i class="fas fa-arrows-alt"></i>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" title="Retirar">
-                                        <i class="fas fa-truck"></i>
-                                    </button>
+                                    <a href="{{ route('gestion-lotes.show', $almacen->batch->batch_id) }}" class="btn btn-secondary btn-sm" title="Ver Lote">
+                                        <i class="fas fa-info-circle"></i>
+                                    </a>
                                 </td>
                             </tr>
+                            @empty
                             <tr>
-                                <td>#L002</td>
-                                <td>Producto B</td>
-                                <td>A-02</td>
-                                <td>Estante 2, Nivel 3</td>
-                                <td>75 unidades</td>
-                                <td>2024-01-14</td>
-                                <td>2024-07-14</td>
-                                <td>15 días</td>
-                                <td><span class="badge badge-warning">Por Vencer</span></td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Mover">
-                                        <i class="fas fa-arrows-alt"></i>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" title="Retirar">
-                                        <i class="fas fa-truck"></i>
-                                    </button>
-                                    <button class="btn btn-success btn-sm" title="Priorizar">
-                                        <i class="fas fa-exclamation"></i>
-                                    </button>
-                                </td>
+                                <td colspan="10" class="text-center">No hay lotes almacenados</td>
                             </tr>
-                            <tr>
-                                <td>#L003</td>
-                                <td>Producto C</td>
-                                <td>A-03</td>
-                                <td>Estante 3, Nivel 3</td>
-                                <td>50 unidades</td>
-                                <td>2024-01-13</td>
-                                <td>2024-07-13</td>
-                                <td>-5 días</td>
-                                <td><span class="badge badge-danger">Vencido</span></td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Mover">
-                                        <i class="fas fa-arrows-alt"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Descartar">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    <button class="btn btn-secondary btn-sm" title="Historial">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                </td>
-                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Paginación -->
+                @if($lotes_almacenados->hasPages())
                 <div class="d-flex justify-content-between align-items-center mt-3">
                     <div>
-                        Mostrando 1 a 10 de 70 registros
+                        Mostrando {{ $lotes_almacenados->firstItem() }} a {{ $lotes_almacenados->lastItem() }} de {{ $lotes_almacenados->total() }} registros
                     </div>
                     <nav>
-                        <ul class="pagination pagination-sm">
-                            <li class="page-item disabled">
-                                <span class="page-link">Anterior</span>
-                            </li>
-                            <li class="page-item active">
-                                <span class="page-link">1</span>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">2</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">3</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">Siguiente</a>
-                            </li>
-                        </ul>
+                        {{ $lotes_almacenados->links() }}
                     </nav>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -312,19 +260,95 @@
 
 @endsection
 
+<!-- Modal Ver Almacenajes -->
+<div class="modal fade" id="verAlmacenajesModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Historial de Almacenajes - Lote #<span id="modal_ver_batch_code"></span></h4>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="almacenajes_historial">
+                    <div class="text-center">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p>Cargando historial...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
 function aplicarFiltros() {
-    // Aquí iría la lógica para aplicar filtros
-    alert('Filtros aplicados');
+    const estado = document.getElementById('filtroEstado').value;
+    const zona = document.getElementById('filtroZona').value;
+    const buscar = document.getElementById('buscarLote').value;
+    
+    const url = new URL(window.location);
+    if (estado) url.searchParams.set('estado', estado);
+    if (zona) url.searchParams.set('zona', zona);
+    if (buscar) url.searchParams.set('buscar', buscar);
+    window.location = url;
 }
 
 function buscarLote() {
-    // Aquí iría la lógica para buscar el lote
-    alert('Búsqueda realizada');
+    const codigo = document.getElementById('codigoLote').value;
+    const producto = document.getElementById('productoLote').value;
+    
+    const url = new URL(window.location);
+    if (codigo) url.searchParams.set('codigo', codigo);
+    if (producto) url.searchParams.set('producto', producto);
+    window.location = url;
     $('#buscarLoteModal').modal('hide');
-    // Recargar la página o actualizar la tabla
-    location.reload();
+}
+
+function verAlmacenajes(batchId, batchCode) {
+    $('#modal_ver_batch_code').text(batchCode);
+    $('#almacenajes_historial').html('<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Cargando historial...</p></div>');
+    
+    fetch(`{{ url('lotes-almacenados/lote') }}/${batchId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length === 0) {
+                $('#almacenajes_historial').html('<div class="alert alert-info"><i class="fas fa-info-circle mr-2"></i>No hay registros de almacenaje para este lote.</div>');
+            } else {
+                let html = '<div class="table-responsive"><table class="table table-bordered table-striped">';
+                html += '<thead><tr><th>Fecha</th><th>Ubicación</th><th>Condición</th><th>Cantidad</th><th>Observaciones</th></tr></thead>';
+                html += '<tbody>';
+                data.forEach(function(almacen) {
+                    const fecha = new Date(almacen.storage_date).toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    html += `<tr>
+                        <td>${fecha}</td>
+                        <td>${almacen.location || 'N/A'}</td>
+                        <td><span class="badge badge-info">${almacen.condition || 'N/A'}</span></td>
+                        <td>${almacen.quantity || 0}</td>
+                        <td>${almacen.observations || '-'}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                $('#almacenajes_historial').html(html);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            $('#almacenajes_historial').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle mr-2"></i>Error al cargar el historial de almacenajes.</div>');
+        });
+    
+    $('#verAlmacenajesModal').modal('show');
 }
 </script>
 @endpush

@@ -27,22 +27,53 @@
     <div class="card-body login-card-body">
       <p class="login-box-msg">Sign in to start your session</p>
 
-      <form action="{{ route('dashboard') }}" method="get">
+      <form action="{{ route('login') }}" method="post">
+        @csrf
+        @if(session('error'))
+          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+        @endif
+        @if($errors->any())
+          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <ul class="mb-0">
+              @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+              @endforeach
+            </ul>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+        @endif
         <div class="input-group mb-3">
-          <input type="email" class="form-control" placeholder="Usuario">
+          <input type="text" name="username" class="form-control @error('username') is-invalid @enderror" placeholder="Usuario" value="{{ old('username') }}" required autofocus>
           <div class="input-group-append">
             <div class="input-group-text">
-              <span class="fas fa-envelope"></span>
+              <span class="fas fa-user"></span>
             </div>
           </div>
+          @error('username')
+            <span class="invalid-feedback" role="alert">
+              <strong>{{ $message }}</strong>
+            </span>
+          @enderror
         </div>
         <div class="input-group mb-3">
-          <input type="password" class="form-control" placeholder="Password">
+          <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="Password" required>
           <div class="input-group-append">
             <div class="input-group-text">
               <span class="fas fa-lock"></span>
             </div>
           </div>
+          @error('password')
+            <span class="invalid-feedback" role="alert">
+              <strong>{{ $message }}</strong>
+            </span>
+          @enderror
         </div>
         <div>
           <div class="social-auth-links text-center mt-2 mb-3">

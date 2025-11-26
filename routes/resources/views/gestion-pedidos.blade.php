@@ -18,12 +18,25 @@
                 </div>
             </div>
             <div class="card-body">
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show">
+                        {{ session('success') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        {{ session('error') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+
                 <!-- Estadísticas -->
                 <div class="row mb-4">
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
                             <div class="inner">
-                                <h3>150</h3>
+                                <h3>{{ $pedidos->total() }}</h3>
                                 <p>Total Pedidos</p>
                             </div>
                             <div class="icon">
@@ -34,7 +47,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>44</h3>
+                                <h3>{{ $pedidos->where('priority', '>', 0)->count() }}</h3>
                                 <p>Pendientes</p>
                             </div>
                             <div class="icon">
@@ -45,7 +58,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>28</h3>
+                                <h3>{{ $pedidos->where('priority', 0)->count() }}</h3>
                                 <p>Completados</p>
                             </div>
                             <div class="icon">
@@ -56,7 +69,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-primary">
                             <div class="inner">
-                                <h3>35</h3>
+                                <h3>{{ $pedidos->where('priority', '>', 0)->where('priority', '<=', 5)->count() }}</h3>
                                 <p>En Proceso</p>
                             </div>
                             <div class="icon">
@@ -106,98 +119,53 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @forelse($pedidos as $pedido)
                             <tr>
-                                <td>#P001</td>
-                                <td>Cliente A</td>
-                                <td>Producto de alta calidad</td>
-                                <td><span class="badge badge-warning">Pendiente</span></td>
-                                <td>2024-01-15</td>
-                                <td>2024-01-25</td>
+                                <td>#{{ $pedido->order_number ?? $pedido->order_id }}</td>
+                                <td>{{ $pedido->customer->business_name ?? 'N/A' }}</td>
+                                <td>{{ $pedido->description ?? 'Sin descripción' }}</td>
+                                <td>
+                                    @if($pedido->priority == 0)
+                                        <span class="badge badge-success">Completado</span>
+                                    @elseif($pedido->priority > 5)
+                                        <span class="badge badge-danger">Urgente</span>
+                                    @elseif($pedido->priority > 0)
+                                        <span class="badge badge-warning">Pendiente</span>
+                                    @else
+                                        <span class="badge badge-info">En Proceso</span>
+                                    @endif
+                                </td>
+                                <td>{{ \Carbon\Carbon::parse($pedido->creation_date)->format('Y-m-d') }}</td>
+                                <td>{{ $pedido->delivery_date ? \Carbon\Carbon::parse($pedido->delivery_date)->format('Y-m-d') : 'N/A' }}</td>
                                 <td>
                                     <button class="btn btn-info btn-sm" title="Ver">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar">
+                                    <button class="btn btn-warning btn-sm" title="Editar" onclick="editarPedido({{ $pedido->order_id }})">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="btn btn-success btn-sm" title="Procesar">
-                                        <i class="fas fa-play"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Cancelar">
-                                        <i class="fas fa-times"></i>
-                                    </button>
                                 </td>
                             </tr>
+                            @empty
                             <tr>
-                                <td>#P002</td>
-                                <td>Cliente B</td>
-                                <td>Producto estándar</td>
-                                <td><span class="badge badge-info">En Proceso</span></td>
-                                <td>2024-01-14</td>
-                                <td>2024-01-24</td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-success btn-sm" title="Completar">
-                                        <i class="fas fa-check"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Cancelar">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </td>
+                                <td colspan="7" class="text-center">No hay pedidos registrados</td>
                             </tr>
-                            <tr>
-                                <td>#P003</td>
-                                <td>Cliente C</td>
-                                <td>Producto premium</td>
-                                <td><span class="badge badge-success">Completado</span></td>
-                                <td>2024-01-13</td>
-                                <td>2024-01-23</td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" title="Certificado">
-                                        <i class="fas fa-certificate"></i>
-                                    </button>
-                                    <button class="btn btn-secondary btn-sm" title="Archivar">
-                                        <i class="fas fa-archive"></i>
-                                    </button>
-                                </td>
-                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Paginación -->
+                @if($pedidos->hasPages())
                 <div class="d-flex justify-content-between align-items-center mt-3">
                     <div>
-                        Mostrando 1 a 10 de 150 registros
+                        Mostrando {{ $pedidos->firstItem() }} a {{ $pedidos->lastItem() }} de {{ $pedidos->total() }} registros
                     </div>
                     <nav>
-                        <ul class="pagination pagination-sm">
-                            <li class="page-item disabled">
-                                <span class="page-link">Anterior</span>
-                            </li>
-                            <li class="page-item active">
-                                <span class="page-link">1</span>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">2</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">3</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">Siguiente</a>
-                            </li>
-                        </ul>
+                        {{ $pedidos->links() }}
                     </nav>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -267,17 +235,21 @@
 
 @push('scripts')
 <script>
-function aplicarFiltros() {
-    // Aquí iría la lógica para aplicar filtros
-    alert('Filtros aplicados');
+function editarPedido(id) {
+    // Implementar edición
+    window.location.href = '{{ route("gestion-pedidos") }}/' + id + '/edit';
 }
 
-function crearPedido() {
-    // Aquí iría la lógica para crear el pedido
-    alert('Pedido creado exitosamente');
-    $('#crearPedidoModal').modal('hide');
-    // Recargar la página o actualizar la tabla
-    location.reload();
+function aplicarFiltros() {
+    const estado = document.getElementById('filtroEstado').value;
+    const buscar = document.getElementById('buscarCliente').value;
+    const fecha = document.getElementById('filtroFecha').value;
+    
+    const url = new URL(window.location);
+    if (estado) url.searchParams.set('estado', estado);
+    if (buscar) url.searchParams.set('buscar', buscar);
+    if (fecha) url.searchParams.set('fecha', fecha);
+    window.location = url;
 }
 </script>
 @endpush

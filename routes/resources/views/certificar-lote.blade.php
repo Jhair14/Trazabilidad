@@ -3,12 +3,25 @@
 @section('page_title', 'Certificar Lote')
 
 @section('content')
+@if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show">
+        {{ session('success') }}
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+    </div>
+@endif
+@if(session('error'))
+    <div class="alert alert-danger alert-dismissible fade show">
+        {{ session('error') }}
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+    </div>
+@endif
+
 <!-- Estadísticas de Certificación -->
 <div class="row">
     <div class="col-lg-3 col-6">
         <div class="small-box bg-info">
             <div class="inner">
-                <h3>15</h3>
+                <h3>{{ $lotes->count() }}</h3>
                 <p>Lotes Pendientes</p>
             </div>
             <div class="icon">
@@ -20,8 +33,8 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-success">
             <div class="inner">
-                <h3>8</h3>
-                <p>Certificados Hoy</p>
+                <h3>{{ $lotes->where('latestFinalEvaluation', '!=', null)->filter(function($l) { return !str_contains(strtolower($l->latestFinalEvaluation->reason ?? ''), 'falló'); })->count() }}</h3>
+                <p>Certificados</p>
             </div>
             <div class="icon">
                 <i class="fas fa-check-circle"></i>
@@ -32,8 +45,8 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-warning">
             <div class="inner">
-                <h3>3</h3>
-                <p>En Revisión</p>
+                <h3>{{ $lotes->where('start_time', '!=', null)->where('end_time', null)->count() }}</h3>
+                <p>En Proceso</p>
             </div>
             <div class="icon">
                 <i class="fas fa-search"></i>
@@ -44,8 +57,8 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-danger">
             <div class="inner">
-                <h3>2</h3>
-                <p>Rechazados</p>
+                <h3>{{ $lotes->filter(function($l) { return $l->latestFinalEvaluation && str_contains(strtolower($l->latestFinalEvaluation->reason ?? ''), 'falló'); })->count() }}</h3>
+                <p>No Certificados</p>
             </div>
             <div class="icon">
                 <i class="fas fa-times-circle"></i>
@@ -76,72 +89,53 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @forelse($lotes as $lote)
                     <tr>
-                        <td>#L001</td>
-                        <td>Lote Producción A</td>
-                        <td>Cliente ABC</td>
-                        <td>15/01/2024</td>
-                        <td><span class="badge badge-warning">Pendiente</span></td>
+                        <td>#{{ $lote->batch_code ?? $lote->batch_id }}</td>
+                        <td>{{ $lote->name ?? 'Sin nombre' }}</td>
+                        <td>{{ $lote->order->customer->business_name ?? 'N/A' }}</td>
+                        <td>{{ \Carbon\Carbon::parse($lote->creation_date)->format('d/m/Y') }}</td>
+                        <td>
+                            @if($lote->latestFinalEvaluation)
+                                @if(str_contains(strtolower($lote->latestFinalEvaluation->reason ?? ''), 'falló'))
+                                    <span class="badge badge-danger">No Certificado</span>
+                                @else
+                                    <span class="badge badge-success">Certificado</span>
+                                @endif
+                            @elseif($lote->processMachineRecords->isNotEmpty())
+                                <span class="badge badge-warning">Listo para Certificar</span>
+                            @else
+                                <span class="badge badge-info">Pendiente - Sin Proceso</span>
+                            @endif
+                        </td>
                         <td class="text-right">
-                            <button class="btn btn-sm btn-info" title="Ver Detalles">
+                            <a href="{{ route('gestion-lotes.show', $lote->batch_id) }}" class="btn btn-sm btn-info" title="Ver Detalles">
                                 <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn btn-sm btn-success" title="Certificar">
-                                <i class="fas fa-check"></i>
-                            </button>
-                            <button class="btn btn-sm btn-danger" title="Rechazar">
-                                <i class="fas fa-times"></i>
-                            </button>
+                            </a>
+                            @if(!$lote->latestFinalEvaluation)
+                                @if($lote->processMachineRecords->isEmpty())
+                                    <a href="{{ route('proceso-transformacion', $lote->batch_id) }}" class="btn btn-sm btn-warning" title="Ir a Proceso de Transformación">
+                                        <i class="fas fa-cogs"></i> Proceso
+                                    </a>
+                                @else
+                                    <form method="POST" action="{{ route('certificar-lote.finalizar', $lote->batch_id) }}" style="display: inline;">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-success" title="Certificar" onclick="return confirm('¿Desea certificar este lote?')">
+                                            <i class="fas fa-check"></i> Certificar
+                                        </button>
+                                    </form>
+                                @endif
+                            @endif
                         </td>
                     </tr>
+                    @empty
                     <tr>
-                        <td>#L002</td>
-                        <td>Lote Producción B</td>
-                        <td>Cliente XYZ</td>
-                        <td>16/01/2024</td>
-                        <td><span class="badge badge-info">En Revisión</span></td>
-                        <td class="text-right">
-                            <button class="btn btn-sm btn-info" title="Ver Detalles">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn btn-sm btn-success" title="Certificar">
-                                <i class="fas fa-check"></i>
-                            </button>
-                            <button class="btn btn-sm btn-danger" title="Rechazar">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </td>
+                        <td colspan="6" class="text-center">No hay lotes pendientes de certificación</td>
                     </tr>
-                    <tr>
-                        <td>#L003</td>
-                        <td>Lote Producción C</td>
-                        <td>Cliente DEF</td>
-                        <td>17/01/2024</td>
-                        <td><span class="badge badge-warning">Pendiente</span></td>
-                        <td class="text-right">
-                            <button class="btn btn-sm btn-info" title="Ver Detalles">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn btn-sm btn-success" title="Certificar">
-                                <i class="fas fa-check"></i>
-                            </button>
-                            <button class="btn btn-sm btn-danger" title="Rechazar">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </td>
-                    </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
-    </div>
-    <div class="card-footer clearfix">
-        <ul class="pagination pagination-sm m-0 float-right">
-            <li class="page-item"><a class="page-link" href="#">&laquo;</a></li>
-            <li class="page-item"><a class="page-link" href="#">1</a></li>
-            <li class="page-item"><a class="page-link" href="#">2</a></li>
-            <li class="page-item"><a class="page-link" href="#">3</a></li>
-            <li class="page-item"><a class="page-link" href="#">&raquo;</a></li>
-        </ul>
     </div>
 </div>
 

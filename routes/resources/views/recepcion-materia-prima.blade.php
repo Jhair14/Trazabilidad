@@ -18,12 +18,25 @@
                 </div>
             </div>
             <div class="card-body">
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show">
+                        {{ session('success') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        {{ session('error') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+
                 <!-- Estadísticas -->
                 <div class="row mb-4">
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
                             <div class="inner">
-                                <h3>35</h3>
+                                <h3>{{ $stats['total_recepciones'] }}</h3>
                                 <p>Total Recepciones</p>
                             </div>
                             <div class="icon">
@@ -34,7 +47,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>28</h3>
+                                <h3>{{ $stats['completadas'] }}</h3>
                                 <p>Completadas</p>
                             </div>
                             <div class="icon">
@@ -45,8 +58,8 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>5</h3>
-                                <p>En Proceso</p>
+                                <h3>{{ $stats['pendientes'] }}</h3>
+                                <p>Solicitudes Pendientes</p>
                             </div>
                             <div class="icon">
                                 <i class="fas fa-clock"></i>
@@ -54,13 +67,13 @@
                         </div>
                     </div>
                     <div class="col-lg-3 col-6">
-                        <div class="small-box bg-danger">
-                        <div class="inner">
-                                <h3>2</h3>
-                                <p>Pendientes</p>
+                        <div class="small-box bg-primary">
+                            <div class="inner">
+                                <h3>{{ $materias_primas->count() }}</h3>
+                                <p>Recientes</p>
                             </div>
                             <div class="icon">
-                                <i class="fas fa-exclamation"></i>
+                                <i class="fas fa-list"></i>
                             </div>
                         </div>
                     </div>
@@ -90,109 +103,117 @@
                     </div>
                 </div>
 
-                <!-- Tabla de Recepciones -->
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Proveedor</th>
-                                <th>Materia Prima</th>
-                                <th>Cantidad Recibida</th>
-                                <th>Cantidad Esperada</th>
-                                <th>Estado</th>
-                                <th>Fecha Recepción</th>
-                                <th>Responsable</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>#R001</td>
-                                <td>Proveedor A</td>
-                                <td>Harina de Trigo</td>
-                                <td>50.00 kg</td>
-                                <td>50.00 kg</td>
-                                <td><span class="badge badge-success">Completada</span></td>
-                                <td>2024-01-15</td>
-                                <td>Juan Pérez</td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" title="Certificado">
-                                        <i class="fas fa-certificate"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#R002</td>
-                                <td>Proveedor B</td>
-                                <td>Azúcar Blanca</td>
-                                <td>24.50 kg</td>
-                                <td>25.00 kg</td>
-                                <td><span class="badge badge-warning">En Proceso</span></td>
-                                <td>2024-01-14</td>
-                                <td>María García</td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-success btn-sm" title="Completar">
-                                        <i class="fas fa-check"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Ajustar">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#R003</td>
-                                <td>Proveedor C</td>
-                                <td>Sal Marina</td>
-                                <td>0.00 kg</td>
-                                <td>10.00 kg</td>
-                                <td><span class="badge badge-danger">Pendiente</span></td>
-                                <td>2024-01-13</td>
-                                <td>Carlos López</td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" title="Procesar">
-                                        <i class="fas fa-play"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Tabla de Solicitudes Pendientes -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Solicitudes Pendientes de Recepción</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Solicitud</th>
+                                        <th>Pedido</th>
+                                        <th>Materias Primas</th>
+                                        <th>Cantidades</th>
+                                        <th>Fecha Requerida</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($solicitudes as $solicitud)
+                                    <tr>
+                                        <td>#{{ $solicitud->request_number ?? $solicitud->request_id }}</td>
+                                        <td>Pedido #{{ $solicitud->order->order_number ?? $solicitud->order->order_id }}</td>
+                                        <td>
+                                            @foreach($solicitud->details as $detail)
+                                                {{ $detail->material->name ?? 'N/A' }}<br>
+                                            @endforeach
+                                        </td>
+                                        <td>
+                                            @foreach($solicitud->details as $detail)
+                                                {{ number_format($detail->requested_quantity, 2) }} {{ $detail->material->unit->code ?? '' }}<br>
+                                            @endforeach
+                                        </td>
+                                        <td>{{ $solicitud->required_date ? \Carbon\Carbon::parse($solicitud->required_date)->format('Y-m-d') : 'N/A' }}</td>
+                                        <td>
+                                            @foreach($solicitud->details as $detail)
+                                                <button class="btn btn-primary btn-sm mb-1" 
+                                                        onclick="recepcionarMaterial({{ $solicitud->request_id }}, {{ $detail->material_id }}, '{{ $detail->material->name }}', {{ $detail->requested_quantity }}, '{{ $detail->material->unit->code ?? '' }}')" 
+                                                        title="Recepcionar {{ $detail->material->name }}">
+                                                    <i class="fas fa-check"></i> Recepcionar {{ $detail->material->name }}
+                                                </button><br>
+                                            @endforeach
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center">No hay solicitudes pendientes</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    @if($solicitudes->hasPages())
+                    <div class="card-footer">
+                        {{ $solicitudes->links() }}
+                    </div>
+                    @endif
                 </div>
 
-                <!-- Paginación -->
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Mostrando 1 a 10 de 35 registros
+                <!-- Tabla de Recepciones Recientes -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Recepciones Recientes</h3>
                     </div>
-                    <nav>
-                        <ul class="pagination pagination-sm">
-                            <li class="page-item disabled">
-                                <span class="page-link">Anterior</span>
-                            </li>
-                            <li class="page-item active">
-                                <span class="page-link">1</span>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">2</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">3</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">Siguiente</a>
-                            </li>
-                        </ul>
-                    </nav>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Proveedor</th>
+                                        <th>Materia Prima</th>
+                                        <th>Cantidad</th>
+                                        <th>Fecha Recepción</th>
+                                        <th>Conforme</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($materias_primas as $mp)
+                                    <tr>
+                                        <td>#{{ $mp->raw_material_id }}</td>
+                                        <td>{{ $mp->supplier->business_name ?? 'N/A' }}</td>
+                                        <td>{{ $mp->materialBase->name ?? 'N/A' }}</td>
+                                        <td>{{ number_format($mp->quantity, 2) }} {{ $mp->materialBase->unit->code ?? '' }}</td>
+                                        <td>{{ $mp->receipt_date ? \Carbon\Carbon::parse($mp->receipt_date)->format('Y-m-d') : 'N/A' }}</td>
+                                        <td>
+                                            @if($mp->receipt_conformity)
+                                                <span class="badge badge-success">Sí</span>
+                                            @else
+                                                <span class="badge badge-danger">No</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-info btn-sm" title="Ver">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="7" class="text-center">No hay recepciones registradas</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -209,28 +230,114 @@
                 </button>
             </div>
             <div class="modal-body">
-                <form id="registrarRecepcionForm">
+                @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+                <form method="POST" action="{{ route('recepcion-materia-prima') }}" id="registrarRecepcionForm">
+                    @csrf
+                    <input type="hidden" id="request_id" name="request_id" value="">
+                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="proveedorRecepcion">Proveedor</label>
-                                <select class="form-control" id="proveedorRecepcion">
+                                <label for="supplier_id">
+                                    <i class="fas fa-truck mr-1"></i>
+                                    Proveedor <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control @error('supplier_id') is-invalid @enderror" 
+                                        id="supplier_id" name="supplier_id" required>
                                     <option value="">Seleccionar proveedor...</option>
-                                    <option value="1">Proveedor A</option>
-                                    <option value="2">Proveedor B</option>
-                                    <option value="3">Proveedor C</option>
+                                    @foreach($proveedores as $prov)
+                                        <option value="{{ $prov->supplier_id }}" {{ old('supplier_id') == $prov->supplier_id ? 'selected' : '' }}>
+                                            {{ $prov->business_name }}
+                                        </option>
+                                    @endforeach
                                 </select>
+                                @error('supplier_id')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="materiaPrimaRecepcion">Materia Prima</label>
-                                <select class="form-control" id="materiaPrimaRecepcion">
+                                <label for="material_id">
+                                    <i class="fas fa-seedling mr-1"></i>
+                                    Materia Prima Base <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control @error('material_id') is-invalid @enderror" 
+                                        id="material_id" name="material_id" required>
                                     <option value="">Seleccionar materia prima...</option>
-                                    <option value="1">Harina de Trigo</option>
-                                    <option value="2">Azúcar Blanca</option>
-                                    <option value="3">Sal Marina</option>
-                                    <option value="4">Aceite de Oliva</option>
+                                    @foreach($materias_base as $mp)
+                                        <option value="{{ $mp->material_id }}" {{ old('material_id') == $mp->material_id ? 'selected' : '' }}>
+                                            {{ $mp->name }} ({{ $mp->unit->code ?? 'N/A' }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('material_id')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="quantity">
+                                    <i class="fas fa-weight mr-1"></i>
+                                    Cantidad Recibida <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" class="form-control @error('quantity') is-invalid @enderror" 
+                                       id="quantity" name="quantity" 
+                                       value="{{ old('quantity') }}" 
+                                       placeholder="0.00" step="0.01" min="0" required>
+                                @error('quantity')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="receipt_date">
+                                    <i class="fas fa-calendar mr-1"></i>
+                                    Fecha de Recepción <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control @error('receipt_date') is-invalid @enderror" 
+                                       id="receipt_date" name="receipt_date" 
+                                       value="{{ old('receipt_date', date('Y-m-d')) }}" required>
+                                @error('receipt_date')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="expiration_date">
+                                    <i class="fas fa-calendar-times mr-1"></i>
+                                    Fecha de Vencimiento
+                                </label>
+                                <input type="date" class="form-control" id="expiration_date" 
+                                       name="expiration_date" value="{{ old('expiration_date') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="receipt_conformity">
+                                    <i class="fas fa-check-circle mr-1"></i>
+                                    Recepción Conforme
+                                </label>
+                                <select class="form-control" id="receipt_conformity" name="receipt_conformity">
+                                    <option value="1" {{ old('receipt_conformity', '1') == '1' ? 'selected' : '' }}>Sí</option>
+                                    <option value="0" {{ old('receipt_conformity') == '0' ? 'selected' : '' }}>No</option>
                                 </select>
                             </div>
                         </div>
@@ -239,42 +346,173 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="cantidadEsperada">Cantidad Esperada</label>
-                                <input type="number" class="form-control" id="cantidadEsperada" placeholder="0.00" step="0.01" min="0">
+                                <label for="invoice_number">
+                                    <i class="fas fa-file-invoice mr-1"></i>
+                                    Número de Factura <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control @error('invoice_number') is-invalid @enderror" 
+                                       id="invoice_number" name="invoice_number" 
+                                       value="{{ old('invoice_number') }}" 
+                                       placeholder="Ej: FACT-001" required>
+                                @error('invoice_number')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="cantidadRecibida">Cantidad Recibida</label>
-                                <input type="number" class="form-control" id="cantidadRecibida" placeholder="0.00" step="0.01" min="0">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="fechaRecepcion">Fecha de Recepción</label>
-                                <input type="date" class="form-control" id="fechaRecepcion">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="loteProveedor">Lote del Proveedor</label>
-                                <input type="text" class="form-control" id="loteProveedor" placeholder="Ej: LOTE-2024-001">
+                                <label for="supplier_batch">
+                                    <i class="fas fa-barcode mr-1"></i>
+                                    Lote del Proveedor
+                                </label>
+                                <input type="text" class="form-control" id="supplier_batch" 
+                                       name="supplier_batch" value="{{ old('supplier_batch') }}" 
+                                       placeholder="Ej: LOTE-2024-001">
                             </div>
                         </div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="observacionesRecepcion">Observaciones</label>
-                        <textarea class="form-control" id="observacionesRecepcion" rows="3" placeholder="Observaciones sobre la recepción..."></textarea>
+                        <label for="observations">
+                            <i class="fas fa-comment-alt mr-1"></i>
+                            Observaciones
+                        </label>
+                        <textarea class="form-control" id="observations" name="observations" 
+                                  rows="3" placeholder="Observaciones sobre la recepción...">{{ old('observations') }}</textarea>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="registrarRecepcion()">Registrar Recepción</button>
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('registrarRecepcionForm').submit();">Registrar Recepción</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Recepcionar desde Solicitud (similar al proyecto antiguo) -->
+<div class="modal fade" id="recepcionarSolicitudModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h4 class="modal-title">Recepción de Materia Prima</h4>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="recepcionError" class="alert alert-danger" style="display: none;"></div>
+                <div id="recepcionSuccess" class="alert alert-success" style="display: none;"></div>
+                
+                <form method="POST" action="{{ route('recepcion-materia-prima') }}" id="recepcionarSolicitudForm">
+                    @csrf
+                    <input type="hidden" id="recepcion_request_id" name="request_id" value="">
+                    <input type="hidden" id="recepcion_material_id" name="material_id" value="">
+                    
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Información del Material</h5>
+                            <p class="mb-1"><strong>Nombre:</strong> <span id="recepcion_material_name">-</span></p>
+                            <p class="mb-1"><strong>Cantidad Solicitada:</strong> <span id="recepcion_requested_quantity">-</span> <span id="recepcion_unit">-</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="recepcion_supplier_id">
+                                    <i class="fas fa-truck mr-1"></i>
+                                    Proveedor <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control" id="recepcion_supplier_id" name="supplier_id" required>
+                                    <option value="">Seleccionar proveedor...</option>
+                                    @foreach($proveedores as $prov)
+                                        <option value="{{ $prov->supplier_id }}">
+                                            {{ $prov->business_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="recepcion_quantity">
+                                    <i class="fas fa-weight mr-1"></i>
+                                    Cantidad Recibida <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" class="form-control" 
+                                       id="recepcion_quantity" name="quantity" 
+                                       placeholder="0.00" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="recepcion_receipt_date">
+                                    <i class="fas fa-calendar mr-1"></i>
+                                    Fecha de Recepción <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control" 
+                                       id="recepcion_receipt_date" name="receipt_date" 
+                                       value="{{ date('Y-m-d') }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="recepcion_invoice_number">
+                                    <i class="fas fa-file-invoice mr-1"></i>
+                                    Número de Factura <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" 
+                                       id="recepcion_invoice_number" name="invoice_number" 
+                                       placeholder="Ej: FACT-001" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" 
+                                   id="recepcion_conformity" name="receipt_conformity" 
+                                   value="1" checked>
+                            <label class="custom-control-label" for="recepcion_conformity">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Recepción conforme
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <i class="fas fa-signature mr-1"></i>
+                            Firma de Recepción <span class="text-danger">*</span>
+                        </label>
+                        <div class="border rounded p-2 mb-2" style="background-color: #f8f9fa;">
+                            <canvas id="signatureCanvas" width="600" height="150" style="border: 1px solid #ddd; cursor: crosshair; width: 100%;"></canvas>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="clearSignature()">
+                            <i class="fas fa-eraser mr-1"></i> Limpiar Firma
+                        </button>
+                        <input type="hidden" id="recepcion_signature" name="receipt_signature" value="">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="recepcion_observations">
+                            <i class="fas fa-comment-alt mr-1"></i>
+                            Observaciones
+                        </label>
+                        <textarea class="form-control" id="recepcion_observations" name="observations" 
+                                  rows="2" placeholder="Observaciones sobre la recepción..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarRecepcion()">
+                    <i class="fas fa-save mr-1"></i> Guardar Recepción
+                </button>
             </div>
         </div>
     </div>
@@ -283,19 +521,150 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.9/dist/signature_pad.umd.min.js"></script>
 <script>
-function aplicarFiltros() {
-    // Aquí iría la lógica para aplicar filtros
-    alert('Filtros aplicados');
+const solicitudes = @json($solicitudesJson);
+let signaturePad = null;
+
+// Inicializar canvas de firma cuando se abre el modal
+$('#recepcionarSolicitudModal').on('shown.bs.modal', function () {
+    const canvas = document.getElementById('signatureCanvas');
+    if (canvas && !signaturePad) {
+        signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255, 255, 255)',
+            penColor: 'rgb(0, 0, 0)'
+        });
+    }
+});
+
+// Limpiar canvas cuando se cierra el modal
+$('#recepcionarSolicitudModal').on('hidden.bs.modal', function () {
+    if (signaturePad) {
+        signaturePad.clear();
+    }
+    document.getElementById('recepcionError').style.display = 'none';
+    document.getElementById('recepcionSuccess').style.display = 'none';
+});
+
+function clearSignature() {
+    if (signaturePad) {
+        signaturePad.clear();
+    }
 }
 
-function registrarRecepcion() {
-    // Aquí iría la lógica para registrar la recepción
-    alert('Recepción registrada exitosamente');
-    $('#registrarRecepcionModal').modal('hide');
-    // Recargar la página o actualizar la tabla
-    location.reload();
+function recepcionarMaterial(requestId, materialId, materialName, requestedQuantity, unit) {
+    // Establecer valores en el formulario
+    document.getElementById('recepcion_request_id').value = requestId;
+    document.getElementById('recepcion_material_id').value = materialId;
+    document.getElementById('recepcion_material_name').textContent = materialName;
+    document.getElementById('recepcion_requested_quantity').textContent = requestedQuantity;
+    document.getElementById('recepcion_unit').textContent = unit;
+    document.getElementById('recepcion_quantity').value = requestedQuantity;
+    
+    // Limpiar otros campos
+    document.getElementById('recepcion_supplier_id').value = '';
+    document.getElementById('recepcion_invoice_number').value = '';
+    document.getElementById('recepcion_observations').value = '';
+    document.getElementById('recepcion_conformity').checked = true;
+    
+    // Limpiar firma si existe
+    if (signaturePad) {
+        signaturePad.clear();
+    }
+    
+    // Mostrar modal
+    $('#recepcionarSolicitudModal').modal('show');
 }
+
+function guardarRecepcion() {
+    const errorDiv = document.getElementById('recepcionError');
+    const successDiv = document.getElementById('recepcionSuccess');
+    
+    // Ocultar mensajes anteriores
+    errorDiv.style.display = 'none';
+    successDiv.style.display = 'none';
+    
+    // Validar firma
+    if (!signaturePad || signaturePad.isEmpty()) {
+        errorDiv.textContent = 'La firma es obligatoria';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Obtener firma como base64
+    const signatureData = signaturePad.toDataURL('image/png');
+    document.getElementById('recepcion_signature').value = signatureData;
+    
+    // Validar campos requeridos
+    const supplierId = document.getElementById('recepcion_supplier_id').value;
+    const quantity = document.getElementById('recepcion_quantity').value;
+    const invoiceNumber = document.getElementById('recepcion_invoice_number').value;
+    
+    if (!supplierId || !quantity || !invoiceNumber) {
+        errorDiv.textContent = 'Por favor complete todos los campos requeridos';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Enviar formulario
+    document.getElementById('recepcionarSolicitudForm').submit();
+}
+
+function recepcionarSolicitud(requestId) {
+    // Buscar la solicitud en los datos cargados
+    const solicitud = solicitudes.find(s => s.request_id == requestId);
+    
+    if (!solicitud) {
+        alert('No se encontró la solicitud');
+        return;
+    }
+    
+    // Establecer el request_id
+    document.getElementById('request_id').value = requestId;
+    
+    // Si la solicitud tiene un solo detalle, prellenar el material
+    if (solicitud.details && solicitud.details.length > 0) {
+        const firstDetail = solicitud.details[0];
+        if (firstDetail.material_id) {
+            document.getElementById('material_id').value = firstDetail.material_id;
+        }
+    }
+    
+    // Limpiar otros campos para que el usuario los complete
+    document.getElementById('supplier_id').value = '';
+    document.getElementById('quantity').value = '';
+    document.getElementById('invoice_number').value = '';
+    document.getElementById('supplier_batch').value = '';
+    document.getElementById('observations').value = '';
+    
+    // Cambiar el título del modal
+    document.querySelector('#registrarRecepcionModal .modal-title').textContent = 
+        'Recepcionar Solicitud #' + (solicitud.request_number || solicitud.request_id);
+    
+    // Abrir modal
+    $('#registrarRecepcionModal').modal('show');
+}
+
+function aplicarFiltros() {
+    const estado = document.getElementById('filtroEstado').value;
+    const fecha = document.getElementById('filtroFecha').value;
+    const buscar = document.getElementById('buscarProveedor').value;
+    
+    const url = new URL(window.location);
+    if (estado) url.searchParams.set('estado', estado);
+    if (fecha) url.searchParams.set('fecha', fecha);
+    if (buscar) url.searchParams.set('buscar', buscar);
+    window.location = url;
+}
+
+// Limpiar el request_id cuando se abre el modal manualmente (sin solicitud)
+$('#registrarRecepcionModal').on('show.bs.modal', function (e) {
+    // Si no se está abriendo desde recepcionarSolicitud, limpiar el request_id
+    if (!e.relatedTarget || !$(e.relatedTarget).data('request-id')) {
+        document.getElementById('request_id').value = '';
+        document.querySelector('#registrarRecepcionModal .modal-title').textContent = 'Registrar Nueva Recepción';
+    }
+});
 </script>
 @endpush
 

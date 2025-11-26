@@ -18,12 +18,25 @@
                 </div>
             </div>
             <div class="card-body">
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show">
+                        {{ session('success') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        {{ session('error') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+
                 <!-- Estadísticas -->
                 <div class="row mb-4">
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
                             <div class="inner">
-                                <h3>25</h3>
+                                <h3>{{ $variables->total() }}</h3>
                                 <p>Total Variables</p>
                             </div>
                             <div class="icon">
@@ -34,7 +47,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>20</h3>
+                                <h3>{{ $variables->where('active', true)->count() }}</h3>
                                 <p>Activas</p>
                             </div>
                             <div class="icon">
@@ -45,7 +58,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>3</h3>
+                                <h3>0</h3>
                                 <p>En Revisión</p>
                             </div>
                             <div class="icon">
@@ -56,7 +69,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-danger">
                             <div class="inner">
-                                <h3>2</h3>
+                                <h3>{{ $variables->where('active', false)->count() }}</h3>
                                 <p>Inactivas</p>
                             </div>
                             <div class="icon">
@@ -102,117 +115,66 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Nombre</th>
-                                <th>Categoría</th>
-                                <th>Valor Mínimo</th>
-                                <th>Valor Máximo</th>
+                                <th>Código</th>
                                 <th>Unidad</th>
+                                <th>Descripción</th>
                                 <th>Estado</th>
-                                <th>Última Actualización</th>
-                                <th>Acciones</th>
+                                <th class="text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @forelse($variables as $variable)
                             <tr>
-                                <td>#V001</td>
-                                <td>Temperatura de Cocción</td>
-                                <td><span class="badge badge-primary">Temperatura</span></td>
-                                <td>180°C</td>
-                                <td>220°C</td>
-                                <td>°C</td>
-                                <td><span class="badge badge-success">Activa</span></td>
-                                <td>2024-01-15</td>
+                                <td>#{{ $variable->variable_id }}</td>
+                                <td>{{ $variable->name }}</td>
+                                <td><span class="badge badge-primary">{{ $variable->code }}</span></td>
+                                <td>{{ $variable->unit ?? 'N/A' }}</td>
+                                <td>{{ $variable->description ?? 'Sin descripción' }}</td>
                                 <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
+                                    @if($variable->active)
+                                        <span class="badge badge-success">Activa</span>
+                                    @else
+                                        <span class="badge badge-danger">Inactiva</span>
+                                    @endif
+                                </td>
+                                <td class="text-right">
+                                    <button class="btn btn-sm btn-info" title="Ver" onclick="verVariable({{ $variable->variable_id }})">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar">
+                                    <button class="btn btn-sm btn-warning" title="Editar" onclick="editarVariable({{ $variable->variable_id }})">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="btn btn-primary btn-sm" title="Historial">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Desactivar">
-                                        <i class="fas fa-ban"></i>
-                                    </button>
+                                    <form method="POST" action="{{ route('variables-estandar.destroy', $variable->variable_id) }}" 
+                                          style="display: inline;" 
+                                          onsubmit="return confirm('¿Está seguro de eliminar esta variable?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
+                            @empty
                             <tr>
-                                <td>#V002</td>
-                                <td>Humedad Relativa</td>
-                                <td><span class="badge badge-info">Humedad</span></td>
-                                <td>45%</td>
-                                <td>65%</td>
-                                <td>%</td>
-                                <td><span class="badge badge-warning">En Revisión</span></td>
-                                <td>2024-01-14</td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" title="Historial">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                    <button class="btn btn-success btn-sm" title="Aprobar">
-                                        <i class="fas fa-check"></i>
-                                    </button>
-                                </td>
+                                <td colspan="7" class="text-center">No hay variables estándar registradas</td>
                             </tr>
-                            <tr>
-                                <td>#V003</td>
-                                <td>Tiempo de Mezclado</td>
-                                <td><span class="badge badge-success">Tiempo</span></td>
-                                <td>5 min</td>
-                                <td>15 min</td>
-                                <td>min</td>
-                                <td><span class="badge badge-danger">Inactiva</span></td>
-                                <td>2024-01-13</td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" title="Historial">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                    <button class="btn btn-success btn-sm" title="Activar">
-                                        <i class="fas fa-play"></i>
-                                    </button>
-                                </td>
-                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Paginación -->
+                @if($variables->hasPages())
                 <div class="d-flex justify-content-between align-items-center mt-3">
                     <div>
-                        Mostrando 1 a 10 de 25 registros
+                        Mostrando {{ $variables->firstItem() }} a {{ $variables->lastItem() }} de {{ $variables->total() }} registros
                     </div>
                     <nav>
-                        <ul class="pagination pagination-sm">
-                            <li class="page-item disabled">
-                                <span class="page-link">Anterior</span>
-                            </li>
-                            <li class="page-item active">
-                                <span class="page-link">1</span>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">2</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">3</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">Siguiente</a>
-                            </li>
-                        </ul>
+                        {{ $variables->links() }}
                     </nav>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -223,92 +185,78 @@
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h4 class="modal-title">Crear Nueva Variable</h4>
+                <h4 class="modal-title">
+                    <i class="fas fa-sliders-h mr-1"></i>
+                    Crear Nueva Variable Estándar
+                </h4>
                 <button type="button" class="close" data-dismiss="modal">
                     <span>&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <form id="crearVariableForm">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="nombreVariable">Nombre de la Variable</label>
-                                <input type="text" class="form-control" id="nombreVariable" placeholder="Ej: Temperatura de Cocción">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="categoriaVariable">Categoría</label>
-                                <select class="form-control" id="categoriaVariable">
-                                    <option value="">Seleccionar categoría...</option>
-                                    <option value="temperatura">Temperatura</option>
-                                    <option value="humedad">Humedad</option>
-                                    <option value="presion">Presión</option>
-                                    <option value="tiempo">Tiempo</option>
-                                    <option value="peso">Peso</option>
-                                    <option value="volumen">Volumen</option>
-                                </select>
-                            </div>
-                        </div>
+                @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
                     </div>
+                @endif
+                <form method="POST" action="{{ route('variables-estandar') }}" id="crearVariableForm">
+                    @csrf
                     
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="valorMinimo">Valor Mínimo</label>
-                                <input type="number" class="form-control" id="valorMinimo" placeholder="0.00" step="0.01">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="valorMaximo">Valor Máximo</label>
-                                <input type="number" class="form-control" id="valorMaximo" placeholder="0.00" step="0.01">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="unidadVariable">Unidad</label>
-                                <input type="text" class="form-control" id="unidadVariable" placeholder="Ej: °C, %, min">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="procesoVariable">Proceso Asociado</label>
-                                <select class="form-control" id="procesoVariable">
-                                    <option value="">Seleccionar proceso...</option>
-                                    <option value="1">Mezclado</option>
-                                    <option value="2">Cocción</option>
-                                    <option value="3">Enfriamiento</option>
-                                    <option value="4">Empaque</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="criticidadVariable">Criticidad</label>
-                                <select class="form-control" id="criticidadVariable">
-                                    <option value="baja">Baja</option>
-                                    <option value="media">Media</option>
-                                    <option value="alta">Alta</option>
-                                    <option value="critica">Crítica</option>
-                                </select>
-                            </div>
-                        </div>
+                    <div class="form-group">
+                        <label for="name">
+                            <i class="fas fa-tag mr-1"></i>
+                            Nombre de la Variable <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
+                               id="name" name="name" value="{{ old('name') }}" 
+                               placeholder="Ej: Temperatura de Cocción" required>
+                        @error('name')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
                     </div>
                     
                     <div class="form-group">
-                        <label for="descripcionVariable">Descripción</label>
-                        <textarea class="form-control" id="descripcionVariable" rows="3" placeholder="Descripción de la variable estándar..."></textarea>
+                        <label for="unit">
+                            <i class="fas fa-ruler mr-1"></i>
+                            Unidad de Medida
+                        </label>
+                        <input type="text" class="form-control @error('unit') is-invalid @enderror" 
+                               id="unit" name="unit" value="{{ old('unit') }}" 
+                               placeholder="Ej: °C, %, min, kg, etc.">
+                        @error('unit')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
+                        <small class="form-text text-muted">Unidad en la que se mide esta variable (opcional)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">
+                            <i class="fas fa-align-left mr-1"></i>
+                            Descripción
+                        </label>
+                        <textarea class="form-control @error('description') is-invalid @enderror" 
+                                  id="description" name="description" rows="3" 
+                                  placeholder="Descripción detallada de la variable estándar...">{{ old('description') }}</textarea>
+                        @error('description')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            <i class="fas fa-times mr-1"></i>
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save mr-1"></i>
+                            Crear Variable
+                        </button>
                     </div>
                 </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="crearVariable()">Crear Variable</button>
             </div>
         </div>
     </div>
@@ -316,19 +264,216 @@
 
 @endsection
 
+<!-- Modal Ver Variable -->
+<div class="modal fade" id="verVariableModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">
+                    <i class="fas fa-eye mr-1"></i>
+                    Detalles de la Variable
+                </h4>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="verVariableContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="sr-only">Cargando...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Variable -->
+<div class="modal fade" id="editarVariableModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">
+                    <i class="fas fa-edit mr-1"></i>
+                    Editar Variable
+                </h4>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+                <form method="POST" action="" id="editarVariableForm">
+                    @csrf
+                    @method('PUT')
+                    
+                    <div class="form-group">
+                        <label for="edit_name">
+                            <i class="fas fa-tag mr-1"></i>
+                            Nombre de la Variable <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
+                               id="edit_name" name="name" value="{{ old('name') }}" required>
+                        @error('name')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_unit">
+                                    <i class="fas fa-ruler mr-1"></i>
+                                    Unidad
+                                </label>
+                                <input type="text" class="form-control @error('unit') is-invalid @enderror" 
+                                       id="edit_unit" name="unit" value="{{ old('unit') }}" 
+                                       placeholder="Ej: °C, %, min">
+                                @error('unit')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_code">
+                                    <i class="fas fa-code mr-1"></i>
+                                    Código
+                                </label>
+                                <input type="text" class="form-control" id="edit_code" name="code" readonly>
+                                <small class="form-text text-muted">Código generado automáticamente</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit_description">
+                            <i class="fas fa-align-left mr-1"></i>
+                            Descripción
+                        </label>
+                        <textarea class="form-control @error('description') is-invalid @enderror" 
+                                  id="edit_description" name="description" rows="3">{{ old('description') }}</textarea>
+                        @error('description')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="active" id="edit_active" value="1">
+                            Variable Activa
+                        </label>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            <i class="fas fa-times mr-1"></i>
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save mr-1"></i>
+                            Actualizar Variable
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
-function aplicarFiltros() {
-    // Aquí iría la lógica para aplicar filtros
-    alert('Filtros aplicados');
+function verVariable(id) {
+    fetch(`{{ url('variables-estandar') }}/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            const content = `
+                <div class="row">
+                    <div class="col-md-12">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th style="width: 30%;">ID</th>
+                                <td>#${data.variable_id}</td>
+                            </tr>
+                            <tr>
+                                <th>Código</th>
+                                <td><span class="badge badge-primary">${data.code}</span></td>
+                            </tr>
+                            <tr>
+                                <th>Nombre</th>
+                                <td>${data.name}</td>
+                            </tr>
+                            <tr>
+                                <th>Unidad</th>
+                                <td>${data.unit || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th>Descripción</th>
+                                <td>${data.description || 'Sin descripción'}</td>
+                            </tr>
+                            <tr>
+                                <th>Estado</th>
+                                <td>
+                                    ${data.active 
+                                        ? '<span class="badge badge-success">Activa</span>' 
+                                        : '<span class="badge badge-danger">Inactiva</span>'}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('verVariableContent').innerHTML = content;
+            $('#verVariableModal').modal('show');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los datos de la variable');
+        });
 }
 
-function crearVariable() {
-    // Aquí iría la lógica para crear la variable
-    alert('Variable creada exitosamente');
-    $('#crearVariableModal').modal('hide');
-    // Recargar la página o actualizar la tabla
-    location.reload();
+function editarVariable(id) {
+    fetch(`{{ url('variables-estandar') }}/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('editarVariableForm').action = `{{ url('variables-estandar') }}/${id}`;
+            document.getElementById('edit_name').value = data.name || '';
+            document.getElementById('edit_unit').value = data.unit || '';
+            document.getElementById('edit_code').value = data.code || '';
+            document.getElementById('edit_description').value = data.description || '';
+            document.getElementById('edit_active').checked = data.active || false;
+            $('#editarVariableModal').modal('show');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los datos de la variable');
+        });
+}
+
+function aplicarFiltros() {
+    const categoria = document.getElementById('filtroCategoria').value;
+    const estado = document.getElementById('filtroEstado').value;
+    const buscar = document.getElementById('buscarVariable').value;
+    
+    const url = new URL(window.location);
+    if (categoria) url.searchParams.set('categoria', categoria);
+    if (estado) url.searchParams.set('estado', estado);
+    if (buscar) url.searchParams.set('buscar', buscar);
+    window.location = url;
 }
 </script>
 @endpush

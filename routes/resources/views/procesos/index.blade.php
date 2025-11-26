@@ -14,12 +14,12 @@
       <thead class="thead-light"><tr><th>ID</th><th>Nombre</th><th class="text-right pr-3">Acciones</th></tr></thead>
       <tbody>
   @foreach($procesos as $p)
-    <tr class="border-b"><td>{{ $p->IdProceso }}</td><td>{{ $p->Nombre }}</td>
+    <tr class="border-b"><td>{{ $p->process_id }}</td><td>{{ $p->name }}</td>
       <td class="text-right pr-3">
         <div class="btn-group btn-group-sm" role="group">
-          <a class="btn btn-secondary" href="{{ route('procesos.show',$p->IdProceso) }}"><i class="far fa-eye mr-1"></i> Ver</a>
-          <a class="btn btn-primary" href="{{ route('procesos.edit',$p->IdProceso) }}"><i class="far fa-edit mr-1"></i> Editar</a>
-          <form method="POST" action="{{ route('procesos.destroy',$p->IdProceso) }}" onsubmit="return confirm('¿Eliminar este proceso?')">
+          <a class="btn btn-secondary" href="{{ route('procesos.show',$p->process_id) }}"><i class="far fa-eye mr-1"></i> Ver</a>
+          <a class="btn btn-primary" href="{{ route('procesos.edit',$p->process_id) }}"><i class="far fa-edit mr-1"></i> Editar</a>
+          <form method="POST" action="{{ route('procesos.destroy',$p->process_id) }}" onsubmit="return confirm('¿Eliminar este proceso?')">
             @csrf @method('DELETE')
             <button class="btn btn-danger"><i class="far fa-trash-alt mr-1"></i> Eliminar</button>
           </form>

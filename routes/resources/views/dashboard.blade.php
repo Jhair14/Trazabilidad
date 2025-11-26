@@ -8,40 +8,36 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-info">
             <div class="inner">
-                <h3>150</h3>
+                <h3>{{ $stats['total_pedidos'] }}</h3>
                 <p>Pedidos Totales</p>
             </div>
-
         </div>
     </div>
 
     <div class="col-lg-3 col-6">
         <div class="small-box bg-success">
             <div class="inner">
-                <h3>53</h3>
+                <h3>{{ $stats['total_lotes'] }}</h3>
                 <p>Lotes Totales</p>
             </div>
-
         </div>
     </div>
 
     <div class="col-lg-3 col-6">
-        <div class="small-box bg-warning ">
-            <div class="inner ">
-                <h3>44</h3>
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3>{{ $stats['pedidos_pendientes'] }}</h3>
                 <p>Pedidos Pendientes</p>
             </div>
-
         </div>
     </div>
 
     <div class="col-lg-3 col-6">
         <div class="small-box bg-danger">
             <div class="inner">
-                <h3>65</h3>
-                <p>Lotes Certificados</p>
+                <h3>{{ $stats['lotes_completados'] }}</h3>
+                <p>Lotes Completados</p>
             </div>
-
         </div>
     </div>
 </div>
@@ -115,24 +111,24 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @forelse($pedidos_recientes as $pedido)
                             <tr>
-                                <td>#001</td>
-                                <td>Cliente A</td>
-                                <td><span class="badge badge-warning">Pendiente</span></td>
-                                <td>2024-01-15</td>
+                                <td>#{{ $pedido->order_number ?? $pedido->order_id }}</td>
+                                <td>{{ $pedido->customer->business_name ?? 'N/A' }}</td>
+                                <td>
+                                    @if($pedido->priority > 0)
+                                        <span class="badge badge-warning">Pendiente</span>
+                                    @else
+                                        <span class="badge badge-success">Completado</span>
+                                    @endif
+                                </td>
+                                <td>{{ \Carbon\Carbon::parse($pedido->creation_date)->format('Y-m-d') }}</td>
                             </tr>
+                            @empty
                             <tr>
-                                <td>#002</td>
-                                <td>Cliente B</td>
-                                <td><span class="badge badge-info">En Proceso</span></td>
-                                <td>2024-01-14</td>
+                                <td colspan="4" class="text-center">No hay pedidos recientes</td>
                             </tr>
-                            <tr>
-                                <td>#003</td>
-                                <td>Cliente C</td>
-                                <td><span class="badge badge-success">Completado</span></td>
-                                <td>2024-01-13</td>
-                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -166,24 +162,30 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @forelse($lotes_recientes as $lote)
                             <tr>
-                                <td>#L001</td>
-                                <td>Lote Producción A</td>
-                                <td><span class="badge badge-success">Certificado</span></td>
-                                <td>2024-01-15</td>
+                                <td>#{{ $lote->batch_code ?? $lote->batch_id }}</td>
+                                <td>{{ $lote->name ?? 'Sin nombre' }}</td>
+                                <td>
+                                    @if($lote->latestFinalEvaluation)
+                                        @if(str_contains(strtolower($lote->latestFinalEvaluation->reason ?? ''), 'falló'))
+                                            <span class="badge badge-danger">No Certificado</span>
+                                        @else
+                                            <span class="badge badge-success">Certificado</span>
+                                        @endif
+                                    @elseif($lote->start_time && !$lote->end_time)
+                                        <span class="badge badge-warning">En Proceso</span>
+                                    @else
+                                        <span class="badge badge-info">Pendiente</span>
+                                    @endif
+                                </td>
+                                <td>{{ \Carbon\Carbon::parse($lote->creation_date)->format('Y-m-d') }}</td>
                             </tr>
+                            @empty
                             <tr>
-                                <td>#L002</td>
-                                <td>Lote Producción B</td>
-                                <td><span class="badge badge-warning">En Proceso</span></td>
-                                <td>2024-01-14</td>
+                                <td colspan="4" class="text-center">No hay lotes recientes</td>
                             </tr>
-                            <tr>
-                                <td>#L003</td>
-                                <td>Lote Producción C</td>
-                                <td><span class="badge badge-info">Pendiente</span></td>
-                                <td>2024-01-13</td>
-                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -204,7 +206,14 @@ var pedidosChart = new Chart(pedidosCtx, {
     data: {
         labels: ['Pendiente', 'Materia Prima Solicitada', 'En Proceso', 'Producción Finalizada', 'Almacenado', 'Cancelado'],
         datasets: [{
-            data: [44, 23, 35, 28, 15, 5],
+            data: [
+                {{ $pedidosPorEstado['pendiente'] ?? 0 }},
+                {{ $pedidosPorEstado['materia_prima_solicitada'] ?? 0 }},
+                {{ $pedidosPorEstado['en_proceso'] ?? 0 }},
+                {{ $pedidosPorEstado['produccion_finalizada'] ?? 0 }},
+                {{ $pedidosPorEstado['almacenado'] ?? 0 }},
+                {{ $pedidosPorEstado['cancelado'] ?? 0 }}
+            ],
             backgroundColor: [
                 '#facc15',
                 '#fb923c',
@@ -234,7 +243,13 @@ var lotesChart = new Chart(lotesCtx, {
         labels: ['Pendiente', 'En Proceso', 'Certificado', 'No Certificado', 'Almacenado'],
         datasets: [{
             label: 'Cantidad',
-            data: [12, 8, 25, 5, 3],
+            data: [
+                {{ $lotesPorEstado['pendiente'] ?? 0 }},
+                {{ $lotesPorEstado['en_proceso'] ?? 0 }},
+                {{ $lotesPorEstado['certificado'] ?? 0 }},
+                {{ $lotesPorEstado['no_certificado'] ?? 0 }},
+                {{ $lotesPorEstado['almacenado'] ?? 0 }}
+            ],
             backgroundColor: [
                 '#facc15',
                 '#60a5fa',

@@ -9,22 +9,30 @@
             <div class="card-header">
                 <h3 class="card-title">
                     <i class="fas fa-warehouse mr-1"></i>
-                    Gestión de Almacenaje
+                    Almacenaje de Lotes Certificados
                 </h3>
-                <div class="card-tools">
-                    <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#registrarAlmacenajeModal">
-                        <i class="fas fa-plus"></i> Registrar Almacenaje
-                    </button>
-                </div>
             </div>
             <div class="card-body">
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show">
+                        {{ session('success') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        {{ session('error') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+
                 <!-- Estadísticas -->
                 <div class="row mb-4">
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
                             <div class="inner">
-                                <h3>85</h3>
-                                <p>Total Almacenados</p>
+                                <h3>{{ $lotes->count() }}</h3>
+                                <p>Lotes Disponibles</p>
                             </div>
                             <div class="icon">
                                 <i class="fas fa-warehouse"></i>
@@ -34,8 +42,11 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>70</h3>
-                                <p>Disponibles</p>
+                                <h3>{{ $lotes->where('latestFinalEvaluation', '!=', null)->filter(function($l) { 
+                                    $eval = $l->latestFinalEvaluation;
+                                    return $eval && !str_contains(strtolower($eval->reason ?? ''), 'falló'); 
+                                })->count() }}</h3>
+                                <p>Certificados</p>
                             </div>
                             <div class="icon">
                                 <i class="fas fa-check-circle"></i>
@@ -45,8 +56,8 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>10</h3>
-                                <p>Por Vencer</p>
+                                <h3>{{ $lotes->where('latestFinalEvaluation', null)->count() }}</h3>
+                                <p>Sin Certificar</p>
                             </div>
                             <div class="icon">
                                 <i class="fas fa-exclamation-triangle"></i>
@@ -54,170 +65,73 @@
                         </div>
                     </div>
                     <div class="col-lg-3 col-6">
-                        <div class="small-box bg-danger">
+                        <div class="small-box bg-primary">
                             <div class="inner">
-                                <h3>5</h3>
-                                <p>Vencidos</p>
+                                <h3>{{ $lotes->filter(function($l) { return $l->storage->isNotEmpty(); })->count() }}</h3>
+                                <p>Ya Almacenados</p>
                             </div>
                             <div class="icon">
-                                <i class="fas fa-times-circle"></i>
+                                <i class="fas fa-boxes"></i>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Filtros -->
-                <div class="row mb-3">
-                    <div class="col-md-3">
-                        <select class="form-control" id="filtroEstado">
-                            <option value="">Todos los estados</option>
-                            <option value="disponible">Disponible</option>
-                            <option value="por_vencer">Por Vencer</option>
-                            <option value="vencido">Vencido</option>
-                            <option value="retirado">Retirado</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-control" id="filtroZona">
-                            <option value="">Todas las zonas</option>
-                            <option value="A">Zona A</option>
-                            <option value="B">Zona B</option>
-                            <option value="C">Zona C</option>
-                            <option value="D">Zona D</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <input type="text" class="form-control" placeholder="Buscar por lote..." id="buscarLote">
-                    </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-info" onclick="aplicarFiltros()">
-                            <i class="fas fa-search"></i> Filtrar
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Tabla de Almacenaje -->
+                <!-- Tabla de Lotes Disponibles -->
                 <div class="table-responsive">
-                    <table class="table table-bordered table-striped">
+                    <table class="table table-bordered table-striped table-hover">
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>Lote</th>
-                                <th>Producto</th>
-                                <th>Zona</th>
-                                <th>Posición</th>
-                                <th>Cantidad</th>
-                                <th>Fecha Ingreso</th>
-                                <th>Fecha Vencimiento</th>
+                                <th>ID Lote</th>
+                                <th>Nombre</th>
+                                <th>Cliente</th>
+                                <th>Fecha Creación</th>
                                 <th>Estado</th>
-                                <th>Acciones</th>
+                                <th class="text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @forelse($lotes as $lote)
+                            @php
+                                $eval = $lote->latestFinalEvaluation;
+                                $esCertificado = $eval && !str_contains(strtolower($eval->reason ?? ''), 'falló');
+                            @endphp
                             <tr>
-                                <td>#AL001</td>
-                                <td>#L001</td>
-                                <td>Producto A</td>
-                                <td>A-01</td>
-                                <td>Estante 1, Nivel 2</td>
-                                <td>100 unidades</td>
-                                <td>2024-01-15</td>
-                                <td>2024-07-15</td>
-                                <td><span class="badge badge-success">Disponible</span></td>
+                                <td>#{{ $lote->batch_code ?? $lote->batch_id }}</td>
+                                <td>{{ $lote->name ?? 'Sin nombre' }}</td>
+                                <td>{{ $lote->order->customer->business_name ?? 'N/A' }}</td>
+                                <td>{{ \Carbon\Carbon::parse($lote->creation_date)->format('d/m/Y') }}</td>
                                 <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
+                                    @if($esCertificado)
+                                        <span class="badge badge-success">Certificado</span>
+                                    @else
+                                        <span class="badge badge-warning">Sin Certificar</span>
+                                    @endif
+                                </td>
+                                <td class="text-right">
+                                    @if($esCertificado)
+                                    <button class="btn btn-primary btn-sm" title="Almacenar" onclick="almacenarLote({{ $lote->batch_id }}, '{{ $lote->batch_code ?? $lote->batch_id }}', '{{ $lote->name ?? 'Sin nombre' }}')">
+                                        <i class="fas fa-warehouse"></i> Almacenar
                                     </button>
-                                    <button class="btn btn-warning btn-sm" title="Mover">
-                                        <i class="fas fa-arrows-alt"></i>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" title="Retirar">
-                                        <i class="fas fa-truck"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Eliminar">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    @if($lote->storage->isNotEmpty())
+                                        <span class="badge badge-info ml-2" title="Ya tiene {{ $lote->storage->count() }} almacenaje(s)">
+                                            <i class="fas fa-check"></i> {{ $lote->storage->count() }} almacenaje(s)
+                                        </span>
+                                    @endif
+                                    @else
+                                    <span class="text-muted">Requiere certificación</span>
+                                    @endif
                                 </td>
                             </tr>
+                            @empty
                             <tr>
-                                <td>#AL002</td>
-                                <td>#L002</td>
-                                <td>Producto B</td>
-                                <td>B-02</td>
-                                <td>Estante 3, Nivel 1</td>
-                                <td>75 unidades</td>
-                                <td>2024-01-14</td>
-                                <td>2024-07-14</td>
-                                <td><span class="badge badge-warning">Por Vencer</span></td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Mover">
-                                        <i class="fas fa-arrows-alt"></i>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" title="Retirar">
-                                        <i class="fas fa-truck"></i>
-                                    </button>
-                                    <button class="btn btn-success btn-sm" title="Priorizar">
-                                        <i class="fas fa-exclamation"></i>
-                                    </button>
-                                </td>
+                                <td colspan="6" class="text-center">No hay lotes certificados disponibles para almacenar</td>
                             </tr>
-                            <tr>
-                                <td>#AL003</td>
-                                <td>#L003</td>
-                                <td>Producto C</td>
-                                <td>C-01</td>
-                                <td>Estante 2, Nivel 3</td>
-                                <td>50 unidades</td>
-                                <td>2024-01-13</td>
-                                <td>2024-07-13</td>
-                                <td><span class="badge badge-danger">Vencido</span></td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Mover">
-                                        <i class="fas fa-arrows-alt"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Descartar">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    <button class="btn btn-secondary btn-sm" title="Historial">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                </td>
-                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
 
-                <!-- Paginación -->
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Mostrando 1 a 10 de 85 registros
-                    </div>
-                    <nav>
-                        <ul class="pagination pagination-sm">
-                            <li class="page-item disabled">
-                                <span class="page-link">Anterior</span>
-                            </li>
-                            <li class="page-item active">
-                                <span class="page-link">1</span>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">2</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">3</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">Siguiente</a>
-                            </li>
-                        </ul>
-                    </nav>
-                </div>
             </div>
         </div>
     </div>
@@ -228,84 +142,89 @@
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h4 class="modal-title">Registrar Almacenaje</h4>
+                <h4 class="modal-title">Registrar Almacenaje para Lote #<span id="modal_batch_code"></span></h4>
                 <button type="button" class="close" data-dismiss="modal">
                     <span>&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <form id="registrarAlmacenajeForm">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="loteAlmacenaje">Lote</label>
-                                <select class="form-control" id="loteAlmacenaje">
-                                    <option value="">Seleccionar lote...</option>
-                                    <option value="1">#L001 - Lote Producción A</option>
-                                    <option value="2">#L002 - Lote Producción B</option>
-                                    <option value="3">#L003 - Lote Producción C</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="productoAlmacenaje">Producto</label>
-                                <input type="text" class="form-control" id="productoAlmacenaje" placeholder="Nombre del producto">
-                            </div>
-                        </div>
+                @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
                     </div>
+                @endif
+                <form method="POST" action="{{ route('almacenaje.store') }}" id="registrarAlmacenajeForm">
+                    @csrf
+                    <input type="hidden" id="batch_id" name="batch_id">
                     
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="zonaAlmacenaje">Zona</label>
-                                <select class="form-control" id="zonaAlmacenaje">
-                                    <option value="">Seleccionar zona...</option>
-                                    <option value="A">Zona A</option>
-                                    <option value="B">Zona B</option>
-                                    <option value="C">Zona C</option>
-                                    <option value="D">Zona D</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="posicionAlmacenaje">Posición</label>
-                                <input type="text" class="form-control" id="posicionAlmacenaje" placeholder="Ej: Estante 1, Nivel 2">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="cantidadAlmacenaje">Cantidad</label>
-                                <input type="number" class="form-control" id="cantidadAlmacenaje" placeholder="0" min="1">
-                            </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <p><strong>Lote:</strong> <span id="modal_batch_name"></span></p>
                         </div>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="fechaIngreso">Fecha de Ingreso</label>
-                                <input type="date" class="form-control" id="fechaIngreso">
+                                <label for="location">Ubicación <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('location') is-invalid @enderror" 
+                                       id="location" name="location" value="{{ old('location') }}" 
+                                       placeholder="Ej: Zona A, Estante 1, Nivel 2" required>
+                                @error('location')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                                <small class="form-text text-muted">Ejemplos: A-01, B-02, Depósito Central</small>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="fechaVencimiento">Fecha de Vencimiento</label>
-                                <input type="date" class="form-control" id="fechaVencimiento">
+                                <label for="condition">Condición <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('condition') is-invalid @enderror" 
+                                       id="condition" name="condition" value="{{ old('condition') }}" 
+                                       placeholder="Ej: Buen estado, Seco y ventilado" required>
+                                @error('condition')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                                <small class="form-text text-muted">Estado físico del producto</small>
                             </div>
                         </div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="observacionesAlmacenaje">Observaciones</label>
-                        <textarea class="form-control" id="observacionesAlmacenaje" rows="3" placeholder="Observaciones sobre el almacenaje..."></textarea>
+                        <label for="quantity">Cantidad <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control @error('quantity') is-invalid @enderror" 
+                               id="quantity" name="quantity" value="{{ old('quantity') }}" 
+                               placeholder="0" step="0.01" min="0" required>
+                        @error('quantity')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="observations">Observaciones</label>
+                        <textarea class="form-control" id="observations" name="observations" 
+                                  rows="3" placeholder="Observaciones sobre el almacenaje...">{{ old('observations') }}</textarea>
+                    </div>
+
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>Almacenajes previos</strong>
+                        <div id="almacenajes_previos" class="mt-2">
+                            <div class="text-center">
+                                <i class="fas fa-spinner fa-spin"></i> Cargando...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Registrar Almacenaje</button>
                     </div>
                 </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="registrarAlmacenaje()">Registrar Almacenaje</button>
             </div>
         </div>
     </div>
@@ -315,18 +234,59 @@
 
 @push('scripts')
 <script>
-function aplicarFiltros() {
-    // Aquí iría la lógica para aplicar filtros
-    alert('Filtros aplicados');
+let currentBatchId = null;
+
+function almacenarLote(batchId, batchCode, batchName) {
+    currentBatchId = batchId;
+    $('#batch_id').val(batchId);
+    $('#modal_batch_code').text(batchCode);
+    $('#modal_batch_name').text(batchName);
+    $('#location').val('');
+    $('#condition').val('');
+    $('#quantity').val('');
+    $('#observations').val('');
+    
+    // Cargar almacenajes previos
+    cargarAlmacenajesPrevios(batchId);
+    
+    $('#registrarAlmacenajeModal').modal('show');
 }
 
-function registrarAlmacenaje() {
-    // Aquí iría la lógica para registrar el almacenaje
-    alert('Almacenaje registrado exitosamente');
-    $('#registrarAlmacenajeModal').modal('hide');
-    // Recargar la página o actualizar la tabla
-    location.reload();
+function cargarAlmacenajesPrevios(batchId) {
+    $('#almacenajes_previos').html('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>');
+    
+    fetch(`{{ url('almacenaje/lote') }}/${batchId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length === 0) {
+                $('#almacenajes_previos').html('<p class="mb-0 text-muted">No hay registros previos.</p>');
+            } else {
+                let html = '<ul class="mb-0">';
+                data.forEach(function(almacen) {
+                    const fecha = new Date(almacen.storage_date).toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    html += `<li><strong>${fecha}</strong> - ${almacen.location} (${almacen.condition}) - Cantidad: ${almacen.quantity}</li>`;
+                });
+                html += '</ul>';
+                $('#almacenajes_previos').html(html);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            $('#almacenajes_previos').html('<p class="mb-0 text-danger">Error al cargar almacenajes previos.</p>');
+        });
 }
+
+// Limpiar modal al cerrar
+$('#registrarAlmacenajeModal').on('hidden.bs.modal', function () {
+    currentBatchId = null;
+    $('#registrarAlmacenajeForm')[0].reset();
+    $('#almacenajes_previos').html('');
+});
 </script>
 @endpush
-

@@ -15,5 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Manejar error 419 (Page Expired) para la creación de pedidos
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
+            if ($request->is('mis-pedidos') && $request->isMethod('post')) {
+                return redirect()->route('mis-pedidos')
+                    ->with('error', 'Su sesión ha expirado. Por favor, intente crear el pedido nuevamente.');
+            }
+        });
     })->create();

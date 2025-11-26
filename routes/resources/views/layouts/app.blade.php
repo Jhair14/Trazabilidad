@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
         <title>{{ config('app.name', 'Laravel') }}</title>
         <!-- AdminLTE 3 CSS with Bootstrap Icons and FontAwesome -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -177,7 +178,7 @@
                 <!-- PROCESOS -->
                 <li class="nav-header">Procesos</li>
                 <li class="nav-item has-treeview">
-                    <a href="{{ route('maquinas') }}" class="nav-link">
+                    <a href="{{ route('maquinas.index') }}" class="nav-link">
                       <i class="nav-icon fas fa-layer-group"></i>
                         Maquinas
                     </a>
@@ -211,7 +212,7 @@
                 <!-- ALMACEN -->
                 <li class="nav-header">Almacen</li>
                 <li class="nav-item">
-                    <a href="{{ route('gestion-lotes') }}" class="nav-link">
+                    <a href="{{ route('almacenaje') }}" class="nav-link">
                         <i class="nav-icon fas fa-warehouse"></i>
                         <p>Almacenar lotes</p>
                     </a>
@@ -246,10 +247,13 @@
                 </li>
                 <!-- CERRAR SESIÓN -->
                 <li class="nav-item mt-3">
-                    <a href="{{ route('logout') }}" class="nav-link text-danger">
-                        <i class="nav-icon fas fa-sign-out-alt"></i>
-                        <p>Cerrar sesión</p>
-                    </a>
+                    <form method="POST" action="{{ route('logout') }}" class="w-100">
+                        @csrf
+                        <button type="submit" class="nav-link text-danger border-0 bg-transparent w-100 text-left" style="cursor: pointer; padding: 0.5rem 1rem;">
+                            <i class="nav-icon fas fa-sign-out-alt"></i>
+                            <p style="display: inline-block; margin: 0;">Cerrar sesión</p>
+                        </button>
+                    </form>
                 </li>
             </ul>
         </nav>
@@ -337,6 +341,7 @@
             });
         }
         </script>
+        @stack('scripts')
     </body>
     </html>
 

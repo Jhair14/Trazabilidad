@@ -18,12 +18,25 @@
                 </div>
             </div>
             <div class="card-body">
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show">
+                        {{ session('success') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        {{ session('error') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+
                 <!-- Estadísticas -->
                 <div class="row mb-4">
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
                             <div class="inner">
-                                <h3>25</h3>
+                                <h3>{{ $usuarios->total() }}</h3>
                                 <p>Total Usuarios</p>
                             </div>
                             <div class="icon">
@@ -34,7 +47,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>20</h3>
+                                <h3>{{ $usuarios->where('active', true)->count() }}</h3>
                                 <p>Activos</p>
                             </div>
                             <div class="icon">
@@ -45,7 +58,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>3</h3>
+                                <h3>0</h3>
                                 <p>Pendientes</p>
                             </div>
                             <div class="icon">
@@ -56,7 +69,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-danger">
                             <div class="inner">
-                                <h3>2</h3>
+                                <h3>{{ $usuarios->where('active', false)->count() }}</h3>
                                 <p>Inactivos</p>
                             </div>
                             <div class="icon">
@@ -71,10 +84,9 @@
                     <div class="col-md-3">
                         <select class="form-control" id="filtroRol">
                             <option value="">Todos los roles</option>
-                            <option value="admin">Administrador</option>
-                            <option value="operador">Operador</option>
-                            <option value="supervisor">Supervisor</option>
-                            <option value="cliente">Cliente</option>
+                            @foreach($roles as $rol)
+                                <option value="{{ $rol->role_id }}">{{ $rol->name }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -110,92 +122,46 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @forelse($usuarios as $usuario)
                             <tr>
-                                <td>#U001</td>
-                                <td>Juan Pérez</td>
-                                <td>juan.perez@empresa.com</td>
-                                <td><span class="badge badge-primary">Administrador</span></td>
-                                <td><span class="badge badge-success">Activo</span></td>
-                                <td>2024-01-15 10:30</td>
+                                <td>#{{ $usuario->operator_id }}</td>
+                                <td>{{ $usuario->first_name }} {{ $usuario->last_name }}</td>
+                                <td>{{ $usuario->email ?? 'N/A' }}</td>
+                                <td><span class="badge badge-primary">{{ $usuario->role->name ?? 'N/A' }}</span></td>
                                 <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar">
+                                    @if($usuario->active)
+                                        <span class="badge badge-success">Activo</span>
+                                    @else
+                                        <span class="badge badge-danger">Inactivo</span>
+                                    @endif
+                                </td>
+                                <td>N/A</td>
+                                <td>
+                                    <button class="btn btn-warning btn-sm" title="Editar" onclick="editarUsuario({{ $usuario->operator_id }})">
                                         <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Desactivar">
-                                        <i class="fas fa-user-times"></i>
                                     </button>
                                 </td>
                             </tr>
+                            @empty
                             <tr>
-                                <td>#U002</td>
-                                <td>María García</td>
-                                <td>maria.garcia@empresa.com</td>
-                                <td><span class="badge badge-info">Operador</span></td>
-                                <td><span class="badge badge-success">Activo</span></td>
-                                <td>2024-01-15 09:15</td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Desactivar">
-                                        <i class="fas fa-user-times"></i>
-                                    </button>
-                                </td>
+                                <td colspan="7" class="text-center">No hay usuarios registrados</td>
                             </tr>
-                            <tr>
-                                <td>#U003</td>
-                                <td>Carlos López</td>
-                                <td>carlos.lopez@empresa.com</td>
-                                <td><span class="badge badge-warning">Supervisor</span></td>
-                                <td><span class="badge badge-warning">Pendiente</span></td>
-                                <td>Nunca</td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-success btn-sm" title="Activar">
-                                        <i class="fas fa-user-check"></i>
-                                    </button>
-                                </td>
-                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Paginación -->
+                @if($usuarios->hasPages())
                 <div class="d-flex justify-content-between align-items-center mt-3">
                     <div>
-                        Mostrando 1 a 10 de 25 registros
+                        Mostrando {{ $usuarios->firstItem() }} a {{ $usuarios->lastItem() }} de {{ $usuarios->total() }} registros
                     </div>
                     <nav>
-                        <ul class="pagination pagination-sm">
-                            <li class="page-item disabled">
-                                <span class="page-link">Anterior</span>
-                            </li>
-                            <li class="page-item active">
-                                <span class="page-link">1</span>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">2</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">3</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">Siguiente</a>
-                            </li>
-                        </ul>
+                        {{ $usuarios->links() }}
                     </nav>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -212,18 +178,38 @@
                 </button>
             </div>
             <div class="modal-body">
-                <form id="crearUsuarioForm">
+                @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+                <form method="POST" action="{{ route('usuarios') }}" id="crearUsuarioForm">
+                    @csrf
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="nombreUsuario">Nombre Completo</label>
-                                <input type="text" class="form-control" id="nombreUsuario" placeholder="Ej: Juan Pérez">
+                                <label for="first_name">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('first_name') is-invalid @enderror" 
+                                       id="first_name" name="first_name" value="{{ old('first_name') }}" 
+                                       placeholder="Ej: Juan" required>
+                                @error('first_name')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="emailUsuario">Email</label>
-                                <input type="email" class="form-control" id="emailUsuario" placeholder="juan.perez@empresa.com">
+                                <label for="last_name">Apellido <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('last_name') is-invalid @enderror" 
+                                       id="last_name" name="last_name" value="{{ old('last_name') }}" 
+                                       placeholder="Ej: Pérez" required>
+                                @error('last_name')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
                             </div>
                         </div>
                     </div>
@@ -231,54 +217,62 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="rolUsuario">Rol</label>
-                                <select class="form-control" id="rolUsuario">
+                                <label for="username">Usuario <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('username') is-invalid @enderror" 
+                                       id="username" name="username" value="{{ old('username') }}" 
+                                       placeholder="Ej: juan.perez" required>
+                                @error('username')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" class="form-control @error('email') is-invalid @enderror" 
+                                       id="email" name="email" value="{{ old('email') }}" 
+                                       placeholder="juan.perez@empresa.com">
+                                @error('email')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="password">Contraseña <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control @error('password') is-invalid @enderror" 
+                                       id="password" name="password" placeholder="Mínimo 6 caracteres" required>
+                                @error('password')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="role_id">Rol <span class="text-danger">*</span></label>
+                                <select class="form-control @error('role_id') is-invalid @enderror" 
+                                        id="role_id" name="role_id" required>
                                     <option value="">Seleccionar rol...</option>
-                                    <option value="admin">Administrador</option>
-                                    <option value="operador">Operador</option>
-                                    <option value="supervisor">Supervisor</option>
-                                    <option value="cliente">Cliente</option>
+                                    @foreach($roles as $rol)
+                                        <option value="{{ $rol->role_id }}" {{ old('role_id') == $rol->role_id ? 'selected' : '' }}>
+                                            {{ $rol->name }}
+                                        </option>
+                                    @endforeach
                                 </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="telefonoUsuario">Teléfono</label>
-                                <input type="tel" class="form-control" id="telefonoUsuario" placeholder="+1 234 567 8900">
+                                @error('role_id')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="passwordUsuario">Contraseña</label>
-                                <input type="password" class="form-control" id="passwordUsuario" placeholder="Mínimo 8 caracteres">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="confirmarPassword">Confirmar Contraseña</label>
-                                <input type="password" class="form-control" id="confirmarPassword" placeholder="Repetir contraseña">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="departamentoUsuario">Departamento</label>
-                                <select class="form-control" id="departamentoUsuario">
-                                    <option value="">Seleccionar departamento...</option>
-                                    <option value="produccion">Producción</option>
-                                    <option value="calidad">Calidad</option>
-                                    <option value="almacen">Almacén</option>
-                                    <option value="administracion">Administración</option>
-                                </select>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Crear Usuario</button>
                     </div>
                 </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="crearUsuario()">Crear Usuario</button>
             </div>
         </div>
     </div>
@@ -288,17 +282,21 @@
 
 @push('scripts')
 <script>
-function aplicarFiltros() {
-    // Aquí iría la lógica para aplicar filtros
-    alert('Filtros aplicados');
+function editarUsuario(id) {
+    // Implementar edición
+    window.location.href = '{{ route("usuarios") }}/' + id + '/edit';
 }
 
-function crearUsuario() {
-    // Aquí iría la lógica para crear el usuario
-    alert('Usuario creado exitosamente');
-    $('#crearUsuarioModal').modal('hide');
-    // Recargar la página o actualizar la tabla
-    location.reload();
+function aplicarFiltros() {
+    const rol = document.getElementById('filtroRol').value;
+    const estado = document.getElementById('filtroEstado').value;
+    const buscar = document.getElementById('buscarUsuario').value;
+    
+    const url = new URL(window.location);
+    if (rol) url.searchParams.set('rol', rol);
+    if (estado) url.searchParams.set('estado', estado);
+    if (buscar) url.searchParams.set('buscar', buscar);
+    window.location = url;
 }
 </script>
 @endpush

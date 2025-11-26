@@ -14,12 +14,12 @@
       <thead class="thead-light"><tr><th>ID</th><th>Nombre</th><th>Contacto</th><th class="text-right pr-3">Acciones</th></tr></thead>
       <tbody>
   @foreach($proveedores as $p)
-    <tr class="border-b"><td>{{ $p->IdProveedor }}</td><td>{{ $p->Nombre }}</td><td>{{ $p->Contacto }}</td>
+    <tr class="border-b"><td>{{ $p->supplier_id }}</td><td>{{ $p->business_name }}</td><td>{{ $p->contact_person ?? 'N/A' }}</td>
       <td class="text-right pr-3">
         <div class="btn-group btn-group-sm" role="group">
-          <a class="btn btn-secondary" href="{{ route('proveedores.show',$p->IdProveedor) }}"><i class="far fa-eye mr-1"></i> Ver</a>
-          <a class="btn btn-primary" href="{{ route('proveedores.edit',$p->IdProveedor) }}"><i class="far fa-edit mr-1"></i> Editar</a>
-          <form method="POST" action="{{ route('proveedores.destroy',$p->IdProveedor) }}" onsubmit="return confirm('¿Eliminar este proveedor?')">
+          <a class="btn btn-secondary" href="{{ route('proveedores.show',$p->supplier_id) }}"><i class="far fa-eye mr-1"></i> Ver</a>
+          <a class="btn btn-primary" href="{{ route('proveedores.edit',$p->supplier_id) }}"><i class="far fa-edit mr-1"></i> Editar</a>
+          <form method="POST" action="{{ route('proveedores.destroy',$p->supplier_id) }}" onsubmit="return confirm('¿Eliminar este proveedor?')">
             @csrf @method('DELETE')
             <button class="btn btn-danger"><i class="far fa-trash-alt mr-1"></i> Eliminar</button>
           </form>

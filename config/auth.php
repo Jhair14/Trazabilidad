@@ -38,7 +38,11 @@ return [
     'guards' => [
         'web' => [
             'driver' => 'session',
-            'provider' => 'users',
+            'provider' => 'operators',
+        ],
+        'api' => [
+            'driver' => 'jwt',
+            'provider' => 'operators',
         ],
     ],
 
@@ -64,11 +68,10 @@ return [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
-
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'operators' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Operator::class,
+        ],
     ],
 
     /*

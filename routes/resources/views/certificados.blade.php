@@ -18,12 +18,19 @@
                 </div>
             </div>
             <div class="card-body">
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show">
+                        {{ session('success') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+
                 <!-- Estadísticas -->
                 <div class="row mb-4">
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
                             <div class="inner">
-                                <h3>65</h3>
+                                <h3>{{ $certificados->total() }}</h3>
                                 <p>Total Certificados</p>
                             </div>
                             <div class="icon">
@@ -34,8 +41,11 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>58</h3>
-                                <p>Válidos</p>
+                                <h3>{{ $certificados->getCollection()->filter(function($c) { 
+                                    $eval = $c->latestFinalEvaluation;
+                                    return $eval && !str_contains(strtolower($eval->reason ?? ''), 'falló'); 
+                                })->count() }}</h3>
+                                <p>Certificados</p>
                             </div>
                             <div class="icon">
                                 <i class="fas fa-check-circle"></i>
@@ -45,8 +55,11 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>5</h3>
-                                <p>Por Vencer</p>
+                                <h3>{{ $certificados->getCollection()->filter(function($c) { 
+                                    $eval = $c->latestFinalEvaluation;
+                                    return $eval && str_contains(strtolower($eval->reason ?? ''), 'falló'); 
+                                })->count() }}</h3>
+                                <p>No Certificados</p>
                             </div>
                             <div class="icon">
                                 <i class="fas fa-exclamation-triangle"></i>
@@ -54,13 +67,13 @@
                         </div>
                     </div>
                     <div class="col-lg-3 col-6">
-                        <div class="small-box bg-danger">
+                        <div class="small-box bg-primary">
                             <div class="inner">
-                                <h3>2</h3>
-                                <p>Vencidos</p>
+                                <h3>{{ $certificados->where('storage', '!=', null)->count() }}</h3>
+                                <p>Almacenados</p>
                             </div>
                             <div class="icon">
-                                <i class="fas fa-times-circle"></i>
+                                <i class="fas fa-warehouse"></i>
                             </div>
                         </div>
                     </div>
@@ -90,113 +103,67 @@
                     </div>
                 </div>
 
-                <!-- Tabla de Certificados -->
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Lote</th>
-                                <th>Producto</th>
-                                <th>Fecha Emisión</th>
-                                <th>Fecha Vencimiento</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>#C001</td>
-                                <td>#L001</td>
-                                <td>Producto A</td>
-                                <td>2024-01-15</td>
-                                <td>2024-07-15</td>
-                                <td><span class="badge badge-success">Válido</span></td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" title="Descargar PDF">
-                                        <i class="fas fa-download"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="QR Code">
-                                        <i class="fas fa-qrcode"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Revocar">
-                                        <i class="fas fa-ban"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#C002</td>
-                                <td>#L002</td>
-                                <td>Producto B</td>
-                                <td>2024-01-14</td>
-                                <td>2024-07-14</td>
-                                <td><span class="badge badge-warning">Por Vencer</span></td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" title="Descargar PDF">
-                                        <i class="fas fa-download"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="QR Code">
-                                        <i class="fas fa-qrcode"></i>
-                                    </button>
-                                    <button class="btn btn-success btn-sm" title="Renovar">
-                                        <i class="fas fa-sync"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#C003</td>
-                                <td>#L003</td>
-                                <td>Producto C</td>
-                                <td>2024-01-13</td>
-                                <td>2024-07-13</td>
-                                <td><span class="badge badge-danger">Vencido</span></td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-secondary btn-sm" title="Historial">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                    <button class="btn btn-success btn-sm" title="Renovar">
-                                        <i class="fas fa-sync"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Lista de Certificados (similar al proyecto antiguo) -->
+                @if($certificados->count() === 0)
+                <div class="alert alert-info text-center">
+                    <p class="mb-0">No hay lotes certificados.</p>
                 </div>
+                @else
+                <div class="row">
+                    @foreach($certificados as $certificado)
+                    @php
+                        $finalEval = $certificado->latestFinalEvaluation;
+                        $esFallido = $finalEval && str_contains(strtolower($finalEval->reason ?? ''), 'falló');
+                    @endphp
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100 border {{ $esFallido ? 'border-danger' : 'border-success' }}">
+                            <div class="card-header {{ $esFallido ? 'bg-danger text-white' : 'bg-success text-white' }}">
+                                <h5 class="mb-0">
+                                    Lote #{{ $certificado->batch_code ?? $certificado->batch_id }}
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-gray-600 mb-1">
+                                    <strong>Nombre:</strong> {{ $certificado->name ?? 'Sin nombre' }}
+                                </p>
+                                <p class="text-gray-500 text-sm mb-2">
+                                    <strong>Fecha de Creación:</strong> {{ \Carbon\Carbon::parse($certificado->creation_date)->format('d/m/Y') }}
+                                </p>
+                                @if($finalEval)
+                                <p class="text-sm mb-2">
+                                    <strong>Fecha de Evaluación:</strong> {{ \Carbon\Carbon::parse($finalEval->evaluation_date)->format('d/m/Y') }}
+                                </p>
+                                @endif
+                            </div>
+                            <div class="card-footer">
+                                <div class="d-flex flex-column flex-sm-row justify-content-between gap-2">
+                                    <a href="{{ route('certificado.show', $certificado->batch_id) }}" 
+                                       class="btn btn-sm {{ $esFallido ? 'btn-danger' : 'btn-success' }}">
+                                        <i class="fas fa-certificate mr-1"></i> Ver Certificado
+                                    </a>
+                                    <a href="{{ route('certificado.qr', $certificado->batch_id) }}" 
+                                       class="btn btn-sm btn-secondary">
+                                        <i class="fas fa-qrcode mr-1"></i> Generar QR
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                @endif
 
                 <!-- Paginación -->
+                @if($certificados->hasPages())
                 <div class="d-flex justify-content-between align-items-center mt-3">
                     <div>
-                        Mostrando 1 a 10 de 65 registros
+                        Mostrando {{ $certificados->firstItem() }} a {{ $certificados->lastItem() }} de {{ $certificados->total() }} registros
                     </div>
                     <nav>
-                        <ul class="pagination pagination-sm">
-                            <li class="page-item disabled">
-                                <span class="page-link">Anterior</span>
-                            </li>
-                            <li class="page-item active">
-                                <span class="page-link">1</span>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">2</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">3</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">Siguiente</a>
-                            </li>
-                        </ul>
+                        {{ $certificados->links() }}
                     </nav>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -288,16 +255,15 @@
 @push('scripts')
 <script>
 function aplicarFiltros() {
-    // Aquí iría la lógica para aplicar filtros
-    alert('Filtros aplicados');
-}
-
-function generarCertificado() {
-    // Aquí iría la lógica para generar el certificado
-    alert('Certificado generado exitosamente');
-    $('#generarCertificadoModal').modal('hide');
-    // Recargar la página o actualizar la tabla
-    location.reload();
+    const estado = document.getElementById('filtroEstado').value;
+    const fecha = document.getElementById('filtroFecha').value;
+    const buscar = document.getElementById('buscarLote').value;
+    
+    const url = new URL(window.location);
+    if (estado) url.searchParams.set('estado', estado);
+    if (fecha) url.searchParams.set('fecha', fecha);
+    if (buscar) url.searchParams.set('buscar', buscar);
+    window.location = url;
 }
 </script>
 @endpush

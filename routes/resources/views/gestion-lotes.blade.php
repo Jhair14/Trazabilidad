@@ -23,7 +23,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
                             <div class="inner">
-                                <h3>53</h3>
+                                <h3>{{ $stats['total'] }}</h3>
                                 <p>Total Lotes</p>
                             </div>
                             <div class="icon">
@@ -34,7 +34,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>12</h3>
+                                <h3>{{ $stats['pendientes'] }}</h3>
                                 <p>Pendientes</p>
                             </div>
                             <div class="icon">
@@ -45,8 +45,8 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>25</h3>
-                                <p>Certificados</p>
+                                <h3>{{ $stats['completados'] }}</h3>
+                                <p>Completados</p>
                             </div>
                             <div class="icon">
                                 <i class="fas fa-certificate"></i>
@@ -56,7 +56,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-primary">
                             <div class="inner">
-                                <h3>8</h3>
+                                <h3>{{ $stats['en_proceso'] }}</h3>
                                 <p>En Proceso</p>
                             </div>
                             <div class="icon">
@@ -80,63 +80,56 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @forelse($lotes as $lote)
                             <tr>
-                                <td>#L001</td>
-                                <td>Lote Producción A</td>
-                                <td><span class="badge badge-success">Certificado</span></td>
-                                <td>#P001</td>
-                                <td>2024-01-15</td>
+                                <td>#{{ $lote->batch_code ?? $lote->batch_id }}</td>
+                                <td>{{ $lote->name ?? 'Sin nombre' }}</td>
                                 <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
+                                    @php
+                                        $evaluation = $lote->finalEvaluation->first();
+                                    @endphp
+                                    @if($evaluation)
+                                        @if(str_contains(strtolower($evaluation->reason ?? ''), 'falló'))
+                                            <span class="badge badge-danger">No Certificado</span>
+                                        @else
+                                            <span class="badge badge-success">Certificado</span>
+                                        @endif
+                                    @elseif($lote->start_time && !$lote->end_time)
+                                        <span class="badge badge-warning">En Proceso</span>
+                                    @else
+                                        <span class="badge badge-info">Pendiente</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($lote->order)
+                                        #{{ $lote->order->order_number ?? $lote->order->order_id }}
+                                    @else
+                                        <span class="text-muted">Sin pedido</span>
+                                    @endif
+                                </td>
+                                <td>{{ \Carbon\Carbon::parse($lote->creation_date)->format('Y-m-d') }}</td>
+                                <td class="text-right">
+                                    <button class="btn btn-sm btn-info" title="Ver" onclick="verLote({{ $lote->batch_id }})">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar">
+                                    <button class="btn btn-sm btn-warning" title="Editar" onclick="editarLote({{ $lote->batch_id }})">
                                         <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Eliminar">
-                                        <i class="fas fa-trash"></i>
                                     </button>
                                 </td>
                             </tr>
+                            @empty
                             <tr>
-                                <td>#L002</td>
-                                <td>Lote Producción B</td>
-                                <td><span class="badge badge-warning">En Proceso</span></td>
-                                <td>#P002</td>
-                                <td>2024-01-14</td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Eliminar">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
+                                <td colspan="6" class="text-center">No hay lotes registrados</td>
                             </tr>
-                            <tr>
-                                <td>#L003</td>
-                                <td>Lote Producción C</td>
-                                <td><span class="badge badge-info">Pendiente</span></td>
-                                <td>#P003</td>
-                                <td>2024-01-13</td>
-                                <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" title="Eliminar">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
+                @if($lotes->hasPages())
+                <div class="card-footer">
+                    {{ $lotes->links() }}
+                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -153,29 +146,69 @@
                 </button>
             </div>
             <div class="modal-body">
-                <form id="crearLoteForm">
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show">
+                        {{ session('success') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        {{ session('error') }}
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                @endif
+                @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+                <form method="POST" action="{{ route('gestion-lotes') }}" id="crearLoteForm">
+                    @csrf
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="name">Nombre del Lote <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('name') is-invalid @enderror" 
+                                       id="name" name="name" 
+                                       value="{{ old('name') }}" 
+                                       placeholder="Ej: Lote de producción #001" required>
+                                @error('name')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="nombreLote">Nombre del Lote</label>
-                                <input type="text" class="form-control" id="nombreLote" placeholder="Ej: Lote de producción #001">
+                                <label for="order_id">Pedido Asociado</label>
+                                <select class="form-control" id="order_id" name="order_id">
+                                    <option value="">Sin pedido asociado</option>
+                                    @foreach($pedidos as $pedido)
+                                        <option value="{{ $pedido->order_id }}" {{ old('order_id') == $pedido->order_id ? 'selected' : '' }}>
+                                            Pedido #{{ $pedido->order_number ?? $pedido->order_id }} - {{ $pedido->customer->business_name ?? 'N/A' }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="pedidoAsociado">Pedido Asociado</label>
-                                <select class="form-control" id="pedidoAsociado">
-                                    <option value="">Sin pedido asociado</option>
-                                    <option value="1">Pedido #001 - Cliente A</option>
-                                    <option value="2">Pedido #002 - Cliente B</option>
-                                    <option value="3">Pedido #003 - Cliente C</option>
-                                </select>
+                                <label for="target_quantity">Cantidad Objetivo</label>
+                                <input type="number" class="form-control" id="target_quantity" 
+                                       name="target_quantity" value="{{ old('target_quantity') }}" 
+                                       step="0.01" min="0" placeholder="0.00">
                             </div>
                         </div>
                     </div>
                     
                     <div class="form-group">
-                        <label>Materias Primas</label>
+                        <label>Materias Primas <span class="text-danger">*</span></label>
                         <div class="table-responsive">
                             <table class="table table-sm">
                                 <thead>
@@ -188,15 +221,27 @@
                                 <tbody id="materiasPrimasTable">
                                     <tr>
                                         <td>
-                                            <select class="form-control form-control-sm">
-                                                <option value="">Seleccionar...</option>
-                                                <option value="1">Harina (kg)</option>
-                                                <option value="2">Azúcar (kg)</option>
-                                                <option value="3">Sal (g)</option>
+                                            <select class="form-control form-control-sm materia-prima-select" 
+                                                    name="raw_materials[0][material_id]" 
+                                                    onchange="updateAvailableQuantity(this)" required>
+                                                <option value="">Seleccionar materia prima...</option>
+                                                @foreach($materias_primas as $mp)
+                                                    @php
+                                                        $available = $mp->calculated_available_quantity ?? ($mp->available_quantity ?? 0);
+                                                    @endphp
+                                                    <option value="{{ $mp->material_id }}" data-available="{{ number_format($available, 2) }}">
+                                                        {{ $mp->name }} ({{ $mp->unit->code ?? 'N/A' }}) - Disponible: {{ number_format($available, 2) }}
+                                                    </option>
+                                                @endforeach
                                             </select>
+                                            <small class="text-muted available-quantity" style="display: none;"></small>
                                         </td>
                                         <td>
-                                            <input type="number" class="form-control form-control-sm" placeholder="0.00" step="0.01">
+                                            <input type="number" class="form-control form-control-sm cantidad-input" 
+                                                   name="raw_materials[0][planned_quantity]" 
+                                                   placeholder="0.00" step="0.01" min="0" 
+                                                   onchange="validateQuantity(this)" required>
+                                            <small class="text-danger quantity-error" style="display: none;"></small>
                                         </td>
                                         <td>
                                             <button type="button" class="btn btn-danger btn-sm" onclick="removeMateriaPrima(this)">
@@ -211,11 +256,138 @@
                             <i class="fas fa-plus"></i> Agregar Materia Prima
                         </button>
                     </div>
+                    
+                    <div class="form-group">
+                        <label for="observations">Observaciones</label>
+                        <textarea class="form-control" id="observations" name="observations" rows="3">{{ old('observations') }}</textarea>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="crearLote()">Crear Lote</button>
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('crearLoteForm').submit();">Crear Lote</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ver Lote -->
+<div class="modal fade" id="verLoteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">
+                    <i class="fas fa-eye mr-1"></i>
+                    Detalles del Lote
+                </h4>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="verLoteContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="sr-only">Cargando...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Lote -->
+<div class="modal fade" id="editarLoteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">
+                    <i class="fas fa-edit mr-1"></i>
+                    Editar Lote
+                </h4>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+                <form method="POST" action="" id="editarLoteForm">
+                    @csrf
+                    @method('PUT')
+                    
+                    <div class="form-group">
+                        <label for="edit_name">
+                            <i class="fas fa-tag mr-1"></i>
+                            Nombre del Lote <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
+                               id="edit_name" name="name" required>
+                        @error('name')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_order_id">
+                                    <i class="fas fa-shopping-cart mr-1"></i>
+                                    Pedido Asociado
+                                </label>
+                                <select class="form-control" id="edit_order_id" name="order_id">
+                                    <option value="">Sin pedido asociado</option>
+                                    @foreach($pedidos as $pedido)
+                                        <option value="{{ $pedido->order_id }}">
+                                            Pedido #{{ $pedido->order_number ?? $pedido->order_id }} - {{ $pedido->customer->business_name ?? 'N/A' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_target_quantity">
+                                    <i class="fas fa-weight mr-1"></i>
+                                    Cantidad Objetivo
+                                </label>
+                                <input type="number" class="form-control" id="edit_target_quantity" 
+                                       name="target_quantity" step="0.01" min="0" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit_observations">
+                            <i class="fas fa-comment-alt mr-1"></i>
+                            Observaciones
+                        </label>
+                        <textarea class="form-control" id="edit_observations" name="observations" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            <i class="fas fa-times mr-1"></i>
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save mr-1"></i>
+                            Actualizar Lote
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -225,20 +397,34 @@
 
 @push('scripts')
 <script>
+let materiaPrimaIndex = 1;
+
+const materiasPrimasData = @json($materias_primas_json);
+
+// Agregar materia prima al formulario
 function addMateriaPrima() {
-    const table = document.getElementById('materiasPrimasTable');
-    const row = table.insertRow();
+    const tbody = document.getElementById('materiasPrimasTable');
+    const row = document.createElement('tr');
     row.innerHTML = `
         <td>
-            <select class="form-control form-control-sm">
-                <option value="">Seleccionar...</option>
-                <option value="1">Harina (kg)</option>
-                <option value="2">Azúcar (kg)</option>
-                <option value="3">Sal (g)</option>
+            <select class="form-control form-control-sm materia-prima-select" 
+                    name="raw_materials[${materiaPrimaIndex}][material_id]" 
+                    onchange="updateAvailableQuantity(this)" required>
+                <option value="">Seleccionar materia prima...</option>
+                ${materiasPrimasData.map(mp => `
+                    <option value="${mp.material_id}" data-available="${mp.available}">
+                        ${mp.name} (${mp.unit_code}) - Disponible: ${mp.available}
+                    </option>
+                `).join('')}
             </select>
+            <small class="text-info available-quantity" style="display: none;"></small>
         </td>
         <td>
-            <input type="number" class="form-control form-control-sm" placeholder="0.00" step="0.01">
+            <input type="number" class="form-control form-control-sm cantidad-input" 
+                   name="raw_materials[${materiaPrimaIndex}][planned_quantity]" 
+                   placeholder="0.00" step="0.01" min="0" 
+                   onchange="validateQuantity(this)" required>
+            <small class="text-danger quantity-error" style="display: none;"></small>
         </td>
         <td>
             <button type="button" class="btn btn-danger btn-sm" onclick="removeMateriaPrima(this)">
@@ -246,18 +432,267 @@ function addMateriaPrima() {
             </button>
         </td>
     `;
+    tbody.appendChild(row);
+    materiaPrimaIndex++;
+}
+
+// Eliminar materia prima del formulario
+function removeMateriaPrima(button) {
+    const row = button.closest('tr');
+    if (document.getElementById('materiasPrimasTable').rows.length > 1) {
+        row.remove();
+    } else {
+        alert('Debe tener al menos una materia prima');
+    }
+}
+
+// Actualizar cantidad disponible cuando se selecciona una materia prima
+function updateAvailableQuantity(select) {
+    const row = select.closest('tr');
+    const selectedOption = select.options[select.selectedIndex];
+    const available = parseFloat(selectedOption.getAttribute('data-available')) || 0;
+    const availableSpan = row.querySelector('.available-quantity');
+    
+    if (select.value) {
+        availableSpan.textContent = `Disponible: ${available}`;
+        availableSpan.style.display = 'block';
+        availableSpan.className = 'text-info available-quantity';
+        
+        // Actualizar el max del input de cantidad
+        const cantidadInput = row.querySelector('.cantidad-input');
+        if (cantidadInput) {
+            cantidadInput.setAttribute('max', available);
+            cantidadInput.setAttribute('data-available', available);
+            
+            // Validar cantidad si ya hay un valor
+            if (cantidadInput.value) {
+                validateQuantity(cantidadInput);
+            }
+        }
+    } else {
+        if (availableSpan) {
+            availableSpan.style.display = 'none';
+        }
+    }
+}
+
+// Validar cantidad ingresada
+function validateQuantity(input) {
+    const row = input.closest('tr');
+    const select = row.querySelector('.materia-prima-select');
+    const errorSpan = row.querySelector('.quantity-error');
+    const cantidad = parseFloat(input.value) || 0;
+    
+    if (!select.value) {
+        errorSpan.textContent = 'Debe seleccionar una materia prima primero';
+        errorSpan.style.display = 'block';
+        input.classList.add('is-invalid');
+        return false;
+    }
+    
+    const available = parseFloat(select.options[select.selectedIndex].getAttribute('data-available')) || 0;
+    
+    if (cantidad <= 0) {
+        errorSpan.textContent = 'La cantidad debe ser mayor a 0';
+        errorSpan.style.display = 'block';
+        input.classList.add('is-invalid');
+        return false;
+    }
+    
+    if (cantidad > available) {
+        errorSpan.textContent = `La cantidad no puede ser mayor a ${available}`;
+        errorSpan.style.display = 'block';
+        input.classList.add('is-invalid');
+        return false;
+    }
+    
+    errorSpan.style.display = 'none';
+    input.classList.remove('is-invalid');
+    return true;
+}
+
+// Validar formulario antes de enviar
+document.getElementById('crearLoteForm').addEventListener('submit', function(e) {
+    const rows = document.querySelectorAll('#materiasPrimasTable tr');
+    let isValid = true;
+    
+    if (rows.length === 0) {
+        e.preventDefault();
+        alert('Debe agregar al menos una materia prima');
+        return false;
+    }
+    
+    rows.forEach(row => {
+        const select = row.querySelector('.materia-prima-select');
+        const input = row.querySelector('.cantidad-input');
+        
+        if (!select.value || !input.value || !validateQuantity(input)) {
+            isValid = false;
+        }
+    });
+    
+    if (!isValid) {
+        e.preventDefault();
+        alert('Por favor complete correctamente todos los campos de materias primas');
+        return false;
+    }
+    
+    return true;
+});
+
+// Inicializar primera fila cuando se carga el modal
+$('#crearLoteModal').on('shown.bs.modal', function() {
+    materiaPrimaIndex = 1;
+    const firstSelect = document.querySelector('#materiasPrimasTable .materia-prima-select');
+    if (firstSelect) {
+        firstSelect.innerHTML = `
+            <option value="">Seleccionar materia prima...</option>
+            ${materiasPrimasData.map(mp => `
+                <option value="${mp.material_id}" data-available="${mp.available}">
+                    ${mp.name} (${mp.unit_code}) - Disponible: ${mp.available}
+                </option>
+            `).join('')}
+        `;
+    }
+});
+
+function verLote(id) {
+    fetch(`{{ url('gestion-lotes') }}/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            let rawMaterialsHtml = '';
+            if (data.raw_materials && data.raw_materials.length > 0) {
+                rawMaterialsHtml = '<table class="table table-sm table-bordered"><thead><tr><th>Materia Prima</th><th>Proveedor</th><th>Cantidad Planificada</th><th>Cantidad Usada</th></tr></thead><tbody>';
+                data.raw_materials.forEach(function(rm) {
+                    rawMaterialsHtml += `<tr><td>${rm.material_name} (${rm.unit})</td><td>${rm.supplier}</td><td>${rm.planned_quantity}</td><td>${rm.used_quantity || 0}</td></tr>`;
+                });
+                rawMaterialsHtml += '</tbody></table>';
+            } else {
+                rawMaterialsHtml = '<p class="text-muted">No hay materias primas asignadas</p>';
+            }
+            
+            const content = `
+                <div class="row">
+                    <div class="col-md-12">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th style="width: 30%;">ID</th>
+                                <td>#${data.batch_id}</td>
+                            </tr>
+                            <tr>
+                                <th>Código</th>
+                                <td><span class="badge badge-primary">${data.batch_code}</span></td>
+                            </tr>
+                            <tr>
+                                <th>Nombre</th>
+                                <td>${data.name}</td>
+                            </tr>
+                            <tr>
+                                <th>Pedido</th>
+                                <td>${data.order_number ? '#' + data.order_number + ' - ' + data.customer_name : 'Sin pedido'}</td>
+                            </tr>
+                            <tr>
+                                <th>Fecha Creación</th>
+                                <td>${data.creation_date}</td>
+                            </tr>
+                            <tr>
+                                <th>Fecha Inicio</th>
+                                <td>${data.start_time || 'No iniciado'}</td>
+                            </tr>
+                            <tr>
+                                <th>Fecha Fin</th>
+                                <td>${data.end_time || 'No finalizado'}</td>
+                            </tr>
+                            <tr>
+                                <th>Cantidad Objetivo</th>
+                                <td>${data.target_quantity || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th>Cantidad Producida</th>
+                                <td>${data.produced_quantity || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th>Materias Primas</th>
+                                <td>${rawMaterialsHtml}</td>
+                            </tr>
+                            ${data.evaluation ? `
+                            <tr>
+                                <th>Evaluación Final</th>
+                                <td>
+                                    <strong>Razón:</strong> ${data.evaluation.reason}<br>
+                                    <strong>Observaciones:</strong> ${data.evaluation.observations || 'N/A'}<br>
+                                    <strong>Fecha:</strong> ${data.evaluation.evaluation_date}
+                                </td>
+                            </tr>
+                            ` : ''}
+                            <tr>
+                                <th>Observaciones</th>
+                                <td>${data.observations || 'Sin observaciones'}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('verLoteContent').innerHTML = content;
+            $('#verLoteModal').modal('show');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los datos del lote');
+        });
+}
+
+function editarLote(id) {
+    fetch(`{{ url('gestion-lotes') }}/${id}/edit`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('editarLoteForm').action = `{{ url('gestion-lotes') }}/${id}`;
+            document.getElementById('edit_name').value = data.name || '';
+            document.getElementById('edit_order_id').value = data.order_id || '';
+            document.getElementById('edit_target_quantity').value = data.target_quantity || '';
+            document.getElementById('edit_observations').value = data.observations || '';
+            $('#editarLoteModal').modal('show');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los datos del lote para editar');
+        });
+}
+
+function addMateriaPrima() {
+    const table = document.getElementById('materiasPrimasTable');
+    const row = table.insertRow();
+    let optionsHtml = '<option value="">Seleccionar materia prima...</option>';
+    materiasPrimasData.forEach(function(mp) {
+        optionsHtml += `<option value="${mp.material_id}">${mp.name} (${mp.unit_code}) - Disponible: ${mp.available}</option>`;
+    });
+    row.innerHTML = `
+        <td>
+            <select class="form-control form-control-sm" name="raw_materials[${materiaPrimaIndex}][material_id]" required>
+                ${optionsHtml}
+            </select>
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm" 
+                   name="raw_materials[${materiaPrimaIndex}][planned_quantity]" 
+                   placeholder="0.00" step="0.01" min="0" required>
+        </td>
+        <td>
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeMateriaPrima(this)">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+    materiaPrimaIndex++;
 }
 
 function removeMateriaPrima(button) {
-    button.closest('tr').remove();
-}
-
-function crearLote() {
-    // Aquí iría la lógica para crear el lote
-    alert('Lote creado exitosamente');
-    $('#crearLoteModal').modal('hide');
-    // Recargar la página o actualizar la tabla
-    location.reload();
+    const row = button.closest('tr');
+    if (document.getElementById('materiasPrimasTable').rows.length > 1) {
+        row.remove();
+    } else {
+        alert('Debe tener al menos una materia prima');
+    }
 }
 </script>
 @endpush
