@@ -25,40 +25,95 @@
                     <p class="text-sm text-gray-500 mb-4">
                         Escanea este código para ver el certificado del lote #{{ $lote->batch_id }}
                     </p>
-                    <div id="qrCode" style="min-height: 256px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                        <!-- El QR se generará aquí -->
+                    <div id="qrCode" style="min-height: 256px; display: flex; align-items: center; justify-content: center; margin: 20px auto;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Generando QR...</span>
+                        </div>
                     </div>
                     <p class="mt-4 text-xs text-gray-400 break-all" id="urlCertificado"></p>
                 </div>
             </div>
-
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // En producción esto debería ser un enlace público al certificado
-    const url = window.location.origin + '/certificado/{{ $lote->batch_id }}';
-    document.getElementById('urlCertificado').textContent = url;
-    
+    // URL pública del certificado (accesible desde QR sin autenticación)
+    const url = window.location.origin + '/certificado-publico/{{ $lote->batch_id }}';
+    const urlElement = document.getElementById('urlCertificado');
     const qrContainer = document.getElementById('qrCode');
-    qrContainer.innerHTML = '';
     
-    QRCode.toCanvas(qrContainer, url, {
-        width: 256,
-        height: 256,
-        color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-        }
-    }, function (error) {
-        if (error) {
-            console.error('Error al generar QR:', error);
-            qrContainer.innerHTML = '<p class="text-danger">Error al generar el código QR</p>';
-        }
-    });
+    if (urlElement) {
+        urlElement.textContent = url;
+    }
+    
+    if (!qrContainer) {
+        console.error('Contenedor QR no encontrado');
+        return;
+    }
+    
+    // Usar API pública de QR code generation (similar al enfoque simple del proyecto antiguo)
+    // Esta es una solución confiable que no depende de librerías externas
+    const apiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=' + encodeURIComponent(url);
+    
+    const img = document.createElement('img');
+    img.src = apiUrl;
+    img.alt = 'Código QR del Certificado';
+    img.style.cssText = 'max-width: 100%; height: auto; border: 2px solid #ddd; padding: 10px; background: white; display: block; margin: 0 auto;';
+    
+    img.onload = function() {
+        qrContainer.innerHTML = '';
+        qrContainer.appendChild(img);
+    };
+    
+    img.onerror = function() {
+        // Si la API falla, intentar con otra librería
+        qrContainer.innerHTML = '<p class="text-muted">Cargando código QR...</p>';
+        loadQRCodeLibrary(url, qrContainer);
+    };
+    
+    // Intentar cargar la imagen
+    qrContainer.innerHTML = '';
+    qrContainer.appendChild(img);
 });
+
+// Función de respaldo: cargar librería QRCode
+function loadQRCodeLibrary(url, container) {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+    script.onload = function() {
+        if (typeof QRCode !== 'undefined') {
+            QRCode.toDataURL(url, {
+                width: 300,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error, urlData) {
+                if (error) {
+                    container.innerHTML = '<p class="text-danger">Error al generar el código QR. URL: ' + url + '</p>';
+                } else {
+                    const img = document.createElement('img');
+                    img.src = urlData;
+                    img.alt = 'Código QR del Certificado';
+                    img.style.cssText = 'max-width: 100%; height: auto; border: 2px solid #ddd; padding: 10px; background: white; display: block; margin: 0 auto;';
+                    container.innerHTML = '';
+                    container.appendChild(img);
+                }
+            });
+        } else {
+            container.innerHTML = '<p class="text-danger">No se pudo cargar la librería QRCode. URL del certificado: <br><small>' + url + '</small></p>';
+        }
+    };
+    script.onerror = function() {
+        container.innerHTML = '<p class="text-danger">Error: No se pudo cargar la librería QRCode. URL del certificado: <br><small>' + url + '</small></p>';
+    };
+    document.head.appendChild(script);
+}
 </script>
 @endpush
 

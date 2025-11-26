@@ -234,12 +234,12 @@
                         <p>Almacenar lotes</p>
                     </a>
                 </li>
-                <li class="nav-item">
+                {{-- <li class="nav-item">
                     <a href="{{ route('lotes-almacenados') }}" class="nav-link">
                         <i class="nav-icon fas fa-list"></i>
                         <p>Lotes almacenados</p>
                     </a>
-                </li>
+                </li> --}}
                 <!-- PEDIDOS -->
                 <li class="nav-header">Pedidos</li>
                 <li class="nav-item">

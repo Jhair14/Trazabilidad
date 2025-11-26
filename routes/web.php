@@ -29,6 +29,9 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// Ruta pública para ver certificados (accesible desde QR)
+Route::get('/certificado-publico/{id}', [CertificadosController::class, 'showPublic'])->name('certificado.publico');
+
 // Rutas protegidas
 Route::middleware(['auth'])->group(function () {
     // Dashboards

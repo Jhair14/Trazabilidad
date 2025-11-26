@@ -49,13 +49,39 @@ class CertificadosController extends Controller
     {
         $lote = ProductionBatch::with([
             'order.customer',
-            'finalEvaluation.inspector',
+            'latestFinalEvaluation.inspector',
             'processMachineRecords.processMachine.machine',
             'rawMaterials.rawMaterial.materialBase',
             'storage'
         ])->findOrFail($id);
 
         return view('codigo-qr', compact('lote'));
+    }
+
+    /**
+     * Mostrar certificado de forma pública (sin autenticación)
+     * Accesible desde código QR
+     */
+    public function showPublic($id)
+    {
+        $lote = ProductionBatch::with([
+            'order.customer',
+            'latestFinalEvaluation.inspector',
+            'processMachineRecords.processMachine.machine',
+            'processMachineRecords.processMachine.process',
+            'processMachineRecords.operator',
+            'rawMaterials.rawMaterial.materialBase',
+            'storage'
+        ])->findOrFail($id);
+
+        if (!$lote->latestFinalEvaluation) {
+            return view('certificados.publico', [
+                'lote' => $lote,
+                'error' => 'Este lote aún no ha sido certificado'
+            ]);
+        }
+
+        return view('certificados.publico', compact('lote'));
     }
 }
 
