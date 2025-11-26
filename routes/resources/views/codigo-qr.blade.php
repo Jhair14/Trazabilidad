@@ -15,9 +15,9 @@
                     <a href="{{ route('certificados') }}" class="btn btn-secondary btn-sm">
                         <i class="fas fa-arrow-left mr-1"></i> Volver a Certificados
                     </a>
-                </div>
-            </div>
-            <div class="card-body text-center">
+                        </div>
+                            </div>
+                            <div class="card-body text-center">
                 <div class="bg-white flex flex-column justify-content-center align-items-center p-6 rounded-xl shadow max-w-md mx-auto">
                     <h2 class="text-xl font-bold mb-4 text-primary">
                         Código QR del Certificado
@@ -28,8 +28,8 @@
                     <div id="qrCode" style="min-height: 256px; display: flex; align-items: center; justify-content: center; margin: 20px auto;">
                         <div class="spinner-border text-primary" role="status">
                             <span class="sr-only">Generando QR...</span>
-                        </div>
-                    </div>
+                                </div>
+                            </div>
                     <p class="mt-4 text-xs text-gray-400 break-all" id="urlCertificado"></p>
                 </div>
             </div>
@@ -89,12 +89,12 @@ function loadQRCodeLibrary(url, container) {
             QRCode.toDataURL(url, {
                 width: 300,
                 margin: 2,
-                color: {
-                    dark: '#000000',
-                    light: '#FFFFFF'
-                }
+        color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+        }
             }, function (error, urlData) {
-                if (error) {
+        if (error) {
                     container.innerHTML = '<p class="text-danger">Error al generar el código QR. URL: ' + url + '</p>';
                 } else {
                     const img = document.createElement('img');
@@ -103,7 +103,7 @@ function loadQRCodeLibrary(url, container) {
                     img.style.cssText = 'max-width: 100%; height: auto; border: 2px solid #ddd; padding: 10px; background: white; display: block; margin: 0 auto;';
                     container.innerHTML = '';
                     container.appendChild(img);
-                }
+}
             });
         } else {
             container.innerHTML = '<p class="text-danger">No se pudo cargar la librería QRCode. URL del certificado: <br><small>' + url + '</small></p>';
