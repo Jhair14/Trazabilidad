@@ -13,11 +13,22 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Seeders de tablas de parametrización (en orden de dependencias)
+        $this->call([
+            UnitOfMeasureSeeder::class,
+            StatusSeeder::class,
+            MovementTypeSeeder::class,
+            OperatorRoleSeeder::class,
+            RawMaterialCategorySeeder::class,
+            StandardVariableSeeder::class,
+            MachineSeeder::class,
+            ProcessSeeder::class,
         ]);
+
+        // Usuario de prueba (opcional)
+        // User::factory()->create([
+        //     'name' => 'Test User',
+        //     'email' => 'test@example.com',
+        // ]);
     }
 }
