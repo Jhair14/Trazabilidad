@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             StatusSeeder::class,
             MovementTypeSeeder::class,
             OperatorRoleSeeder::class,
+            OperatorSeeder::class,
             RawMaterialCategorySeeder::class,
             StandardVariableSeeder::class,
             MachineSeeder::class,
