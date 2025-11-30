@@ -11,9 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('raw_material', function (Blueprint $table) {
-            $table->text('receipt_signature')->nullable()->after('receipt_conformity');
-        });
+        // Verificar que la tabla existe antes de modificarla
+        if (Schema::hasTable('raw_material') && !Schema::hasColumn('raw_material', 'receipt_signature')) {
+            Schema::table('raw_material', function (Blueprint $table) {
+                $table->text('receipt_signature')->nullable()->after('receipt_conformity');
+            });
+        }
     }
 
     /**

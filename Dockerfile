@@ -1,5 +1,5 @@
-# Usa una imagen base de PHP con Apache
-FROM php:8.4-apache
+# Usa una imagen base de PHP con Apache (versión más estable)
+FROM php:8.2-apache
 
 # Instala las dependencias necesarias para Laravel y PostgreSQL
 RUN apt-get update && apt-get install -y \

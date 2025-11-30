@@ -39,6 +39,38 @@
         .nav-sidebar .nav-item.has-treeview.menu-open > .nav-link > .right {
             transform: rotate(-90deg);
         }
+
+        /* Fix sidebar height to extend to bottom */
+        .main-sidebar {
+            height: 100vh !important;
+            position: fixed !important;
+        }
+
+        .sidebar {
+            height: calc(100vh - 120px) !important;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar nav {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar nav ul.nav-sidebar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Ensure cerrar sesión stays at bottom */
+        .sidebar nav ul.nav-sidebar li:last-child {
+            margin-top: auto;
+            padding-top: 1rem;
+        }
         </style>
         @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
             @vite(['resources/css/app.css', 'resources/js/app.js'])
