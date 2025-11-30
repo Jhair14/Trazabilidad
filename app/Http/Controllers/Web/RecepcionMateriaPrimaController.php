@@ -69,13 +69,15 @@ class RecepcionMateriaPrimaController extends Controller
             'supplier_id' => 'required|integer|exists:supplier,supplier_id',
             'supplier_batch' => 'nullable|string|max:100',
             'invoice_number' => 'required|string|max:100',
-            'receipt_date' => 'required|date',
+            'receipt_date' => ['required', 'date', 'after_or_equal:today'],
             'expiration_date' => 'nullable|date|after:receipt_date',
             'quantity' => 'required|numeric|min:0',
             'receipt_conformity' => 'nullable|boolean',
             'receipt_signature' => 'nullable|string',
             'observations' => 'nullable|string|max:500',
             'request_id' => 'nullable|integer|exists:material_request,request_id',
+        ], [
+            'receipt_date.after_or_equal' => 'La fecha de recepción no puede ser anterior a hoy.',
         ]);
 
         if ($validator->fails()) {

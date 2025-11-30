@@ -387,31 +387,31 @@ return new class extends Migration
         // If using PostgreSQL, uncomment the following lines:
 
         if (DB::getDriverName() === 'pgsql') {
-            DB::statement('CREATE SEQUENCE unit_of_measure_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE status_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE movement_type_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE operator_role_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE customer_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE raw_material_category_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE supplier_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE standard_variable_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE machine_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE process_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE operator_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE raw_material_base_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE raw_material_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE customer_order_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE production_batch_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE batch_raw_material_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE material_movement_log_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE process_machine_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE process_machine_variable_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE process_machine_record_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE process_final_evaluation_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE storage_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE material_request_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE material_request_detail_seq START WITH 1');
-            DB::statement('CREATE SEQUENCE supplier_response_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS unit_of_measure_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS status_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS movement_type_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS operator_role_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS customer_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS raw_material_category_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS supplier_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS standard_variable_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS machine_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS process_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS operator_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS raw_material_base_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS raw_material_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS customer_order_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS production_batch_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS batch_raw_material_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS material_movement_log_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS process_machine_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS process_machine_variable_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS process_machine_record_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS process_final_evaluation_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS storage_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS material_request_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS material_request_detail_seq START WITH 1');
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS supplier_response_seq START WITH 1');
         }
     }
 

@@ -19,7 +19,6 @@ class RawMaterialBase extends Model
         'code',
         'name',
         'description',
-        'image_url',
         'available_quantity',
         'minimum_stock',
         'maximum_stock',

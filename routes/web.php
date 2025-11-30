@@ -102,6 +102,7 @@ Route::middleware(['auth'])->group(function () {
     // Pedidos
     Route::get('/mis-pedidos', [PedidosController::class, 'misPedidos'])->name('mis-pedidos');
     Route::post('/mis-pedidos', [PedidosController::class, 'crearPedido'])->name('mis-pedidos.store');
+    Route::get('/mis-pedidos/{id}', [PedidosController::class, 'show'])->name('mis-pedidos.show');
     
     Route::get('/gestion-pedidos', [GestionPedidosController::class, 'index'])->name('gestion-pedidos');
     Route::put('/gestion-pedidos/{id}', [GestionPedidosController::class, 'update'])->name('gestion-pedidos.update');

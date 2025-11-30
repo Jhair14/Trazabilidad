@@ -85,7 +85,6 @@
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Código</th>
                                 <th>Nombre</th>
                                 <th>Descripción</th>
                                 <th>Máquinas</th>
@@ -97,7 +96,6 @@
                             @forelse($procesos as $proceso)
                             <tr>
                                 <td>#{{ $proceso->process_id }}</td>
-                                <td><span class="badge badge-primary">{{ $proceso->code }}</span></td>
                                 <td>{{ $proceso->name }}</td>
                                 <td>{{ $proceso->description ?? 'Sin descripción' }}</td>
                                 <td>
@@ -377,10 +375,6 @@ function verProceso(id) {
                             <tr>
                                 <th style="width: 30%;">ID</th>
                                 <td>#${data.process_id}</td>
-                            </tr>
-                            <tr>
-                                <th>Código</th>
-                                <td><span class="badge badge-primary">${data.code}</span></td>
                             </tr>
                             <tr>
                                 <th>Nombre</th>

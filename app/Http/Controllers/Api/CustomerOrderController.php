@@ -44,10 +44,13 @@ class CustomerOrderController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|integer|exists:customer,customer_id',
-            'delivery_date' => 'nullable|date',
+            'quantity' => 'required|numeric|min:0.0001',
+            'delivery_date' => ['nullable', 'date', 'after_or_equal:today'],
             'priority' => 'nullable|integer|min:1|max:10',
             'description' => 'nullable|string',
             'observations' => 'nullable|string',
+        ], [
+            'delivery_date.after_or_equal' => 'La fecha de entrega no puede ser anterior a hoy.',
         ]);
 
         if ($validator->fails()) {
@@ -68,6 +71,7 @@ class CustomerOrderController extends Controller
                 'order_id' => $nextId,
                 'customer_id' => $request->customer_id,
                 'order_number' => $orderNumber,
+                'quantity' => $request->quantity,
                 'creation_date' => now()->toDateString(),
                 'delivery_date' => $request->delivery_date,
                 'priority' => $request->priority ?? 1,
@@ -90,10 +94,13 @@ class CustomerOrderController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'delivery_date' => 'nullable|date',
+            'quantity' => 'nullable|numeric|min:0.0001',
+            'delivery_date' => ['nullable', 'date', 'after_or_equal:today'],
             'priority' => 'nullable|integer|min:1|max:10',
             'description' => 'nullable|string',
             'observations' => 'nullable|string',
+        ], [
+            'delivery_date.after_or_equal' => 'La fecha de entrega no puede ser anterior a hoy.',
         ]);
 
         if ($validator->fails()) {
@@ -106,7 +113,7 @@ class CustomerOrderController extends Controller
         try {
             $order = CustomerOrder::findOrFail($id);
             $order->update($request->only([
-                'delivery_date', 'priority', 'description', 'observations'
+                'quantity', 'delivery_date', 'priority', 'description', 'observations'
             ]));
 
             return response()->json([

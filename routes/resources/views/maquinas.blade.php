@@ -86,7 +86,6 @@
                             <tr>
                                 <th>Imagen</th>
                                 <th>ID</th>
-                                <th>Código</th>
                                 <th>Nombre</th>
                                 <th>Descripción</th>
                                 <th>Estado</th>
@@ -108,7 +107,6 @@
                                     @endif
                                 </td>
                                 <td>#{{ $maquina->machine_id }}</td>
-                                <td><span class="badge badge-primary">{{ $maquina->code }}</span></td>
                                 <td>{{ $maquina->name }}</td>
                                 <td>{{ $maquina->description ?? 'Sin descripción' }}</td>
                                 <td>

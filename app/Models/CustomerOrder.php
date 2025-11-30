@@ -16,6 +16,7 @@ class CustomerOrder extends Model
         'order_id',
         'customer_id',
         'order_number',
+        'quantity',
         'creation_date',
         'delivery_date',
         'priority',
@@ -27,6 +28,7 @@ class CustomerOrder extends Model
         'creation_date' => 'date',
         'delivery_date' => 'date',
         'priority' => 'integer',
+        'quantity' => 'decimal:4',
     ];
 
     public function customer(): BelongsTo

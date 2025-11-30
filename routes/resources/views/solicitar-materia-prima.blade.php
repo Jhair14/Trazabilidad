@@ -227,7 +227,10 @@
                                 </label>
                                 <input type="date" class="form-control @error('required_date') is-invalid @enderror" 
                                        id="required_date" name="required_date" 
-                                       value="{{ old('required_date') }}" required>
+                                       value="{{ old('required_date') }}"
+                                       min="{{ date('Y-m-d') }}"
+                                       title="No se pueden seleccionar fechas anteriores a hoy"
+                                       required>
                                 @error('required_date')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror

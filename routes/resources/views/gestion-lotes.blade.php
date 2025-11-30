@@ -580,10 +580,6 @@ function verLote(id) {
                                 <td>#${data.batch_id}</td>
                             </tr>
                             <tr>
-                                <th>Código</th>
-                                <td><span class="badge badge-primary">${data.batch_code}</span></td>
-                            </tr>
-                            <tr>
                                 <th>Nombre</th>
                                 <td>${data.name}</td>
                             </tr>

@@ -41,11 +41,13 @@ class SolicitarMateriaPrimaController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'order_id' => 'required|integer|exists:customer_order,order_id',
-            'required_date' => 'required|date',
+            'required_date' => ['required', 'date', 'after_or_equal:today'],
             'priority' => 'nullable|integer|min:1|max:10',
             'materials' => 'required|array|min:1',
             'materials.*.material_id' => 'required|integer|exists:raw_material_base,material_id',
             'materials.*.requested_quantity' => 'required|numeric|min:0',
+        ], [
+            'required_date.after_or_equal' => 'La fecha requerida no puede ser anterior a hoy.',
         ]);
 
         if ($validator->fails()) {

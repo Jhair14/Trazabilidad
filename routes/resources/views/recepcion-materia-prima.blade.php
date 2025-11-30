@@ -310,7 +310,10 @@
                                 </label>
                                 <input type="date" class="form-control @error('receipt_date') is-invalid @enderror" 
                                        id="receipt_date" name="receipt_date" 
-                                       value="{{ old('receipt_date', date('Y-m-d')) }}" required>
+                                       value="{{ old('receipt_date', date('Y-m-d')) }}"
+                                       min="{{ date('Y-m-d') }}"
+                                       title="No se pueden seleccionar fechas anteriores a hoy"
+                                       required>
                                 @error('receipt_date')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
@@ -412,6 +415,7 @@
                     <div class="card mb-3">
                         <div class="card-body">
                             <h5 class="card-title">Información del Material</h5>
+                            <br>
                             <p class="mb-1"><strong>Nombre:</strong> <span id="recepcion_material_name">-</span></p>
                             <p class="mb-1"><strong>Cantidad Solicitada:</strong> <span id="recepcion_requested_quantity">-</span> <span id="recepcion_unit">-</span></p>
                         </div>
@@ -456,7 +460,10 @@
                                 </label>
                                 <input type="date" class="form-control" 
                                        id="recepcion_receipt_date" name="receipt_date" 
-                                       value="{{ date('Y-m-d') }}" required>
+                                       value="{{ date('Y-m-d') }}"
+                                       min="{{ date('Y-m-d') }}"
+                                       title="No se pueden seleccionar fechas anteriores a hoy"
+                                       required>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -489,8 +496,8 @@
                             <i class="fas fa-signature mr-1"></i>
                             Firma de Recepción <span class="text-danger">*</span>
                         </label>
-                        <div class="border rounded p-2 mb-2" style="background-color: #f8f9fa;">
-                            <canvas id="signatureCanvas" width="600" height="150" style="border: 1px solid #ddd; cursor: crosshair; width: 100%;"></canvas>
+                        <div class="border rounded p-2 mb-2" style="background-color: #f8f9fa; position: relative;">
+                            <canvas id="signatureCanvas" style="border: 1px solid #ddd; cursor: crosshair; display: block; width: 100%; touch-action: none;"></canvas>
                         </div>
                         <button type="button" class="btn btn-sm btn-secondary" onclick="clearSignature()">
                             <i class="fas fa-eraser mr-1"></i> Limpiar Firma
@@ -526,15 +533,61 @@
 const solicitudes = @json($solicitudesJson);
 let signaturePad = null;
 
+// Función para ajustar el tamaño del canvas
+function resizeCanvas() {
+    const canvas = document.getElementById('signatureCanvas');
+    if (!canvas) return;
+    
+    const container = canvas.parentElement;
+    const rect = container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Establecer el tamaño interno del canvas (alto DPI)
+    canvas.width = rect.width * dpr;
+    canvas.height = 150 * dpr;
+    
+    // Establecer el tamaño CSS (tamaño visual)
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = '150px';
+    
+    // Escalar el contexto para que coincida con el DPR
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    
+    // Si ya existe signaturePad, restaurar la firma
+    if (signaturePad && !signaturePad.isEmpty()) {
+        const data = signaturePad.toData();
+        signaturePad.clear();
+        signaturePad.fromData(data);
+    }
+}
+
 // Inicializar canvas de firma cuando se abre el modal
 $('#recepcionarSolicitudModal').on('shown.bs.modal', function () {
     const canvas = document.getElementById('signatureCanvas');
-    if (canvas && !signaturePad) {
-        signaturePad = new SignaturePad(canvas, {
-            backgroundColor: 'rgb(255, 255, 255)',
-            penColor: 'rgb(0, 0, 0)'
-        });
+    if (canvas) {
+        // Ajustar tamaño del canvas primero
+        resizeCanvas();
+        
+        if (!signaturePad) {
+            signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)',
+                penColor: 'rgb(0, 0, 0)',
+                throttle: 16
+            });
+        }
     }
+});
+
+// Manejar redimensionamiento de ventana
+let resizeTimeout;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(function() {
+        if (document.getElementById('signatureCanvas')) {
+            resizeCanvas();
+        }
+    }, 100);
 });
 
 // Limpiar canvas cuando se cierra el modal
