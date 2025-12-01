@@ -143,7 +143,7 @@
                             </button>
                         </td>
                     </tr>
-                            @empty
+                    @empty
                     <tr>
                         <td colspan="7" class="text-center">No tienes pedidos registrados</td>
                     </tr>

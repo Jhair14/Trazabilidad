@@ -502,7 +502,6 @@
                         <button type="button" class="btn btn-sm btn-secondary" onclick="clearSignature()">
                             <i class="fas fa-eraser mr-1"></i> Limpiar Firma
                         </button>
-                        <input type="hidden" id="recepcion_signature" name="receipt_signature" value="">
                     </div>
                     
                     <div class="form-group">
@@ -636,17 +635,6 @@ function guardarRecepcion() {
     // Ocultar mensajes anteriores
     errorDiv.style.display = 'none';
     successDiv.style.display = 'none';
-    
-    // Validar firma
-    if (!signaturePad || signaturePad.isEmpty()) {
-        errorDiv.textContent = 'La firma es obligatoria';
-        errorDiv.style.display = 'block';
-        return;
-    }
-    
-    // Obtener firma como base64
-    const signatureData = signaturePad.toDataURL('image/png');
-    document.getElementById('recepcion_signature').value = signatureData;
     
     // Validar campos requeridos
     const supplierId = document.getElementById('recepcion_supplier_id').value;

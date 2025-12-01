@@ -33,51 +33,51 @@
 
                 <!-- Estadísticas -->
                 <div class="row mb-4">
-                    <div class="col-lg-3 col-6">
-                        <div class="small-box bg-info">
-                            <div class="inner">
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-info">
+            <div class="inner">
                                 <h3>{{ $maquinas->total() }}</h3>
-                                <p>Total Máquinas</p>
-                            </div>
-                            <div class="icon">
-                                <i class="fas fa-cogs"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-6">
-                        <div class="small-box bg-success">
-                            <div class="inner">
+                <p>Total Máquinas</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-cogs"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-success">
+            <div class="inner">
                                 <h3>{{ $maquinas->where('active', true)->count() }}</h3>
-                                <p>Operativas</p>
-                            </div>
-                            <div class="icon">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-6">
-                        <div class="small-box bg-warning">
-                            <div class="inner">
+                <p>Operativas</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-warning">
+            <div class="inner">
                                 <h3>0</h3>
-                                <p>Mantenimiento</p>
-                            </div>
-                            <div class="icon">
-                                <i class="fas fa-tools"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-6">
-                        <div class="small-box bg-danger">
-                            <div class="inner">
+                <p>Mantenimiento</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-tools"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-danger">
+            <div class="inner">
                                 <h3>{{ $maquinas->where('active', false)->count() }}</h3>
-                                <p>Fuera de Servicio</p>
-                            </div>
-                            <div class="icon">
-                                <i class="fas fa-times-circle"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <p>Fuera de Servicio</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-times-circle"></i>
+            </div>
+        </div>
+    </div>
+</div>
 
                 <!-- Tabla de Máquinas -->
                 <div class="table-responsive">
@@ -103,7 +103,7 @@
                                         <div class="bg-light d-flex align-items-center justify-content-center" 
                                              style="width: 80px; height: 80px;">
                                             <i class="fas fa-image text-muted"></i>
-                                        </div>
+        </div>
                                     @endif
                                 </td>
                                 <td>#{{ $maquina->machine_id }}</td>
@@ -124,7 +124,7 @@
                                     <button type="button" class="btn btn-sm btn-warning" title="Editar" 
                                             onclick="editarMaquina({{ $maquina->machine_id }}, '{{ $maquina->name }}', '{{ $maquina->description ?? '' }}', '{{ $maquina->image_url ?? '' }}', {{ $maquina->active ? 'true' : 'false' }})">
                                         <i class="fas fa-edit"></i>
-                                    </button>
+                                </button>
                                     <form method="POST" action="{{ route('maquinas.destroy', $maquina->machine_id) }}" 
                                           style="display: inline;" 
                                           onsubmit="return confirm('¿Está seguro de eliminar esta máquina?');">
@@ -132,7 +132,7 @@
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
                                             <i class="fas fa-trash"></i>
-                                        </button>
+                                </button>
                                     </form>
                                 </td>
                             </tr>
@@ -143,7 +143,7 @@
                             @endforelse
                         </tbody>
                     </table>
-                </div>
+                            </div>
 
                 <!-- Paginación -->
                 @if($maquinas->hasPages())
@@ -159,7 +159,7 @@
             </div>
         </div>
     </div>
-</div>
+                        </div>
 
 <!-- Modal Crear Máquina -->
 <div class="modal fade" id="crearMaquinaModal" tabindex="-1" role="dialog">
@@ -172,8 +172,8 @@
                 </h4>
                 <button type="button" class="close" data-dismiss="modal">
                     <span>&times;</span>
-                </button>
-            </div>
+                                </button>
+                            </div>
             <div class="modal-body">
                 @if($errors->any())
                     <div class="alert alert-danger">
@@ -182,7 +182,7 @@
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>
-                    </div>
+                        </div>
                 @endif
                 <form method="POST" action="{{ route('maquinas.store') }}" id="crearMaquinaForm" enctype="multipart/form-data">
                     @csrf
@@ -211,8 +211,8 @@
                         @error('description')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
-                    </div>
-                    
+            </div>
+
                     <div class="form-group">
                         <label for="image_file">
                             <i class="fas fa-image mr-1"></i>
@@ -235,8 +235,8 @@
                                  class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
                             <button type="button" class="btn btn-sm btn-danger mt-2" onclick="clearImagePreview('image_preview')">
                                 <i class="fas fa-times"></i> Eliminar
-                            </button>
-                        </div>
+                                </button>
+                            </div>
                         
                         <!-- Imagen actual si está editando -->
                         <input type="hidden" id="current_image_url" name="current_image_url" value="{{ old('current_image_url') }}">
@@ -258,7 +258,7 @@
                             <i class="fas fa-save mr-1"></i>
                             Crear Máquina
                         </button>
-                    </div>
+                </div>
                 </form>
             </div>
         </div>
@@ -283,16 +283,16 @@
                     @csrf
                     @method('PUT')
                     
-                    <div class="form-group">
+                            <div class="form-group">
                         <label for="edit_name">
                             <i class="fas fa-tag mr-1"></i>
                             Nombre de la Máquina <span class="text-danger">*</span>
                         </label>
                         <input type="text" class="form-control" 
                                id="edit_name" name="name" required>
-                    </div>
+                            </div>
                     
-                    <div class="form-group">
+                            <div class="form-group">
                         <label for="edit_description">
                             <i class="fas fa-align-left mr-1"></i>
                             Descripción
@@ -300,8 +300,8 @@
                         <textarea class="form-control" 
                                   id="edit_description" name="description" rows="3"></textarea>
                     </div>
-                    
-                    <div class="form-group">
+
+                            <div class="form-group">
                         <label for="edit_image_file">
                             <i class="fas fa-image mr-1"></i>
                             Imagen de la Máquina
@@ -311,7 +311,7 @@
                                    id="edit_image_file" name="image_file" accept="image/jpeg,image/jpg,image/png" 
                                    onchange="previewImage(this, 'edit_image_preview')">
                             <label class="custom-file-label" for="edit_image_file">Seleccionar nueva imagen...</label>
-                        </div>
+                            </div>
                         <small class="form-text text-muted">Dejar vacío para mantener la imagen actual</small>
                         
                         <!-- Previsualización de nueva imagen -->
@@ -332,8 +332,8 @@
                                  class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
                         </div>
                     </div>
-                    
-                    <div class="form-group">
+
+                            <div class="form-group">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="edit_active" name="active" value="1">
                             <label class="form-check-label" for="edit_active">

@@ -72,10 +72,10 @@ class PedidosController extends Controller
         if (!$customerId) {
             $pedidos = CustomerOrder::whereRaw('1 = 0')->paginate(15);
         } else {
-            $pedidos = CustomerOrder::where('customer_id', $customerId)
-                ->with('customer')
-                ->orderBy('creation_date', 'desc')
-                ->paginate(15);
+        $pedidos = CustomerOrder::where('customer_id', $customerId)
+            ->with('customer')
+            ->orderBy('creation_date', 'desc')
+            ->paginate(15);
         }
 
         // Estadísticas
@@ -144,9 +144,9 @@ class PedidosController extends Controller
                 if ($customer) {
                     $customerId = $customer->customer_id;
                 } else {
-                    return redirect()->back()
+            return redirect()->back()
                         ->with('error', 'Error al crear cliente asociado: ' . $e->getMessage())
-                        ->withInput();
+                ->withInput();
                 }
             }
         }

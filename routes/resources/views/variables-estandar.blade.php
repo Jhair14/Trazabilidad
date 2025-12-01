@@ -204,17 +204,17 @@
                 <form method="POST" action="{{ route('variables-estandar') }}" id="crearVariableForm">
                     @csrf
                     
-                    <div class="form-group">
+                            <div class="form-group">
                         <label for="name">
                             <i class="fas fa-tag mr-1"></i>
                             Nombre de la Variable <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                               id="name" name="name" value="{{ old('name') }}" 
-                               placeholder="Ej: Temperatura de Cocción" required>
-                        @error('name')
-                            <span class="invalid-feedback">{{ $message }}</span>
-                        @enderror
+                                <input type="text" class="form-control @error('name') is-invalid @enderror" 
+                                       id="name" name="name" value="{{ old('name') }}" 
+                                       placeholder="Ej: Temperatura de Cocción" required>
+                                @error('name')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
                     </div>
                     
                     <div class="form-group">
@@ -288,8 +288,8 @@
                     Cerrar
                 </button>
             </div>
-        </div>
-    </div>
+                            </div>
+                        </div>
 </div>
 
 <!-- Modal Editar Variable -->

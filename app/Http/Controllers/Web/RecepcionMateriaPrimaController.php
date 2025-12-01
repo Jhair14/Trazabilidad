@@ -73,7 +73,6 @@ class RecepcionMateriaPrimaController extends Controller
             'expiration_date' => 'nullable|date|after:receipt_date',
             'quantity' => 'required|numeric|min:0',
             'receipt_conformity' => 'nullable|boolean',
-            'receipt_signature' => 'nullable|string',
             'observations' => 'nullable|string|max:500',
             'request_id' => 'nullable|integer|exists:material_request,request_id',
         ], [
@@ -119,14 +118,13 @@ class RecepcionMateriaPrimaController extends Controller
                 'quantity' => $request->quantity,
                 'available_quantity' => $request->quantity,
                 'receipt_conformity' => $receiptConformity,
-                'receipt_signature' => $request->receipt_signature ?? null,
                 'observations' => $request->observations,
             ]);
 
             // Actualizar cantidad disponible en materia prima base solo si receipt_conformity es true
             if ($receiptConformity) {
                 $materialBase->available_quantity = ($materialBase->available_quantity ?? 0) + $request->quantity;
-                $materialBase->save();
+            $materialBase->save();
             }
 
             // Si se recepciona desde una solicitud, actualizar el detalle y verificar si está completa
