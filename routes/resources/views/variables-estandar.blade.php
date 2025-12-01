@@ -115,7 +115,6 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Nombre</th>
-                                <th>Código</th>
                                 <th>Unidad</th>
                                 <th>Descripción</th>
                                 <th>Estado</th>
@@ -127,7 +126,6 @@
                             <tr>
                                 <td>#{{ $variable->variable_id }}</td>
                                 <td>{{ $variable->name }}</td>
-                                <td><span class="badge badge-primary">{{ $variable->code }}</span></td>
                                 <td>{{ $variable->unit ?? 'N/A' }}</td>
                                 <td>{{ $variable->description ?? 'Sin descripción' }}</td>
                                 <td>
@@ -206,17 +204,17 @@
                 <form method="POST" action="{{ route('variables-estandar') }}" id="crearVariableForm">
                     @csrf
                     
-                    <div class="form-group">
+                            <div class="form-group">
                         <label for="name">
                             <i class="fas fa-tag mr-1"></i>
                             Nombre de la Variable <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                               id="name" name="name" value="{{ old('name') }}" 
-                               placeholder="Ej: Temperatura de Cocción" required>
-                        @error('name')
-                            <span class="invalid-feedback">{{ $message }}</span>
-                        @enderror
+                                <input type="text" class="form-control @error('name') is-invalid @enderror" 
+                                       id="name" name="name" value="{{ old('name') }}" 
+                                       placeholder="Ej: Temperatura de Cocción" required>
+                                @error('name')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
                     </div>
                     
                     <div class="form-group">
@@ -290,8 +288,8 @@
                     Cerrar
                 </button>
             </div>
-        </div>
-    </div>
+                            </div>
+                        </div>
 </div>
 
 <!-- Modal Editar Variable -->
@@ -348,16 +346,6 @@
                                 @enderror
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="edit_code">
-                                    <i class="fas fa-code mr-1"></i>
-                                    Código
-                                </label>
-                                <input type="text" class="form-control" id="edit_code" name="code" readonly>
-                                <small class="form-text text-muted">Código generado automáticamente</small>
-                            </div>
-                        </div>
                     </div>
                     
                     <div class="form-group">
@@ -410,10 +398,6 @@ function verVariable(id) {
                                 <td>#${data.variable_id}</td>
                             </tr>
                             <tr>
-                                <th>Código</th>
-                                <td><span class="badge badge-primary">${data.code}</span></td>
-                            </tr>
-                            <tr>
                                 <th>Nombre</th>
                                 <td>${data.name}</td>
                             </tr>
@@ -453,7 +437,6 @@ function editarVariable(id) {
             document.getElementById('editarVariableForm').action = `{{ url('variables-estandar') }}/${id}`;
             document.getElementById('edit_name').value = data.name || '';
             document.getElementById('edit_unit').value = data.unit || '';
-            document.getElementById('edit_code').value = data.code || '';
             document.getElementById('edit_description').value = data.description || '';
             document.getElementById('edit_active').checked = data.active || false;
             $('#editarVariableModal').modal('show');

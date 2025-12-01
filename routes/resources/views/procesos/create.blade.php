@@ -29,7 +29,7 @@
                 @endif
 
                 <form method="POST" action="{{ route('procesos.store') }}" id="crearProcesoForm">
-                    @csrf
+  @csrf
                     
                     <!-- Información básica del proceso -->
                     <div class="row mb-4">
@@ -123,8 +123,8 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save mr-1"></i> Guardar Proceso
                         </button>
-                    </div>
-                </form>
+  </div>
+</form>
             </div>
         </div>
     </div>

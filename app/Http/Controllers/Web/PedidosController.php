@@ -72,10 +72,10 @@ class PedidosController extends Controller
         if (!$customerId) {
             $pedidos = CustomerOrder::whereRaw('1 = 0')->paginate(15);
         } else {
-            $pedidos = CustomerOrder::where('customer_id', $customerId)
-                ->with('customer')
-                ->orderBy('creation_date', 'desc')
-                ->paginate(15);
+        $pedidos = CustomerOrder::where('customer_id', $customerId)
+            ->with('customer')
+            ->orderBy('creation_date', 'desc')
+            ->paginate(15);
         }
 
         // Estadísticas
@@ -144,18 +144,21 @@ class PedidosController extends Controller
                 if ($customer) {
                     $customerId = $customer->customer_id;
                 } else {
-                    return redirect()->back()
+            return redirect()->back()
                         ->with('error', 'Error al crear cliente asociado: ' . $e->getMessage())
-                        ->withInput();
+                ->withInput();
                 }
             }
         }
 
         $validator = Validator::make($request->all(), [
-            'delivery_date' => 'nullable|date',
+            'quantity' => 'required|numeric|min:0.0001',
+            'delivery_date' => ['nullable', 'date', 'after_or_equal:today'],
             'priority' => 'nullable|integer|min:1|max:10',
             'description' => 'nullable|string',
             'observations' => 'nullable|string',
+        ], [
+            'delivery_date.after_or_equal' => 'La fecha de entrega no puede ser anterior a hoy.',
         ]);
 
         if ($validator->fails()) {
@@ -175,6 +178,7 @@ class PedidosController extends Controller
                 'order_id' => $nextId,
                 'customer_id' => $customerId,
                 'order_number' => $orderNumber,
+                'quantity' => $request->quantity,
                 'creation_date' => now()->toDateString(),
                 'delivery_date' => $request->delivery_date,
                 'priority' => $request->priority ?? 1,
@@ -188,6 +192,44 @@ class PedidosController extends Controller
             return redirect()->back()
                 ->with('error', 'Error al crear pedido: ' . $e->getMessage())
                 ->withInput();
+        }
+    }
+
+    public function show($id)
+    {
+        $user = Auth::user();
+        
+        // Buscar customer relacionado con el operador
+        $customerId = $user->customer_id ?? null;
+        if (!$customerId) {
+            $customer = Customer::where('email', $user->email)->first();
+            $customerId = $customer ? $customer->customer_id : null;
+        }
+        
+        try {
+            $pedido = CustomerOrder::where('order_id', $id)
+                ->where('customer_id', $customerId)
+                ->with(['customer', 'batches'])
+                ->firstOrFail();
+            
+            return response()->json([
+                'order_id' => $pedido->order_id,
+                'order_number' => $pedido->order_number,
+                'quantity' => $pedido->quantity,
+                'creation_date' => $pedido->creation_date,
+                'delivery_date' => $pedido->delivery_date,
+                'priority' => $pedido->priority,
+                'description' => $pedido->description,
+                'observations' => $pedido->observations,
+                'customer' => $pedido->customer ? [
+                    'business_name' => $pedido->customer->business_name,
+                    'trading_name' => $pedido->customer->trading_name,
+                    'email' => $pedido->customer->email,
+                ] : null,
+                'batches_count' => $pedido->batches->count(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Pedido no encontrado'], 404);
         }
     }
 }

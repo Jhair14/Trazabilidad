@@ -11,9 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('raw_material_base', function (Blueprint $table) {
-            $table->string('image_url', 500)->nullable()->after('description');
-        });
+        // Verificar que la tabla existe antes de modificarla
+        if (Schema::hasTable('raw_material_base') && !Schema::hasColumn('raw_material_base', 'image_url')) {
+            Schema::table('raw_material_base', function (Blueprint $table) {
+                $table->string('image_url', 500)->nullable()->after('description');
+            });
+        }
     }
 
     /**
