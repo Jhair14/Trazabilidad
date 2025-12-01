@@ -27,7 +27,21 @@ class MachineController extends Controller
      */
     public function store(MachineRequest $request): JsonResponse
     {
-        $machine = Machine::create($request->validated());
+        $data = $request->validated();
+        
+        // Manual ID generation if not auto-increment
+        if (empty($data['machine_id'])) {
+            $maxId = Machine::max('machine_id') ?? 0;
+            $nextId = $maxId + 1;
+            $data['machine_id'] = $nextId;
+            
+            // Generate code automatically if not provided
+            if (empty($data['code'])) {
+                $data['code'] = 'MAQ-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+            }
+        }
+
+        $machine = Machine::create($data);
 
         return response()->json(new MachineResource($machine), 201);
     }

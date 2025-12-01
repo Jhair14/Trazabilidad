@@ -9,6 +9,7 @@ use App\Http\Requests\ProcessMachineRecordRequest;
 use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use App\Http\Resources\ProcessMachineRecordResource;
+use Illuminate\Support\Facades\DB;
 
 class ProcessMachineRecordController extends Controller
 {
@@ -27,9 +28,112 @@ class ProcessMachineRecordController extends Controller
      */
     public function store(ProcessMachineRecordRequest $request): JsonResponse
     {
-        $processMachineRecord = ProcessMachineRecord::create($request->validated());
+        DB::beginTransaction();
+        try {
+            $operator = auth()->user();
+            $processMachine = \App\Models\ProcessMachine::with('variables.standardVariable', 'process')
+                ->findOrFail($request->process_machine_id);
 
-        return response()->json(new ProcessMachineRecordResource($processMachineRecord), 201);
+            // Validate that if there are other records, they are from the same process
+            $existingRecords = ProcessMachineRecord::where('batch_id', $request->batch_id)
+                ->with('processMachine')
+                ->get();
+            
+            if ($existingRecords->isNotEmpty()) {
+                $existingProcessIds = $existingRecords->pluck('processMachine.process_id')->unique()->filter();
+                if ($existingProcessIds->isNotEmpty() && !$existingProcessIds->contains($processMachine->process_id)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Esta máquina pertenece a un proceso diferente al ya registrado en este lote'
+                    ], 400);
+                }
+            }
+
+            // Validate sequential order: verify that previous machines are completed
+            $allProcessMachines = \App\Models\ProcessMachine::where('process_id', $processMachine->process_id)
+                ->orderBy('step_order')
+                ->get();
+            
+            $currentStep = $processMachine->step_order;
+            $previousMachines = $allProcessMachines->where('step_order', '<', $currentStep);
+            
+            foreach ($previousMachines as $prevMachine) {
+                $prevRecord = $existingRecords->firstWhere('process_machine_id', $prevMachine->process_machine_id);
+                if (!$prevRecord) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => "Debe completar la máquina '{$prevMachine->name}' (paso {$prevMachine->step_order}) antes de continuar"
+                    ], 400);
+                }
+            }
+
+            // Validate variables
+            $enteredVariables = $request->entered_variables ?? [];
+            $meetsStandard = true;
+
+            foreach ($processMachine->variables as $variable) {
+                $varName = $variable->standardVariable->code ?? $variable->standardVariable->name;
+                $enteredValue = $enteredVariables[$varName] ?? null;
+
+                if ($variable->mandatory && $enteredValue === null) {
+                    $meetsStandard = false;
+                    break;
+                }
+
+                if ($enteredValue !== null) {
+                    if ($enteredValue < $variable->min_value || $enteredValue > $variable->max_value) {
+                        $meetsStandard = false;
+                        break;
+                    }
+                }
+            }
+
+            // Check if record already exists
+            $existingRecord = ProcessMachineRecord::where('batch_id', $request->batch_id)
+                ->where('process_machine_id', $request->process_machine_id)
+                ->first();
+
+            if ($existingRecord) {
+                // Update existing record
+                $existingRecord->update([
+                    'operator_id' => $operator->operator_id,
+                    'entered_variables' => $enteredVariables,
+                    'meets_standard' => $meetsStandard,
+                    'observations' => $request->observations,
+                    'start_time' => now(),
+                    'end_time' => now(),
+                    'record_date' => now(),
+                ]);
+                
+                DB::commit();
+                return response()->json(new \App\Http\Resources\ProcessMachineRecordResource($existingRecord));
+            } else {
+                // Create new record
+                $maxId = ProcessMachineRecord::max('record_id') ?? 0;
+                $nextId = $maxId + 1;
+                
+                $processMachineRecord = ProcessMachineRecord::create([
+                    'record_id' => $nextId,
+                    'batch_id' => $request->batch_id,
+                    'process_machine_id' => $request->process_machine_id,
+                    'operator_id' => $operator->operator_id,
+                    'entered_variables' => $enteredVariables,
+                    'meets_standard' => $meetsStandard,
+                    'observations' => $request->observations,
+                    'start_time' => now(),
+                    'end_time' => now(),
+                    'record_date' => now(),
+                ]);
+
+                DB::commit();
+                return response()->json(new \App\Http\Resources\ProcessMachineRecordResource($processMachineRecord), 201);
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Error al registrar formulario: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

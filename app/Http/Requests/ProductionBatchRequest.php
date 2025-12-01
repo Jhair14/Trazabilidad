@@ -23,7 +23,9 @@ class ProductionBatchRequest extends FormRequest
     {
         $rules = [
             'order_id' => 'required|integer|exists:customer_order,order_id',
-            'batch_code' => 'required|string|max:50|unique:production_batch,batch_code',
+            // batch_code se genera automáticamente en el controlador al crear lote,
+            // por eso lo dejamos opcional en POST. En update se valida la unicidad.
+            'batch_code' => 'nullable|string|max:50|unique:production_batch,batch_code',
             'name' => 'nullable|string|max:100',
             'target_quantity' => 'nullable|numeric|min:0',
             'produced_quantity' => 'nullable|numeric|min:0',
@@ -33,7 +35,9 @@ class ProductionBatchRequest extends FormRequest
         ];
 
         if ($this->isMethod('PUT') || $this->isMethod('PATCH')) {
-            $rules['batch_code'] = 'required|string|max:50|unique:production_batch,batch_code,' . $this->route('production_batch');
+            // En actualizaciones permitimos que batch_code sea opcional, pero si se
+            // proporciona debe ser único (excluyendo el registro actual).
+            $rules['batch_code'] = 'nullable|string|max:50|unique:production_batch,batch_code,' . $this->route('production_batch');
             $rules['order_id'] = 'nullable|integer|exists:customer_order,order_id';
         }
 

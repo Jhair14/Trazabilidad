@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('unit_of_measure', function (Blueprint $table) {
+        Schema::create('traceability_schema', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
         });
@@ -22,6 +22,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('unit_of_measure');
+        Schema::dropIfExists('traceability_schema');
     }
 };

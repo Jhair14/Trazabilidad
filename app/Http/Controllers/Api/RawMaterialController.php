@@ -14,7 +14,7 @@ class RawMaterialController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $materials = RawMaterial::with(['materialBase', 'supplier'])
+            $materials = RawMaterial::with(['materialBase.unit', 'supplier'])
                 ->orderBy('receipt_date', 'desc')
                 ->paginate($request->get('per_page', 15));
 
@@ -30,7 +30,7 @@ class RawMaterialController extends Controller
     public function show($id): JsonResponse
     {
         try {
-            $material = RawMaterial::with(['materialBase', 'supplier'])->findOrFail($id);
+            $material = RawMaterial::with(['materialBase.unit', 'supplier'])->findOrFail($id);
             return response()->json($material);
         } catch (\Exception $e) {
             return response()->json([
@@ -62,8 +62,9 @@ class RawMaterialController extends Controller
         }
 
         try {
-            // Obtener el siguiente ID de la secuencia
-            $nextId = DB::selectOne("SELECT nextval('raw_material_seq') as id")->id;
+            // Get the next ID manually since sequence doesn't exist
+            $maxId = RawMaterial::max('raw_material_id') ?? 0;
+            $nextId = $maxId + 1;
             
             $material = RawMaterial::create([
                 'raw_material_id' => $nextId,

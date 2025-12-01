@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\ProcessMachineResource;
 
 class ProcessResource extends JsonResource
 {
@@ -14,6 +15,13 @@ class ProcessResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        $data = parent::toArray($request);
+        
+        // Include process machines if loaded
+        if ($this->relationLoaded('processMachines')) {
+            $data['process_machines'] = ProcessMachineResource::collection($this->processMachines);
+        }
+        
+        return $data;
     }
 }

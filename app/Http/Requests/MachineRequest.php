@@ -22,7 +22,10 @@ class MachineRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            // Add validation rules based on your table structure
+            'name' => 'required|string|max:100',
+            'description' => 'nullable|string|max:255',
+            'image_url' => 'nullable|string|max:500',
+            'active' => 'boolean',
         ];
 
         if ($this->isMethod('PUT') || $this->isMethod('PATCH')) {

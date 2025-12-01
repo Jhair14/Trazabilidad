@@ -21,14 +21,11 @@ class StandardVariableRequest extends FormRequest
      */
     public function rules(): array
     {
-        $rules = [
-            // Add validation rules based on your table structure
+        return [
+            'name' => 'required|string|max:100',
+            'unit' => 'nullable|string|max:50',
+            'description' => 'nullable|string|max:255',
+            'active' => 'sometimes|boolean',
         ];
-
-        if ($this->isMethod('PUT') || $this->isMethod('PATCH')) {
-            // Update unique rules if needed
-        }
-
-        return $rules;
     }
 }
