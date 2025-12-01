@@ -21,14 +21,11 @@ class ProcessMachineRecordRequest extends FormRequest
      */
     public function rules(): array
     {
-        $rules = [
-            // Add validation rules based on your table structure
+        return [
+            'batch_id' => 'required|integer|exists:production_batch,batch_id',
+            'process_machine_id' => 'required|integer|exists:process_machine,process_machine_id',
+            'entered_variables' => 'required|array',
+            'observations' => 'nullable|string|max:500',
         ];
-
-        if ($this->isMethod('PUT') || $this->isMethod('PATCH')) {
-            // Update unique rules if needed
-        }
-
-        return $rules;
     }
 }

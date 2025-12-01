@@ -68,6 +68,18 @@ Route::middleware('auth:api')->group(function () {
     
     // Material Movement Log custom routes
     Route::get('/material-movement-logs/material/{materialId}', [MaterialMovementLogController::class, 'getByMaterial']);
+
+    // Batch Certification routes
+    Route::prefix('batches')->group(function () {
+        Route::get('/pending-certification', [ProductionBatchController::class, 'getPendingCertification']);
+        Route::post('/{batchId}/assign-process', [ProductionBatchController::class, 'assignProcess']);
+        Route::get('/{batchId}/process-machines', [ProductionBatchController::class, 'getProcessMachines']);
+        Route::post('/{batchId}/finalize-certification', [ProductionBatchController::class, 'finalizeCertification']);
+        Route::get('/{batchId}/certification-log', [ProductionBatchController::class, 'getCertificationLog']);
+    });
+
+    // Image Upload
+    Route::post('/upload', [\App\Http\Controllers\Web\ImageUploadController::class, 'upload']);
 });
 
 // Legacy routes (keeping for compatibility)

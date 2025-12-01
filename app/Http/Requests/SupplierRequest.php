@@ -22,7 +22,14 @@ class SupplierRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            // Add validation rules based on your table structure
+            'business_name' => 'required|string|max:255',
+            'trading_name' => 'nullable|string|max:255',
+            'tax_id' => 'nullable|string|max:50',
+            'contact_person' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string',
+            'active' => 'boolean',
         ];
 
         if ($this->isMethod('PUT') || $this->isMethod('PATCH')) {

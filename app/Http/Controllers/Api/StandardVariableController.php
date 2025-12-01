@@ -27,7 +27,21 @@ class StandardVariableController extends Controller
      */
     public function store(StandardVariableRequest $request): JsonResponse
     {
-        $standardVariable = StandardVariable::create($request->validated());
+        $data = $request->validated();
+        
+        // Manual ID generation if not auto-increment
+        if (empty($data['variable_id'])) {
+            $maxId = StandardVariable::max('variable_id') ?? 0;
+            $nextId = $maxId + 1;
+            $data['variable_id'] = $nextId;
+            
+            // Generate code automatically if not provided
+            if (empty($data['code'])) {
+                $data['code'] = 'VAR-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+            }
+        }
+
+        $standardVariable = StandardVariable::create($data);
 
         return response()->json(new StandardVariableResource($standardVariable), 201);
     }
