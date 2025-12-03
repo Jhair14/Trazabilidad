@@ -16,7 +16,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Crear permisos
+        // Crear permisos (usar updateOrCreate para evitar duplicados)
         $permissions = [
             // Paneles
             'ver panel control',
@@ -57,14 +57,16 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::updateOrCreate(['name' => $permission]);
         }
 
         // Crear roles y asignar permisos
         
-        // Rol: Cliente
-        $clienteRole = Role::create(['name' => 'cliente']);
-        $clienteRole->givePermissionTo([
+        // Rol: Cliente - Solo puede ver panel cliente, crear/ver/editar/cancelar pedidos y ver certificados
+        $clienteRole = Role::updateOrCreate(
+            ['name' => 'cliente']
+        );
+        $clienteRole->syncPermissions([
             'ver panel cliente',
             'crear pedidos',
             'ver mis pedidos',
@@ -73,9 +75,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'ver certificados',
         ]);
 
-        // Rol: Operador
-        $operadorRole = Role::create(['name' => 'operador']);
-        $operadorRole->givePermissionTo([
+        // Rol: Operador - Puede hacer todo EXCEPTO gestionar usuarios
+        $operadorRole = Role::updateOrCreate(
+            ['name' => 'operador']
+        );
+        $operadorRole->syncPermissions([
             'ver panel control',
             'ver materia prima',
             'solicitar materia prima',
@@ -88,11 +92,16 @@ class RolesAndPermissionsSeeder extends Seeder
             'certificar lotes',
             'ver certificados',
             'almacenar lotes',
+            'gestionar pedidos',
+            'aprobar pedidos',
+            'rechazar pedidos',
         ]);
 
-        // Rol: Admin (todos los permisos)
-        $adminRole = Role::create(['name' => 'admin']);
-        $adminRole->givePermissionTo(Permission::all());
+        // Rol: Admin - Todos los permisos
+        $adminRole = Role::updateOrCreate(
+            ['name' => 'admin']
+        );
+        $adminRole->syncPermissions(Permission::all());
     }
 }
 

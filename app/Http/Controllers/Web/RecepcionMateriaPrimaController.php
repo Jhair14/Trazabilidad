@@ -111,7 +111,9 @@ class RecepcionMateriaPrimaController extends Controller
             // Verificar que el proveedor existe
             $supplier = Supplier::findOrFail($request->supplier_id);
             
-            // Obtener el siguiente ID de la secuencia
+            // Sincronizar la secuencia y obtener el siguiente ID
+            $maxId = DB::table('raw_material')->max('raw_material_id') ?? 0;
+            DB::statement("SELECT setval('raw_material_seq', {$maxId}, true)");
             $nextId = DB::selectOne("SELECT nextval('raw_material_seq') as id")->id;
             
             // Convertir receipt_conformity a boolean correctamente
@@ -124,9 +126,25 @@ class RecepcionMateriaPrimaController extends Controller
             // Guardar el balance anterior antes de actualizar
             $previousBalance = $materialBase->available_quantity ?? 0;
             
-            // Crear registro en raw_material
-            $rawMaterial = RawMaterial::create([
-                'raw_material_id' => $nextId,
+            // Crear registro en raw_material usando SQL directo para evitar conflictos
+            $rawMaterialId = DB::selectOne("
+                INSERT INTO raw_material (raw_material_id, material_id, supplier_id, supplier_batch, invoice_number, receipt_date, expiration_date, quantity, available_quantity, receipt_conformity, observations)
+                VALUES (nextval('raw_material_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING raw_material_id
+            ", [
+                $request->material_id,
+                $request->supplier_id,
+                $request->supplier_batch,
+                $request->invoice_number,
+                $request->receipt_date,
+                $request->expiration_date,
+                $request->quantity,
+                $request->quantity,
+                $receiptConformity,
+                $request->observations
+            ])->raw_material_id;
+            
+            $rawMaterial = RawMaterial::find($rawMaterialId);
                 'material_id' => $request->material_id,
                 'supplier_id' => $request->supplier_id,
                 'supplier_batch' => $request->supplier_batch,
@@ -177,20 +195,22 @@ class RecepcionMateriaPrimaController extends Controller
                 }
             }
 
-            // Obtener el siguiente ID de la secuencia para log
-            $logId = DB::selectOne("SELECT nextval('material_movement_log_seq') as id")->id;
+            // Sincronizar secuencia y registrar en log de movimientos
+            $maxLogId = DB::table('material_movement_log')->max('log_id') ?? 0;
+            DB::statement("SELECT setval('material_movement_log_seq', {$maxLogId}, true)");
             
-            // Registrar en log de movimientos
-            \App\Models\MaterialMovementLog::create([
-                'log_id' => $logId,
-                'material_id' => $request->material_id,
-                'movement_type_id' => 1, // Entrada
-                'user_id' => auth()->id(),
-                'quantity' => $request->quantity,
-                'previous_balance' => $previousBalance,
-                'new_balance' => $materialBase->available_quantity,
-                'description' => 'Recepción de materia prima' . ($receiptConformity ? ' (Conforme)' : ' (No conforme)'),
-                'movement_date' => now(),
+            DB::selectOne("
+                INSERT INTO material_movement_log (log_id, material_id, movement_type_id, user_id, quantity, previous_balance, new_balance, observations)
+                VALUES (nextval('material_movement_log_seq'), ?, ?, ?, ?, ?, ?, ?)
+                RETURNING log_id
+            ", [
+                $request->material_id,
+                1, // Entrada
+                auth()->id(),
+                $request->quantity,
+                $previousBalance,
+                $materialBase->available_quantity,
+                'Recepción de materia prima' . ($receiptConformity ? ' (Conforme)' : ' (No conforme)')
             ]);
 
             DB::commit();

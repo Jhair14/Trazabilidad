@@ -77,7 +77,7 @@ class PedidosController extends Controller
             $pedidos = CustomerOrder::whereRaw('1 = 0')->paginate(15);
         } else {
             $pedidos = CustomerOrder::where('customer_id', $customerId)
-                ->with('customer')
+                ->with(['customer', 'orderProducts.product', 'batches'])
                 ->orderBy('creation_date', 'desc')
                 ->paginate(15);
         }
@@ -276,10 +276,267 @@ class PedidosController extends Controller
         return $customerId;
     }
 
+    public function show($id)
+    {
+        $user = Auth::user();
+        $customerId = $this->getOrCreateCustomerId($user);
+        
+        $pedido = CustomerOrder::with([
+            'customer',
+            'orderProducts.product.unit',
+            'destinations.destinationProducts.orderProduct.product',
+            'approver',
+            'batches'
+        ])->findOrFail($id);
+        
+        // Verificar que el pedido pertenece al cliente del usuario
+        if ($pedido->customer_id != $customerId) {
+            abort(403, 'No tienes permiso para ver este pedido');
+        }
+        
+        // Si es una petición AJAX, devolver JSON
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'order_id' => $pedido->order_id,
+                'order_number' => $pedido->order_number,
+                'name' => $pedido->name,
+                'description' => $pedido->description,
+                'status' => $pedido->status,
+                'creation_date' => $pedido->creation_date->format('Y-m-d'),
+                'delivery_date' => $pedido->delivery_date ? $pedido->delivery_date->format('Y-m-d') : null,
+                'priority' => $pedido->priority,
+                'observations' => $pedido->observations,
+                'editable_until' => $pedido->editable_until ? $pedido->editable_until->format('Y-m-d H:i:s') : null,
+                'approved_at' => $pedido->approved_at ? $pedido->approved_at->format('Y-m-d H:i:s') : null,
+                'can_be_edited' => $pedido->canBeEdited(),
+                'products' => $pedido->orderProducts->map(function($op) {
+                    return [
+                        'product_id' => $op->product_id,
+                        'product_name' => $op->product->name ?? 'N/A',
+                        'quantity' => $op->quantity,
+                        'status' => $op->status,
+                        'observations' => $op->observations,
+                        'unit' => $op->product->unit->code ?? 'N/A',
+                    ];
+                }),
+                'destinations' => $pedido->destinations->map(function($dest) {
+                    return [
+                        'address' => $dest->address,
+                        'reference' => $dest->reference,
+                        'contact_name' => $dest->contact_name,
+                        'contact_phone' => $dest->contact_phone,
+                        'delivery_instructions' => $dest->delivery_instructions,
+                    ];
+                }),
+            ]);
+        }
+        
+        return view('mis-pedidos-detalle', compact('pedido'));
+    }
+
+    public function edit($id)
+    {
+        $user = Auth::user();
+        $customerId = $this->getOrCreateCustomerId($user);
+        
+        $pedido = CustomerOrder::with([
+            'orderProducts.product.unit',
+            'destinations.destinationProducts.orderProduct.product'
+        ])->findOrFail($id);
+        
+        // Verificar que el pedido pertenece al cliente del usuario
+        if ($pedido->customer_id != $customerId) {
+            abort(403, 'No tienes permiso para editar este pedido');
+        }
+        
+        // Verificar si el pedido puede ser editado
+        if (!$pedido->canBeEdited()) {
+            return redirect()->route('mis-pedidos')
+                ->with('error', 'El pedido no puede ser editado. Ya fue aprobado o expiró el tiempo de edición.');
+        }
+        
+        $products = Product::where('active', true)
+            ->with('unit')
+            ->orderBy('name')
+            ->get();
+        
+        return view('editar-pedido', compact('pedido', 'products'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $user = Auth::user();
+        $customerId = $this->getOrCreateCustomerId($user);
+        
+        $pedido = CustomerOrder::findOrFail($id);
+        
+        // Verificar que el pedido pertenece al cliente del usuario
+        if ($pedido->customer_id != $customerId) {
+            abort(403, 'No tienes permiso para editar este pedido');
+        }
+        
+        // Verificar si el pedido puede ser editado
+        if (!$pedido->canBeEdited()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El pedido no puede ser editado. Ya fue aprobado o expiró el tiempo de edición.'
+                ], 403);
+            }
+            return redirect()->back()
+                ->with('error', 'El pedido no puede ser editado. Ya fue aprobado o expiró el tiempo de edición.')
+                ->withInput();
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:200',
+            'delivery_date' => 'nullable|date|after:today',
+            'priority' => 'nullable|integer|min:1|max:10',
+            'description' => 'nullable|string',
+            'products' => 'required|array|min:1',
+            'products.*.product_id' => 'required|integer|exists:product,product_id',
+            'products.*.quantity' => 'required|numeric|min:0.0001',
+            'products.*.observations' => 'nullable|string',
+            'destinations' => 'required|array|min:1',
+            'destinations.*.address' => 'required|string|max:500',
+            'destinations.*.latitude' => 'nullable|numeric|between:-90,90',
+            'destinations.*.longitude' => 'nullable|numeric|between:-180,180',
+            'destinations.*.reference' => 'nullable|string|max:200',
+            'destinations.*.contact_name' => 'nullable|string|max:200',
+            'destinations.*.contact_phone' => 'nullable|string|max:20',
+            'destinations.*.delivery_instructions' => 'nullable|string',
+            'destinations.*.products' => 'required|array|min:1',
+            'destinations.*.products.*.order_product_index' => 'required|integer|min:0',
+            'destinations.*.products.*.quantity' => 'required|numeric|min:0.0001',
+        ]);
+
+        if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Actualizar información básica del pedido
+            $pedido->update([
+                'name' => $request->name,
+                'delivery_date' => $request->delivery_date,
+                'priority' => $request->priority ?? $pedido->priority,
+                'description' => $request->description,
+            ]);
+
+            // Eliminar productos y destinos existentes
+            $pedido->orderProducts()->delete();
+            $pedido->destinations()->delete();
+
+            // Crear nuevos productos del pedido
+            $orderProducts = [];
+            $maxOrderProductId = OrderProduct::max('order_product_id') ?? 0;
+            
+            foreach ($request->products as $index => $productData) {
+                $orderProductId = $maxOrderProductId + $index + 1;
+                
+                $orderProduct = OrderProduct::create([
+                    'order_product_id' => $orderProductId,
+                    'order_id' => $pedido->order_id,
+                    'product_id' => $productData['product_id'],
+                    'quantity' => $productData['quantity'],
+                    'status' => 'pendiente',
+                    'observations' => $productData['observations'] ?? null,
+                ]);
+                
+                $orderProducts[] = $orderProduct;
+                $maxOrderProductId = $orderProductId;
+            }
+
+            // Crear destinos y asignar productos
+            $maxDestinationId = OrderDestination::max('destination_id') ?? 0;
+            foreach ($request->destinations as $destIndex => $destData) {
+                $destinationId = $maxDestinationId + $destIndex + 1;
+                
+                $destination = OrderDestination::create([
+                    'destination_id' => $destinationId,
+                    'order_id' => $pedido->order_id,
+                    'address' => $destData['address'],
+                    'latitude' => $destData['latitude'] ?? null,
+                    'longitude' => $destData['longitude'] ?? null,
+                    'reference' => $destData['reference'] ?? null,
+                    'contact_name' => $destData['contact_name'] ?? null,
+                    'contact_phone' => $destData['contact_phone'] ?? null,
+                    'delivery_instructions' => $destData['delivery_instructions'] ?? null,
+                ]);
+
+                // Asignar productos a este destino
+                $maxDestProdId = OrderDestinationProduct::max('destination_product_id') ?? 0;
+                foreach ($destData['products'] as $destProdIndex => $destProdData) {
+                    $orderProductIndex = $destProdData['order_product_index'];
+                    if (isset($orderProducts[$orderProductIndex])) {
+                        $destProdId = $maxDestProdId + $destProdIndex + 1;
+                        $maxDestProdId = $destProdId;
+                        
+                        OrderDestinationProduct::create([
+                            'destination_product_id' => $destProdId,
+                            'destination_id' => $destination->destination_id,
+                            'order_product_id' => $orderProducts[$orderProductIndex]->order_product_id,
+                            'quantity' => $destProdData['quantity'],
+                            'observations' => $destProdData['observations'] ?? null,
+                        ]);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Pedido actualizado exitosamente'
+                ]);
+            }
+
+            return redirect()->route('mis-pedidos')
+                ->with('success', 'Pedido actualizado exitosamente');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al actualizar pedido: ' . $e->getMessage(), [
+                'exception' => $e,
+                'request_data' => $request->all()
+            ]);
+            
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al actualizar pedido: ' . $e->getMessage()
+                ], 500);
+            }
+            
+            return redirect()->back()
+                ->with('error', 'Error al actualizar pedido: ' . $e->getMessage())
+                ->withInput();
+        }
+    }
+
     public function cancel($id)
     {
         try {
+            $user = Auth::user();
+            $customerId = $this->getOrCreateCustomerId($user);
+            
             $order = CustomerOrder::findOrFail($id);
+            
+            // Verificar que el pedido pertenece al cliente del usuario
+            if ($order->customer_id != $customerId) {
+                abort(403, 'No tienes permiso para cancelar este pedido');
+            }
             
             // Verificar si el pedido puede ser cancelado
             if (!$order->canBeEdited()) {

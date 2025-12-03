@@ -42,9 +42,9 @@ class CorrectSchemaSeeder extends Seeder
 
         // Create Operator Roles - Solo 3 roles: cliente, operador, admin
         $roles = [
-            ['role_id' => 1, 'code' => 'ADMIN', 'name' => 'Administrador', 'description' => 'Administrador del sistema', 'access_level' => 5, 'active' => true],
-            ['role_id' => 2, 'code' => 'OPERATOR', 'name' => 'Operador', 'description' => 'Operador de producción', 'access_level' => 3, 'active' => true],
-            ['role_id' => 3, 'code' => 'CLIENT', 'name' => 'Cliente', 'description' => 'Cliente que realiza pedidos', 'access_level' => 1, 'active' => true],
+            ['role_id' => 1, 'code' => 'ADMIN', 'name' => 'Administrador', 'description' => 'Administrador del sistema', 'access_level' => 10, 'active' => true],
+            ['role_id' => 2, 'code' => 'OPERADOR', 'name' => 'Operador', 'description' => 'Operador de producción', 'access_level' => 5, 'active' => true],
+            ['role_id' => 3, 'code' => 'CLIENTE', 'name' => 'Cliente', 'description' => 'Cliente que realiza pedidos', 'access_level' => 3, 'active' => true],
         ];
 
         foreach ($roles as $role) {

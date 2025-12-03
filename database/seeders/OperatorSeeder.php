@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Operator;
 use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Role;
 
 class OperatorSeeder extends Seeder
 {
@@ -25,11 +26,32 @@ class OperatorSeeder extends Seeder
             ],
         ];
 
-        foreach ($operators as $operator) {
-            Operator::updateOrCreate(
-                ['operator_id' => $operator['operator_id']],
-                $operator
+        foreach ($operators as $operatorData) {
+            $operator = Operator::updateOrCreate(
+                ['operator_id' => $operatorData['operator_id']],
+                $operatorData
             );
+
+            // Asignar rol de Spatie basado en el role_id
+            $roleId = $operatorData['role_id'];
+            $spatieRole = null;
+
+            if ($roleId == 1) {
+                // ADMIN
+                $spatieRole = Role::where('name', 'admin')->first();
+            } elseif ($roleId == 2) {
+                // OPERADOR
+                $spatieRole = Role::where('name', 'operador')->first();
+            } elseif ($roleId == 3) {
+                // CLIENTE
+                $spatieRole = Role::where('name', 'cliente')->first();
+            }
+
+            // Asignar el rol de Spatie si existe
+            if ($spatieRole) {
+                // Remover todos los roles existentes y asignar el correcto
+                $operator->syncRoles([$spatieRole]);
+            }
         }
     }
 }

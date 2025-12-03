@@ -5,10 +5,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Operator;
 use App\Models\OperatorRole;
 use App\Models\Machine;
+use App\Helpers\DatabaseHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 
 class OperadorWebController extends Controller
 {
@@ -47,19 +49,42 @@ class OperadorWebController extends Controller
         }
 
         try {
-            // Obtener el siguiente ID de la secuencia
-            $nextId = DB::selectOne("SELECT nextval('operator_seq') as id")->id;
+            // Obtener el siguiente ID usando el helper
+            $nextId = DatabaseHelper::getNextSequenceId('operator_seq', 'operator', 'operator_id');
             
-            $operador = Operator::create([
-                'operator_id' => $nextId,
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
-                'username' => $request->username,
-                'password_hash' => Hash::make($request->password),
-                'email' => $request->email,
-                'role_id' => $request->role_id,
-                'active' => true,
-            ]);
+            // Insertar usando SQL directo con nextval para evitar conflictos
+            $passwordHash = Hash::make($request->password);
+            $email = $request->email ?? null;
+            
+            $operatorId = DB::selectOne("
+                INSERT INTO operator (operator_id, first_name, last_name, username, password_hash, email, role_id, active)
+                VALUES (nextval('operator_seq'), ?, ?, ?, ?, ?, ?, ?)
+                RETURNING operator_id
+            ", [
+                $request->first_name,
+                $request->last_name,
+                $request->username,
+                $passwordHash,
+                $email,
+                $request->role_id,
+                true
+            ])->operator_id;
+            
+            $operador = Operator::find($operatorId);
+            
+            // Asignar el rol de Spatie basado en el role_id
+            $spatieRole = null;
+            if ($request->role_id == 1) {
+                $spatieRole = Role::where('name', 'admin')->first();
+            } elseif ($request->role_id == 2) {
+                $spatieRole = Role::where('name', 'operador')->first();
+            } elseif ($request->role_id == 3) {
+                $spatieRole = Role::where('name', 'cliente')->first();
+            }
+            
+            if ($spatieRole) {
+                $operador->assignRole($spatieRole);
+            }
 
             // Asignar máquinas
             if ($request->has('maquina_ids')) {

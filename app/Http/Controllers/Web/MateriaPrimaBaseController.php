@@ -115,14 +115,32 @@ class MateriaPrimaBaseController extends Controller
             // Verificar que la unidad existe
             $unidad = UnitOfMeasure::findOrFail($request->unit_id);
             
-            // Obtener el siguiente ID de la secuencia
+            // Sincronizar la secuencia y obtener el siguiente ID
+            $maxId = DB::table('raw_material_base')->max('material_id') ?? 0;
+            DB::statement("SELECT setval('raw_material_base_seq', {$maxId}, true)");
             $nextId = DB::selectOne("SELECT nextval('raw_material_base_seq') as id")->id;
             
             // Generar código automáticamente
             $code = 'MP-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
 
-            RawMaterialBase::create([
-                'material_id' => $nextId,
+            // Crear usando SQL directo para evitar conflictos
+            $materialId = DB::selectOne("
+                INSERT INTO raw_material_base (material_id, category_id, unit_id, code, name, description, available_quantity, minimum_stock, maximum_stock, active)
+                VALUES (nextval('raw_material_base_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING material_id
+            ", [
+                $request->category_id,
+                $request->unit_id,
+                $code,
+                $request->name,
+                $request->description,
+                0,
+                $request->minimum_stock ?? 0,
+                $request->maximum_stock,
+                true
+            ])->material_id;
+            
+            $nextId = $materialId; // Para usar en la respuesta
                 'category_id' => $request->category_id,
                 'unit_id' => $request->unit_id,
                 'code' => $code,

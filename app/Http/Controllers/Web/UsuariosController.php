@@ -41,36 +41,51 @@ class UsuariosController extends Controller
         }
 
         try {
-            // Obtener el máximo ID actual en la tabla
+            // Sincronizar la secuencia con el máximo ID existente
             $maxId = Operator::max('operator_id') ?? 0;
-            
-            // Obtener el siguiente valor de la secuencia de forma segura
-            try {
-                $seqResult = DB::selectOne("SELECT last_value FROM operator_seq");
-                $seqValue = $seqResult->last_value ?? 0;
-            } catch (\Exception $e) {
-                // Si hay error al obtener la secuencia, usar el máximo ID
-                $seqValue = 0;
+            if ($maxId > 0) {
+                try {
+                    DB::statement("SELECT setval('operator_seq', $maxId, true)");
+                } catch (\Exception $e) {
+                    // Si la secuencia no existe, crearla
+                    DB::statement("CREATE SEQUENCE IF NOT EXISTS operator_seq START WITH " . ($maxId + 1));
+                }
             }
             
-            // Si la secuencia está por debajo del máximo, sincronizarla
-            if ($seqValue < $maxId) {
-                DB::statement("SELECT setval('operator_seq', $maxId, true)");
+            // Insertar usando SQL directo con nextval para evitar conflictos
+            $passwordHash = Hash::make($request->password);
+            $email = $request->email ?? null;
+            
+            $operatorId = DB::selectOne("
+                INSERT INTO operator (operator_id, first_name, last_name, username, password_hash, email, role_id, active)
+                VALUES (nextval('operator_seq'), ?, ?, ?, ?, ?, ?, ?)
+                RETURNING operator_id
+            ", [
+                $request->first_name,
+                $request->last_name,
+                $request->username,
+                $passwordHash,
+                $email,
+                $request->role_id,
+                true
+            ])->operator_id;
+            
+            // Obtener el operador creado
+            $operator = Operator::find($operatorId);
+            
+            // Asignar el rol de Spatie basado en el role_id
+            $spatieRole = null;
+            if ($request->role_id == 1) {
+                $spatieRole = \Spatie\Permission\Models\Role::where('name', 'admin')->first();
+            } elseif ($request->role_id == 2) {
+                $spatieRole = \Spatie\Permission\Models\Role::where('name', 'operador')->first();
+            } elseif ($request->role_id == 3) {
+                $spatieRole = \Spatie\Permission\Models\Role::where('name', 'cliente')->first();
             }
             
-            // Obtener el siguiente ID de la secuencia
-            $nextId = DB::selectOne("SELECT nextval('operator_seq') as id")->id;
-            
-            Operator::create([
-                'operator_id' => $nextId,
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
-                'username' => $request->username,
-                'password_hash' => Hash::make($request->password),
-                'email' => $request->email,
-                'role_id' => $request->role_id,
-                'active' => true,
-            ]);
+            if ($spatieRole) {
+                $operator->assignRole($spatieRole);
+            }
 
             return redirect()->route('usuarios')
                 ->with('success', 'Usuario creado exitosamente');

@@ -137,6 +137,9 @@ Route::middleware(['auth'])->group(function () {
     
     Route::middleware('permission:ver mis pedidos')->group(function () {
         Route::get('/mis-pedidos', [PedidosController::class, 'misPedidos'])->name('mis-pedidos');
+        Route::get('/mis-pedidos/{id}', [PedidosController::class, 'show'])->name('mis-pedidos.show');
+        Route::get('/mis-pedidos/{id}/edit', [PedidosController::class, 'edit'])->name('mis-pedidos.edit');
+        Route::put('/mis-pedidos/{id}', [PedidosController::class, 'update'])->name('mis-pedidos.update');
         Route::post('/mis-pedidos/{id}/cancel', [PedidosController::class, 'cancel'])->middleware('permission:cancelar mis pedidos')->name('mis-pedidos.cancel');
     });
     
@@ -144,8 +147,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/gestion-pedidos', [GestionPedidosController::class, 'index'])->name('gestion-pedidos');
         Route::get('/gestion-pedidos/{id}', [GestionPedidosController::class, 'show'])->name('gestion-pedidos.show');
         Route::put('/gestion-pedidos/{id}', [GestionPedidosController::class, 'update'])->name('gestion-pedidos.update');
-        Route::post('/gestion-pedidos/{orderId}/product/{productId}/approve', [GestionPedidosController::class, 'approveProduct'])->middleware('permission:aprobar pedidos')->name('gestion-pedidos.approve-product');
-        Route::post('/gestion-pedidos/{orderId}/product/{productId}/reject', [GestionPedidosController::class, 'rejectProduct'])->middleware('permission:rechazar pedidos')->name('gestion-pedidos.reject-product');
+        Route::post('/gestion-pedidos/{orderId}/approve', [GestionPedidosController::class, 'approveOrder'])->middleware('permission:aprobar pedidos')->name('gestion-pedidos.approve-order');
+        Route::post('/gestion-pedidos/{orderId}/reject', [GestionPedidosController::class, 'rejectOrder'])->middleware('permission:rechazar pedidos')->name('gestion-pedidos.reject-order');
     });
 
     // Usuarios/Operadores

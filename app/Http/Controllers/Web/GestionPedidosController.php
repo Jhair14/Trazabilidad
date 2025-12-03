@@ -75,49 +75,58 @@ class GestionPedidosController extends Controller
         }
     }
 
-    public function approveProduct(Request $request, $orderId, $productId)
+    public function approveOrder(Request $request, $orderId)
     {
+        $validator = Validator::make($request->all(), [
+            'observations' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
         try {
             DB::beginTransaction();
 
-            $orderProduct = OrderProduct::where('order_id', $orderId)
-                ->where('order_product_id', $productId)
-                ->where('status', 'pendiente')
-                ->firstOrFail();
+            $order = CustomerOrder::findOrFail($orderId);
+            
+            if ($order->status !== 'pendiente') {
+                return redirect()->back()
+                    ->with('error', 'Solo se pueden aprobar pedidos pendientes');
+            }
 
-            $orderProduct->update([
+            // Aprobar todos los productos del pedido
+            OrderProduct::where('order_id', $orderId)
+                ->where('status', 'pendiente')
+                ->update([
+                    'status' => 'aprobado',
+                    'approved_by' => Auth::id(),
+                    'approved_at' => now(),
+                    'observations' => $request->observations,
+                ]);
+
+            // Aprobar el pedido completo
+            $order->update([
                 'status' => 'aprobado',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
                 'observations' => $request->observations,
             ]);
 
-            // Verificar si todos los productos están aprobados
-            $pendingProducts = OrderProduct::where('order_id', $orderId)
-                ->where('status', 'pendiente')
-                ->count();
-
-            if ($pendingProducts === 0) {
-                $order = CustomerOrder::findOrFail($orderId);
-                $order->update([
-                    'status' => 'aprobado',
-                    'approved_by' => Auth::id(),
-                    'approved_at' => now(),
-                ]);
-            }
-
             DB::commit();
 
             return redirect()->route('gestion-pedidos.show', $orderId)
-                ->with('success', 'Producto aprobado exitosamente');
+                ->with('success', 'Pedido aprobado exitosamente');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
-                ->with('error', 'Error al aprobar producto: ' . $e->getMessage());
+                ->with('error', 'Error al aprobar pedido: ' . $e->getMessage());
         }
     }
 
-    public function rejectProduct(Request $request, $orderId, $productId)
+    public function rejectOrder(Request $request, $orderId)
     {
         $validator = Validator::make($request->all(), [
             'rejection_reason' => 'required|string|max:500',
@@ -132,12 +141,25 @@ class GestionPedidosController extends Controller
         try {
             DB::beginTransaction();
 
-            $orderProduct = OrderProduct::where('order_id', $orderId)
-                ->where('order_product_id', $productId)
-                ->where('status', 'pendiente')
-                ->firstOrFail();
+            $order = CustomerOrder::findOrFail($orderId);
+            
+            if ($order->status !== 'pendiente') {
+                return redirect()->back()
+                    ->with('error', 'Solo se pueden rechazar pedidos pendientes');
+            }
 
-            $orderProduct->update([
+            // Rechazar todos los productos del pedido
+            OrderProduct::where('order_id', $orderId)
+                ->where('status', 'pendiente')
+                ->update([
+                    'status' => 'rechazado',
+                    'approved_by' => Auth::id(),
+                    'approved_at' => now(),
+                    'rejection_reason' => $request->rejection_reason,
+                ]);
+
+            // Rechazar el pedido completo
+            $order->update([
                 'status' => 'rechazado',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
@@ -147,11 +169,11 @@ class GestionPedidosController extends Controller
             DB::commit();
 
             return redirect()->route('gestion-pedidos.show', $orderId)
-                ->with('success', 'Producto rechazado exitosamente');
+                ->with('success', 'Pedido rechazado exitosamente');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
-                ->with('error', 'Error al rechazar producto: ' . $e->getMessage());
+                ->with('error', 'Error al rechazar pedido: ' . $e->getMessage());
         }
     }
 }

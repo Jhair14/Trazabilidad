@@ -116,32 +116,56 @@
                         </td>
                         <td>
                             <div class="progress progress-sm">
+                                @php
+                                    $progreso = 0;
+                                    if($pedido->status == 'completado') {
+                                        $progreso = 100;
+                                    } elseif($pedido->status == 'en_produccion') {
+                                        $progreso = 80;
+                                    } elseif($pedido->status == 'aprobado') {
+                                        $progreso = 50;
+                                    } elseif($pedido->status == 'pendiente') {
+                                        $progreso = 20;
+                                    } elseif($pedido->status == 'cancelado' || $pedido->status == 'rechazado') {
+                                        $progreso = 0;
+                                    }
+                                @endphp
                                 @if($pedido->status == 'completado')
-                                    <div class="progress-bar bg-success" style="width: 100%"></div>
-                                @elseif($pedido->status == 'aprobado' || $pedido->status == 'en_produccion')
-                                    <div class="progress-bar bg-primary" style="width: 70%"></div>
+                                    <div class="progress-bar bg-success" style="width: {{ $progreso }}%"></div>
+                                @elseif($pedido->status == 'en_produccion')
+                                    <div class="progress-bar bg-primary" style="width: {{ $progreso }}%"></div>
+                                @elseif($pedido->status == 'aprobado')
+                                    <div class="progress-bar bg-info" style="width: {{ $progreso }}%"></div>
                                 @elseif($pedido->status == 'pendiente')
-                                    <div class="progress-bar bg-warning" style="width: 30%"></div>
+                                    <div class="progress-bar bg-warning" style="width: {{ $progreso }}%"></div>
                                 @else
-                                    <div class="progress-bar bg-danger" style="width: 0%"></div>
+                                    <div class="progress-bar bg-danger" style="width: {{ $progreso }}%"></div>
                                 @endif
                             </div>
+                            <small class="text-muted">{{ $progreso }}%</small>
                         </td>
                         <td class="text-right">
-                            <button class="btn btn-sm btn-info" title="Ver Detalles">
+                            <button class="btn btn-sm btn-info" title="Ver Detalles" onclick="verPedido({{ $pedido->order_id }})">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            @if($pedido->status === 'pendiente' && (!$pedido->editable_until || \Carbon\Carbon::parse($pedido->editable_until)->isFuture()))
-                            <button class="btn btn-sm btn-warning" title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <form action="{{ route('mis-pedidos') }}/{{ $pedido->order_id }}/cancel" method="POST" style="display: inline;" onsubmit="return confirm('¿Está seguro de cancelar este pedido?');">
-                                @csrf
-                                @method('POST')
-                                <button type="submit" class="btn btn-sm btn-danger" title="Cancelar">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </form>
+                            @php
+                                $puedeEditar = $pedido->status === 'pendiente' && $pedido->canBeEdited();
+                            @endphp
+                            @if($puedeEditar)
+                                <a href="{{ route('mis-pedidos.edit', $pedido->order_id) }}" class="btn btn-sm btn-warning" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ route('mis-pedidos.cancel', $pedido->order_id) }}" method="POST" style="display: inline;" onsubmit="return confirm('¿Está seguro de cancelar este pedido?');">
+                                    @csrf
+                                    @method('POST')
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Cancelar">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                            @elseif($pedido->status == 'aprobado' || $pedido->status == 'en_produccion')
+                                <span class="badge badge-info" title="Su producto ya está siendo preparado, no puede editar o cancelar">
+                                    <i class="fas fa-info-circle"></i> En Preparación
+                                </span>
                             @endif
                         </td>
                     </tr>
@@ -161,6 +185,175 @@
     @endif
 </div>
 
+<!-- Modal Ver Pedido -->
+<div class="modal fade" id="verPedidoModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h4 class="modal-title">
+                    <i class="fas fa-eye mr-1"></i>
+                    Detalles del Pedido
+                </h4>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="verPedidoContent">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p>Cargando detalles...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
+
+@push('scripts')
+<script>
+const misPedidosBaseUrl = '{{ url("mis-pedidos") }}';
+
+function verPedido(id) {
+    $('#verPedidoModal').modal('show');
+    $('#verPedidoContent').html(`
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p>Cargando detalles...</p>
+        </div>
+    `);
+    
+    fetch(`${misPedidosBaseUrl}/${id}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+        .then(response => response.json())
+        .then(data => {
+            let productsHtml = '';
+            if (data.products && data.products.length > 0) {
+                productsHtml = '<table class="table table-sm table-bordered"><thead><tr><th>Producto</th><th>Cantidad</th><th>Estado</th></tr></thead><tbody>';
+                data.products.forEach(function(product) {
+                    const statusBadge = product.status === 'aprobado' 
+                        ? '<span class="badge badge-success">Aprobado</span>'
+                        : product.status === 'rechazado'
+                        ? '<span class="badge badge-danger">Rechazado</span>'
+                        : '<span class="badge badge-warning">Pendiente</span>';
+                    productsHtml += `<tr><td>${product.product_name}</td><td>${product.quantity} ${product.unit}</td><td>${statusBadge}</td></tr>`;
+                });
+                productsHtml += '</tbody></table>';
+            } else {
+                productsHtml = '<p class="text-muted">No hay productos</p>';
+            }
+            
+            let destinationsHtml = '';
+            if (data.destinations && data.destinations.length > 0) {
+                destinationsHtml = '<ul class="mb-0">';
+                data.destinations.forEach(function(dest) {
+                    destinationsHtml += `<li><strong>${dest.address}</strong>${dest.reference ? ' - ' + dest.reference : ''}${dest.contact_name ? '<br>Contacto: ' + dest.contact_name + (dest.contact_phone ? ' (' + dest.contact_phone + ')' : '') : ''}</li>`;
+                });
+                destinationsHtml += '</ul>';
+            } else {
+                destinationsHtml = '<p class="text-muted">No hay destinos</p>';
+            }
+            
+            const content = `
+                <div class="row">
+                    <div class="col-md-12">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th style="width: 30%;">ID Pedido</th>
+                                <td>#${data.order_number || data.order_id}</td>
+                            </tr>
+                            <tr>
+                                <th>Nombre</th>
+                                <td>${data.name || 'Sin nombre'}</td>
+                            </tr>
+                            <tr>
+                                <th>Descripción</th>
+                                <td>${data.description || 'Sin descripción'}</td>
+                            </tr>
+                            <tr>
+                                <th>Estado</th>
+                                <td>
+                                    ${data.status === 'completado' 
+                                        ? '<span class="badge badge-success">Completado</span>' 
+                                        : data.status === 'aprobado'
+                                        ? '<span class="badge badge-info">Aprobado</span>'
+                                        : data.status === 'en_produccion'
+                                        ? '<span class="badge badge-primary">En Producción</span>'
+                                        : data.status === 'rechazado'
+                                        ? '<span class="badge badge-danger">Rechazado</span>'
+                                        : data.status === 'cancelado'
+                                        ? '<span class="badge badge-secondary">Cancelado</span>'
+                                        : '<span class="badge badge-warning">Pendiente</span>'}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Fecha de Creación</th>
+                                <td>${data.creation_date}</td>
+                            </tr>
+                            ${data.delivery_date ? `
+                            <tr>
+                                <th>Fecha de Entrega</th>
+                                <td>${data.delivery_date}</td>
+                            </tr>
+                            ` : ''}
+                            <tr>
+                                <th>Prioridad</th>
+                                <td>
+                                    ${data.priority == 10 
+                                        ? '<span class="badge badge-danger">Urgente</span>' 
+                                        : data.priority == 5
+                                        ? '<span class="badge badge-warning">Alta</span>'
+                                        : '<span class="badge badge-info">Normal</span>'}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Productos</th>
+                                <td>${productsHtml}</td>
+                            </tr>
+                            <tr>
+                                <th>Destinos</th>
+                                <td>${destinationsHtml}</td>
+                            </tr>
+                            ${data.observations ? `
+                            <tr>
+                                <th>Observaciones</th>
+                                <td>${data.observations}</td>
+                            </tr>
+                            ` : ''}
+                            ${data.approved_at ? `
+                            <tr>
+                                <th>Fecha de Aprobación</th>
+                                <td>${data.approved_at}</td>
+                            </tr>
+                            ` : ''}
+                        </table>
+                    </div>
+                </div>
+            `;
+            $('#verPedidoContent').html(content);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            $('#verPedidoContent').html(`
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    Error al cargar los datos del pedido
+                </div>
+            `);
+        });
+}
+
+</script>
+@endpush
 
 

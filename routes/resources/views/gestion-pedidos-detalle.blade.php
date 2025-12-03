@@ -87,7 +87,6 @@
                                 <th>Cantidad</th>
                                 <th>Unidad</th>
                                 <th>Estado</th>
-                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -110,95 +109,127 @@
                                         <span class="badge badge-danger">Rechazado</span>
                                     @endif
                                 </td>
-                                <td>
-                                    @if($orderProduct->status == 'pendiente')
-                                        <button class="btn btn-sm btn-success" 
-                                                data-toggle="modal" 
-                                                data-target="#approveModal{{ $orderProduct->order_product_id }}">
-                                            <i class="fas fa-check"></i> Aprobar
-                                        </button>
-                                        <button class="btn btn-sm btn-danger" 
-                                                data-toggle="modal" 
-                                                data-target="#rejectModal{{ $orderProduct->order_product_id }}">
-                                            <i class="fas fa-times"></i> Rechazar
-                                        </button>
-                                    @elseif($orderProduct->status == 'aprobado')
-                                        <small class="text-muted">
-                                            Aprobado por: {{ $orderProduct->approver->first_name ?? 'N/A' }}<br>
-                                            {{ $orderProduct->approved_at ? \Carbon\Carbon::parse($orderProduct->approved_at)->format('d/m/Y H:i') : '' }}
-                                        </small>
-                                    @elseif($orderProduct->status == 'rechazado')
-                                        <small class="text-danger">
-                                            Rechazado por: {{ $orderProduct->approver->first_name ?? 'N/A' }}<br>
-                                            Razón: {{ $orderProduct->rejection_reason ?? 'N/A' }}
-                                        </small>
-                                    @endif
-                                </td>
                             </tr>
-
-                            <!-- Modal Aprobar -->
-                            <div class="modal fade" id="approveModal{{ $orderProduct->order_product_id }}" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <form method="POST" action="{{ route('gestion-pedidos.approve-product', ['orderId' => $pedido->order_id, 'productId' => $orderProduct->order_product_id]) }}">
-                                            @csrf
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Aprobar Producto</h5>
-                                                <button type="button" class="close" data-dismiss="modal">
-                                                    <span>&times;</span>
-                                                </button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <p>¿Está seguro de aprobar el producto <strong>{{ $orderProduct->product->name }}</strong>?</p>
-                                                <div class="form-group">
-                                                    <label>Observaciones (opcional)</label>
-                                                    <textarea class="form-control" name="observations" rows="3"></textarea>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                                                <button type="submit" class="btn btn-success">Aprobar</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Modal Rechazar -->
-                            <div class="modal fade" id="rejectModal{{ $orderProduct->order_product_id }}" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <form method="POST" action="{{ route('gestion-pedidos.reject-product', ['orderId' => $pedido->order_id, 'productId' => $orderProduct->order_product_id]) }}">
-                                            @csrf
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Rechazar Producto</h5>
-                                                <button type="button" class="close" data-dismiss="modal">
-                                                    <span>&times;</span>
-                                                </button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <p>¿Está seguro de rechazar el producto <strong>{{ $orderProduct->product->name }}</strong>?</p>
-                                                <div class="form-group">
-                                                    <label>Razón del Rechazo <span class="text-danger">*</span></label>
-                                                    <textarea class="form-control" name="rejection_reason" rows="3" required></textarea>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                                                <button type="submit" class="btn btn-danger">Rechazar</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
                             @empty
                             <tr>
-                                <td colspan="6" class="text-center">No hay productos en este pedido</td>
+                                <td colspan="5" class="text-center">No hay productos en este pedido</td>
                             </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Acciones de Aprobación/Rechazo -->
+                @if($pedido->status == 'pendiente')
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Acciones de Aprobación</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-3">
+                                    <strong>Nota:</strong> Al aprobar o rechazar, se aplicará la acción a todos los productos del pedido de una vez.
+                                </p>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <button class="btn btn-success btn-lg btn-block" 
+                                                data-toggle="modal" 
+                                                data-target="#approveOrderModal">
+                                            <i class="fas fa-check"></i> Aprobar Todo el Pedido
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button class="btn btn-danger btn-lg btn-block" 
+                                                data-toggle="modal" 
+                                                data-target="#rejectOrderModal">
+                                            <i class="fas fa-times"></i> Rechazar Todo el Pedido
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Aprobar Pedido Completo -->
+                <div class="modal fade" id="approveOrderModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="POST" action="{{ route('gestion-pedidos.approve-order', ['orderId' => $pedido->order_id]) }}">
+                                @csrf
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Aprobar Pedido Completo</h5>
+                                    <button type="button" class="close" data-dismiss="modal">
+                                        <span>&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>¿Está seguro de aprobar todo el pedido <strong>{{ $pedido->name }}</strong>?</p>
+                                    <p class="text-muted">Esta acción aprobará todos los productos del pedido de una vez.</p>
+                                    <div class="form-group">
+                                        <label>Observaciones (opcional)</label>
+                                        <textarea class="form-control" name="observations" rows="3"></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="btn btn-success">Aprobar Todo</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Rechazar Pedido Completo -->
+                <div class="modal fade" id="rejectOrderModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="POST" action="{{ route('gestion-pedidos.reject-order', ['orderId' => $pedido->order_id]) }}">
+                                @csrf
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Rechazar Pedido Completo</h5>
+                                    <button type="button" class="close" data-dismiss="modal">
+                                        <span>&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>¿Está seguro de rechazar todo el pedido <strong>{{ $pedido->name }}</strong>?</p>
+                                    <p class="text-muted">Esta acción rechazará todos los productos del pedido de una vez.</p>
+                                    <div class="form-group">
+                                        <label>Razón del Rechazo <span class="text-danger">*</span></label>
+                                        <textarea class="form-control" name="rejection_reason" rows="3" required></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="btn btn-danger">Rechazar Todo</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                @elseif($pedido->status == 'aprobado')
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Pedido Aprobado</strong><br>
+                    Aprobado por: {{ $pedido->approver->first_name ?? 'N/A' }}<br>
+                    Fecha: {{ $pedido->approved_at ? \Carbon\Carbon::parse($pedido->approved_at)->format('d/m/Y H:i') : 'N/A' }}
+                    @if($pedido->observations)
+                    <br>Observaciones: {{ $pedido->observations }}
+                    @endif
+                </div>
+                @elseif($pedido->status == 'rechazado')
+                <div class="alert alert-danger mt-3">
+                    <i class="fas fa-times-circle"></i>
+                    <strong>Pedido Rechazado</strong><br>
+                    Rechazado por: {{ $pedido->approver->first_name ?? 'N/A' }}<br>
+                    Fecha: {{ $pedido->approved_at ? \Carbon\Carbon::parse($pedido->approved_at)->format('d/m/Y H:i') : 'N/A' }}
+                    @if($pedido->rejection_reason)
+                    <br>Razón: {{ $pedido->rejection_reason }}
+                    @endif
+                </div>
+                @endif
 
                 <!-- Destinos de Entrega -->
                 @if($pedido->destinations->count() > 0)

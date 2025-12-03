@@ -33,9 +33,9 @@ class AssignRolesToUsersSeeder extends Seeder
                 
                 if ($roleCode === 'ADMIN') {
                     $operator->assignRole($adminRole);
-                } elseif ($roleCode === 'OPERATOR') {
+                } elseif ($roleCode === 'OPERADOR') {
                     $operator->assignRole($operadorRole);
-                } elseif ($roleCode === 'CLIENT') {
+                } elseif ($roleCode === 'CLIENTE') {
                     $operator->assignRole($clienteRole);
                 } else {
                     // Si no coincide con ningún código conocido, asignar cliente por defecto
