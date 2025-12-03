@@ -26,5 +26,9 @@ php artisan migrate --force || true
 echo "🌱 Ejecutando Seeder..."
 php artisan db:seed --force || true
 
+echo ":V Creando Secret JWT..."
+php artisan jwt:secret
+
+
 echo "🚀 Iniciando PHP-FPM..."
 exec php-fpm
