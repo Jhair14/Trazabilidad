@@ -309,14 +309,23 @@ class PedidosController extends Controller
                 'editable_until' => $pedido->editable_until ? $pedido->editable_until->format('Y-m-d H:i:s') : null,
                 'approved_at' => $pedido->approved_at ? $pedido->approved_at->format('Y-m-d H:i:s') : null,
                 'can_be_edited' => $pedido->canBeEdited(),
-                'products' => $pedido->orderProducts->map(function($op) {
+                'orderProducts' => $pedido->orderProducts->map(function($op) {
                     return [
+                        'order_product_id' => $op->order_product_id,
                         'product_id' => $op->product_id,
-                        'product_name' => $op->product->name ?? 'N/A',
                         'quantity' => $op->quantity,
                         'status' => $op->status,
                         'observations' => $op->observations,
-                        'unit' => $op->product->unit->code ?? 'N/A',
+                        'rejection_reason' => $op->rejection_reason,
+                        'product' => [
+                            'product_id' => $op->product->product_id,
+                            'name' => $op->product->name ?? 'N/A',
+                            'code' => $op->product->code ?? 'N/A',
+                            'unit' => [
+                                'name' => $op->product->unit->name ?? 'N/A',
+                                'abbreviation' => $op->product->unit->code ?? 'N/A',
+                            ]
+                        ]
                     ];
                 }),
                 'destinations' => $pedido->destinations->map(function($dest) {

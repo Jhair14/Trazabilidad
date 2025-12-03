@@ -2,80 +2,90 @@
 
 namespace Database\Seeders;
 
-use App\Models\RawMaterialCategory;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class RawMaterialCategorySeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         $categories = [
             [
-                'category_id' => 1,
-                'code' => 'MAT_PRIMA',
-                'name' => 'Materia Prima',
-                'description' => 'Materiales básicos utilizados en la producción',
-                'active' => true,
+                'code' => 'CAT-GRANOS',
+                'name' => 'Granos y Cereales',
+                'description' => 'Trigo, maíz, arroz, avena, cebada, etc.',
+                'active' => true
             ],
             [
-                'category_id' => 2,
-                'code' => 'INSUMOS',
-                'name' => 'Insumos',
-                'description' => 'Materiales auxiliares para el proceso productivo',
-                'active' => true,
+                'code' => 'CAT-LACTEOS',
+                'name' => 'Lácteos y Derivados',
+                'description' => 'Leche, queso, mantequilla, yogurt, suero, etc.',
+                'active' => true
             ],
             [
-                'category_id' => 3,
-                'code' => 'EMPAQUE',
-                'name' => 'Material de Empaque',
-                'description' => 'Materiales para empaque y embalaje',
-                'active' => true,
+                'code' => 'CAT-CARNICOS',
+                'name' => 'Cárnicos y Embutidos',
+                'description' => 'Carne de res, cerdo, pollo, pescado, embutidos.',
+                'active' => true
             ],
             [
-                'category_id' => 4,
-                'code' => 'QUIMICOS',
-                'name' => 'Productos Químicos',
-                'description' => 'Sustancias químicas utilizadas en procesos',
-                'active' => true,
+                'code' => 'CAT-FRUTAS',
+                'name' => 'Frutas y Verduras',
+                'description' => 'Frutas frescas, verduras, hortalizas, tubérculos.',
+                'active' => true
             ],
             [
-                'category_id' => 5,
-                'code' => 'ADITIVOS',
-                'name' => 'Aditivos',
-                'description' => 'Aditivos y conservantes',
-                'active' => true,
+                'code' => 'CAT-ACEITES',
+                'name' => 'Aceites y Grasas',
+                'description' => 'Aceite vegetal, manteca, margarina, grasas animales.',
+                'active' => true
             ],
             [
-                'category_id' => 6,
-                'code' => 'LUBRICANTES',
-                'name' => 'Lubricantes',
-                'description' => 'Aceites y lubricantes para maquinaria',
-                'active' => true,
+                'code' => 'CAT-ESPECIAS',
+                'name' => 'Especias y Condimentos',
+                'description' => 'Sal, pimienta, orégano, comino, salsas, vinagres.',
+                'active' => true
             ],
             [
-                'category_id' => 7,
-                'code' => 'REPUESTOS',
-                'name' => 'Repuestos',
-                'description' => 'Repuestos y componentes para maquinaria',
-                'active' => true,
+                'code' => 'CAT-AZUCARES',
+                'name' => 'Azúcares y Edulcorantes',
+                'description' => 'Azúcar blanca, morena, miel, jarabes, edulcorantes.',
+                'active' => true
             ],
             [
-                'category_id' => 8,
-                'code' => 'OTROS',
-                'name' => 'Otros',
-                'description' => 'Otras categorías de materiales',
-                'active' => true,
+                'code' => 'CAT-ADITIVOS',
+                'name' => 'Aditivos Alimentarios',
+                'description' => 'Conservantes, colorantes, saborizantes, estabilizantes.',
+                'active' => true
+            ],
+            [
+                'code' => 'CAT-EMPAQUES',
+                'name' => 'Empaques y Embalajes',
+                'description' => 'Bolsas, cajas, etiquetas, frascos, tapas.',
+                'active' => true
+            ],
+            [
+                'code' => 'CAT-OTROS',
+                'name' => 'Otros Insumos',
+                'description' => 'Insumos que no encajan en las categorías anteriores.',
+                'active' => true
             ],
         ];
 
         foreach ($categories as $category) {
-            RawMaterialCategory::updateOrCreate(
-                ['category_id' => $category['category_id']],
-                $category
-            );
+            $existing = DB::table('raw_material_category')
+                ->where('code', $category['code'])
+                ->first();
+
+            if ($existing) {
+                DB::table('raw_material_category')
+                    ->where('category_id', $existing->category_id)
+                    ->update($category);
+            } else {
+                $maxId = DB::table('raw_material_category')->max('category_id') ?? 0;
+                $category['category_id'] = $maxId + 1;
+                DB::table('raw_material_category')->insert($category);
+            }
         }
     }
 }

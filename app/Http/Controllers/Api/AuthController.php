@@ -21,10 +21,10 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
-            'username' => 'required|string|max:60|unique:Operador,Usuario',
+            'username' => 'required|string|max:60|unique:operator,username',
             'password' => 'required|string|min:6',
             'email' => 'nullable|email|max:100',
-            'role_id' => 'nullable|string|max:100', // Cargo is a string field
+            'role_id' => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
@@ -35,19 +35,31 @@ class AuthController extends Controller
         }
 
         try {
-            // For SQLite, we let autoincrement handle the ID
-            // Combine first_name and last_name into Nombre
+            // Get default role if not provided
+            $roleId = $request->role_id;
+            if (!$roleId) {
+                $defaultRole = \App\Models\OperatorRole::where('name', 'Operator')->first();
+                $roleId = $defaultRole ? $defaultRole->role_id : 2;
+            }
+
+            // Generate ID manually if needed (checking max ID)
+            $maxId = Operator::max('operator_id') ?? 0;
+            $nextId = $maxId + 1;
+
             $operator = Operator::create([
-                'Nombre' => trim($request->first_name . ' ' . $request->last_name),
-                'Usuario' => $request->username,
-                'PasswordHash' => Hash::make($request->password),
-                'Email' => $request->email,
-                'Cargo' => $request->role_id ?? 'Operator', // Default role
+                'operator_id' => $nextId,
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'username' => $request->username,
+                'password_hash' => Hash::make($request->password),
+                'email' => $request->email,
+                'role_id' => $roleId,
+                'active' => true
             ]);
 
             return response()->json([
                 'message' => 'Usuario registrado exitosamente',
-                'operator_id' => $operator->IdOperador
+                'operator_id' => $operator->operator_id
             ], 201);
         } catch (\Exception $e) {
             return response()->json([

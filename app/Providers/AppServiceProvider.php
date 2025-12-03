@@ -26,5 +26,13 @@ class AppServiceProvider extends ServiceProvider
         if (is_dir($customPath)) {
             View::addLocation($customPath);
         }
+
+        // Use custom permission logic
+        \Illuminate\Support\Facades\Gate::before(function ($user, $ability) {
+            if (method_exists($user, 'hasPermissionTo')) {
+                return $user->hasPermissionTo($ability) ?: null;
+            }
+            return null;
+        });
     }
 }

@@ -141,16 +141,6 @@ class MateriaPrimaBaseController extends Controller
             ])->material_id;
             
             $nextId = $materialId; // Para usar en la respuesta
-                'category_id' => $request->category_id,
-                'unit_id' => $request->unit_id,
-                'code' => $code,
-                'name' => $request->name,
-                'description' => $request->description,
-                'available_quantity' => 0,
-                'minimum_stock' => $request->minimum_stock ?? 0,
-                'maximum_stock' => $request->maximum_stock,
-                'active' => true,
-            ]);
 
             DB::commit();
 

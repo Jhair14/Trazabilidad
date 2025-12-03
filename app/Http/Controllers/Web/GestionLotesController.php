@@ -144,13 +144,6 @@ class GestionLotesController extends Controller
             ])->batch_id;
             
             $batch = ProductionBatch::find($batchId);
-                'order_id' => $orderId,
-                'batch_code' => $batchCode,
-                'name' => $request->name ?? 'Unnamed Batch',
-                'creation_date' => now()->toDateString(),
-                'target_quantity' => $request->target_quantity,
-                'observations' => $request->observations,
-            ]);
 
             // Crear batch raw materials - buscar o crear instancias de RawMaterial
             foreach ($request->raw_materials as $rm) {

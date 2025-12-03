@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Traits\HasRoles;
+// use Spatie\Permission\Traits\HasRoles;
 
 class Operator extends Authenticatable implements JWTSubject
 {
-    use HasRoles;
+    // use HasRoles;
     
     // Map to new English database table
     protected $table = 'operator';
@@ -59,6 +59,56 @@ class Operator extends Authenticatable implements JWTSubject
     public function getAuthPassword()
     {
         return $this->attributes['password_hash'] ?? null;
+    }
+
+    /**
+     * Check if the operator has a specific permission
+     */
+    public function hasPermissionTo(string $permission): bool
+    {
+        if (!$this->role) {
+            return false;
+        }
+
+        $roleCode = strtoupper($this->role->code);
+
+        // Admin has all permissions
+        if ($roleCode === 'ADMIN') {
+            return true;
+        }
+
+        // Define permissions per role
+        $permissions = [
+            'OPERATOR' => [
+                'ver panel control',
+                'ver materia prima',
+                'solicitar materia prima',
+                'recepcionar materia prima',
+                'gestionar proveedores',
+                'gestionar lotes',
+                'gestionar maquinas',
+                'gestionar procesos',
+                'gestionar variables estandar',
+                'certificar lotes',
+                'ver certificados',
+                'almacenar lotes',
+                'gestionar pedidos',
+                'aprobar pedidos',
+                'rechazar pedidos',
+            ],
+            'CLIENTE' => [
+                'ver panel cliente',
+                'crear pedidos',
+                'ver mis pedidos',
+                'editar mis pedidos',
+                'cancelar mis pedidos',
+                'ver certificados',
+            ],
+        ];
+
+        $rolePermissions = $permissions[$roleCode] ?? [];
+
+        return in_array($permission, $rolePermissions);
     }
 }
 

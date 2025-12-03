@@ -145,17 +145,6 @@ class RecepcionMateriaPrimaController extends Controller
             ])->raw_material_id;
             
             $rawMaterial = RawMaterial::find($rawMaterialId);
-                'material_id' => $request->material_id,
-                'supplier_id' => $request->supplier_id,
-                'supplier_batch' => $request->supplier_batch,
-                'invoice_number' => $request->invoice_number,
-                'receipt_date' => $request->receipt_date,
-                'expiration_date' => $request->expiration_date,
-                'quantity' => $request->quantity,
-                'available_quantity' => $request->quantity,
-                'receipt_conformity' => $receiptConformity,
-                'observations' => $request->observations,
-            ]);
 
             // Actualizar cantidad disponible en materia prima base solo si receipt_conformity es true
             if ($receiptConformity) {
@@ -197,7 +186,11 @@ class RecepcionMateriaPrimaController extends Controller
 
             // Sincronizar secuencia y registrar en log de movimientos
             $maxLogId = DB::table('material_movement_log')->max('log_id') ?? 0;
-            DB::statement("SELECT setval('material_movement_log_seq', {$maxLogId}, true)");
+            if ($maxLogId > 0) {
+                DB::statement("SELECT setval('material_movement_log_seq', {$maxLogId}, true)");
+            } else {
+                DB::statement("SELECT setval('material_movement_log_seq', 1, false)");
+            }
             
             DB::selectOne("
                 INSERT INTO material_movement_log (log_id, material_id, movement_type_id, user_id, quantity, previous_balance, new_balance, observations)

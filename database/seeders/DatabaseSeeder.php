@@ -14,9 +14,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Primero crear roles y permisos de Spatie
-        $this->call([
-            RolesAndPermissionsSeeder::class,
-        ]);
+        // $this->call([
+        //     RolesAndPermissionsSeeder::class,
+        // ]);
 
         // Seeders de tablas de parametrización (en orden de dependencias)
         $this->call([
@@ -25,7 +25,7 @@ class DatabaseSeeder extends Seeder
             MovementTypeSeeder::class,
             OperatorRoleSeeder::class,
             OperatorSeeder::class,
-            AssignRolesToUsersSeeder::class, // Asignar roles de Spatie a operadores
+            // AssignRolesToUsersSeeder::class, // Asignar roles de Spatie a operadores
             RawMaterialCategorySeeder::class,
             StandardVariableSeeder::class,
             MachineSeeder::class,

@@ -40,7 +40,30 @@ class CustomerOrderController extends Controller
                 'destinations.destinationProducts.orderProduct.product',
                 'approver'
             ])->findOrFail($id);
-            return response()->json($order);
+
+            // Transformar para asegurar estructura consistente con frontend
+            $data = $order->toArray();
+            $data['orderProducts'] = $order->orderProducts->map(function($op) {
+                return [
+                    'order_product_id' => $op->order_product_id,
+                    'product_id' => $op->product_id,
+                    'quantity' => $op->quantity,
+                    'status' => $op->status,
+                    'observations' => $op->observations,
+                    'rejection_reason' => $op->rejection_reason,
+                    'product' => [
+                        'product_id' => $op->product->product_id,
+                        'name' => $op->product->name ?? 'N/A',
+                        'code' => $op->product->code ?? 'N/A',
+                        'unit' => [
+                            'name' => $op->product->unit->name ?? 'N/A',
+                            'abbreviation' => $op->product->unit->code ?? 'N/A',
+                        ]
+                    ]
+                ];
+            });
+
+            return response()->json($data);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Pedido no encontrado',

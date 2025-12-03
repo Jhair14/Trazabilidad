@@ -12,6 +12,7 @@ class OperatorRole extends Model
     public $timestamps = false;
     
     protected $fillable = [
+        'role_id',
         'code',
         'name',
         'description',
