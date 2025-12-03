@@ -74,10 +74,26 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Máquinas
-    Route::resource('maquinas', MaquinaWebController::class)->middleware('permission:gestionar maquinas');
+    Route::resource('maquinas', MaquinaWebController::class, ['names' => [
+        'index' => 'maquinas.index',
+        'create' => 'maquinas.create',
+        'store' => 'maquinas.store',
+        'show' => 'maquinas.show',
+        'edit' => 'maquinas.edit',
+        'update' => 'maquinas.update',
+        'destroy' => 'maquinas.destroy',
+    ]])->middleware('permission:gestionar maquinas');
 
     // Procesos
-    Route::resource('procesos', ProcesoWebController::class)->middleware('permission:gestionar procesos');
+    Route::resource('procesos', ProcesoWebController::class, ['names' => [
+        'index' => 'procesos.index',
+        'create' => 'procesos.create',
+        'store' => 'procesos.store',
+        'show' => 'procesos.show',
+        'edit' => 'procesos.edit',
+        'update' => 'procesos.update',
+        'destroy' => 'procesos.destroy',
+    ]])->middleware('permission:gestionar procesos');
 
     // Variables Estándar
     Route::middleware('permission:gestionar variables estandar')->group(function () {

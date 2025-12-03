@@ -226,6 +226,7 @@ class GestionLotesController extends Controller
                 'name' => $lote->name,
                 'order_id' => $lote->order_id,
                 'order_number' => $lote->order->order_number ?? null,
+                'order_name' => $lote->order->name ?? null,
                 'customer_name' => $lote->order->customer->business_name ?? null,
                 'creation_date' => $lote->creation_date,
                 'start_time' => $lote->start_time,

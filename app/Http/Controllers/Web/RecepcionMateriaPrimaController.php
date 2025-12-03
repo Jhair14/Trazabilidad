@@ -59,7 +59,25 @@ class RecepcionMateriaPrimaController extends Controller
             ];
         })->values()->toArray();
 
-        return view('recepcion-materia-prima', compact('solicitudes', 'materias_primas', 'materias_base', 'proveedores', 'stats', 'solicitudesJson'));
+        // Preparar datos de recepciones para JavaScript
+        $recepcionesJson = $materias_primas->map(function($mp) {
+            return [
+                'raw_material_id' => $mp->raw_material_id,
+                'material_name' => $mp->materialBase->name ?? 'N/A',
+                'supplier_name' => $mp->supplier->business_name ?? 'N/A',
+                'quantity' => (float)$mp->quantity,
+                'available_quantity' => (float)$mp->available_quantity,
+                'unit' => $mp->materialBase->unit->code ?? '',
+                'receipt_date' => $mp->receipt_date ? $mp->receipt_date->format('Y-m-d') : null,
+                'expiration_date' => $mp->expiration_date ? $mp->expiration_date->format('Y-m-d') : null,
+                'invoice_number' => $mp->invoice_number ?? 'N/A',
+                'supplier_batch' => $mp->supplier_batch ?? 'N/A',
+                'receipt_conformity' => $mp->receipt_conformity ?? false,
+                'observations' => $mp->observations ?? '',
+            ];
+        })->values()->toArray();
+
+        return view('recepcion-materia-prima', compact('solicitudes', 'materias_primas', 'materias_base', 'proveedores', 'stats', 'solicitudesJson', 'recepcionesJson'));
     }
 
     public function store(Request $request)

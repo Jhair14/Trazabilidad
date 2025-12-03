@@ -13,10 +13,11 @@ class AlmacenajeController extends Controller
 {
     public function index()
     {
-        // Mostrar todos los lotes certificados (no fallidos) - permitir múltiples almacenajes como en proyecto antiguo
+        // Mostrar solo lotes certificados que aún no han sido almacenados
         $lotes = ProductionBatch::whereHas('latestFinalEvaluation', function($query) {
                 $query->whereRaw("LOWER(reason) NOT LIKE '%falló%'");
             })
+            ->whereDoesntHave('storage') // Solo lotes sin almacenajes previos
             ->with(['order.customer', 'latestFinalEvaluation', 'storage'])
             ->orderBy('creation_date', 'desc')
             ->get();
@@ -51,7 +52,27 @@ class AlmacenajeController extends Controller
 
         DB::beginTransaction();
         try {
-            $batch = ProductionBatch::findOrFail($request->batch_id);
+            $batch = ProductionBatch::with('storage')->findOrFail($request->batch_id);
+
+            // Verificar que el lote no tenga almacenajes previos
+            if ($batch->storage->isNotEmpty()) {
+                return redirect()->back()
+                    ->with('error', 'Este lote ya ha sido almacenado. Solo se permite almacenar una vez toda la cantidad.')
+                    ->withInput();
+            }
+
+            // Validar que la cantidad almacenada sea igual a la cantidad producida
+            $producedQuantity = $batch->produced_quantity ?? 0;
+            $requestedQuantity = $request->quantity;
+
+            if (abs($requestedQuantity - $producedQuantity) > 0.01) {
+                return redirect()->back()
+                    ->with('error', "La cantidad almacenada ({$requestedQuantity}) debe ser igual a la cantidad producida ({$producedQuantity}).")
+                    ->withInput();
+            }
+
+            // Sincronizar la secuencia con el máximo ID existente
+            DB::statement("SELECT setval('storage_seq', COALESCE((SELECT MAX(storage_id) FROM storage), 0), true)");
 
             // Obtener el siguiente ID de la secuencia
             $nextId = DB::selectOne("SELECT nextval('storage_seq') as id")->id;
@@ -65,16 +86,6 @@ class AlmacenajeController extends Controller
                 'observations' => $request->observations,
                 'storage_date' => now(),
             ]);
-
-            // Actualizar el estado del pedido a "almacenado" si existe (como en proyecto antiguo)
-            if ($batch->order_id) {
-                $order = $batch->order;
-                if ($order) {
-                    // En Trazabilidad no hay campo 'status' en CustomerOrder, pero podemos usar 'priority'
-                    // O simplemente dejarlo como está ya que la relación storage indica que está almacenado
-                    // Si en el futuro se agrega un campo status, se actualizaría aquí
-                }
-            }
 
             DB::commit();
 

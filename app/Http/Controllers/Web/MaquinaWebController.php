@@ -29,6 +29,10 @@ class MaquinaWebController extends Controller
         ]);
         
         try {
+            // Sincronizar la secuencia con el máximo ID existente (si hay registros)
+            // Esto asegura que la secuencia siempre esté al día
+            DB::statement("SELECT setval('machine_seq', COALESCE((SELECT MAX(machine_id) FROM machine), 0), true)");
+            
             // Obtener el siguiente ID de la secuencia
             $nextId = DB::selectOne("SELECT nextval('machine_seq') as id")->id;
             
@@ -89,9 +93,38 @@ class MaquinaWebController extends Controller
 
     public function destroy($id)
     {
-        $maquina = Machine::findOrFail($id);
-        $maquina->update(['active' => false]);
-        return redirect()->route('maquinas.index')->with('success', 'Máquina eliminada exitosamente');
+        try {
+            $maquina = Machine::findOrFail($id);
+            
+            // Eliminar la imagen de Cloudinary si existe
+            if ($maquina->image_url && strpos($maquina->image_url, 'cloudinary.com') !== false) {
+                try {
+                    // Extraer el public_id de la URL de Cloudinary
+                    preg_match('/\/v\d+\/(.+)$/', $maquina->image_url, $matches);
+                    if (isset($matches[1])) {
+                        $publicId = pathinfo($matches[1], PATHINFO_FILENAME);
+                        $folder = 'maquinas';
+                        $fullPublicId = $folder . '/' . $publicId;
+                        
+                        // Eliminar usando el controlador de carga de imágenes
+                        $deleteRequest = new Request(['public_id' => $fullPublicId]);
+                        $imageUploadController = new \App\Http\Controllers\Web\ImageUploadController();
+                        $imageUploadController->delete($deleteRequest);
+                    }
+                } catch (\Exception $e) {
+                    // Si falla la eliminación de la imagen, continuar con la eliminación del registro
+                    \Log::warning('No se pudo eliminar la imagen de la máquina: ' . $e->getMessage());
+                }
+            }
+            
+            // Eliminar el registro de la base de datos
+            $maquina->delete();
+            
+            return redirect()->route('maquinas.index')->with('success', 'Máquina eliminada exitosamente');
+        } catch (\Exception $e) {
+            return redirect()->route('maquinas.index')
+                ->with('error', 'Error al eliminar la máquina: ' . $e->getMessage());
+        }
     }
 }
 

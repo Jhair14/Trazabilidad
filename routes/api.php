@@ -94,7 +94,9 @@ Route::middleware('auth:api')->group(function () {
 });
 
 // Legacy routes (keeping for compatibility)
-Route::apiResource('procesos', \App\Http\Controllers\ProcesoController::class);
+// Comentado para evitar conflicto con rutas web
+// Route::apiResource('procesos', \App\Http\Controllers\ProcesoController::class);
 Route::apiResource('operadores', \App\Http\Controllers\OperadorController::class);
 Route::apiResource('proveedores', \App\Http\Controllers\ProveedorController::class);
-Route::apiResource('maquinas', \App\Http\Controllers\MaquinaController::class);
+// Comentado para evitar conflicto con rutas web
+// Route::apiResource('maquinas', \App\Http\Controllers\MaquinaController::class);

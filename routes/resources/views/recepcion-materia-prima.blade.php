@@ -124,8 +124,8 @@
                                 <tbody>
                                     @forelse($solicitudes as $solicitud)
                                     <tr>
-                                        <td>#{{ $solicitud->request_number ?? $solicitud->request_id }}</td>
-                                        <td>Pedido #{{ $solicitud->order->order_number ?? $solicitud->order->order_id }}</td>
+                                        <td>{{ $solicitud->request_id }}</td>
+                                        <td>{{ $solicitud->order->name ?? 'Sin nombre' }}</td>
                                         <td>
                                             @foreach($solicitud->details as $detail)
                                                 {{ $detail->material->name ?? 'N/A' }}<br>
@@ -198,7 +198,7 @@
                                             @endif
                                         </td>
                                         <td>
-                                            <button class="btn btn-info btn-sm" title="Ver">
+                                            <button class="btn btn-info btn-sm" title="Ver" onclick="verDetalleRecepcion({{ $mp->raw_material_id }})">
                                                 <i class="fas fa-eye"></i>
                                             </button>
                                         </td>
@@ -524,12 +524,115 @@
     </div>
 </div>
 
+<!-- Modal Ver Detalle de Recepción -->
+<div class="modal fade" id="verDetalleRecepcionModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h4 class="modal-title">Detalle de Recepción</h4>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>ID de Recepción:</strong></label>
+                            <p id="detalle_raw_material_id">-</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>Materia Prima:</strong></label>
+                            <p id="detalle_material_name">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>Proveedor:</strong></label>
+                            <p id="detalle_supplier_name">-</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>Cantidad:</strong></label>
+                            <p id="detalle_quantity">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>Cantidad Disponible:</strong></label>
+                            <p id="detalle_available_quantity">-</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>Fecha de Recepción:</strong></label>
+                            <p id="detalle_receipt_date">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>Fecha de Vencimiento:</strong></label>
+                            <p id="detalle_expiration_date">-</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>Número de Factura:</strong></label>
+                            <p id="detalle_invoice_number">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>Lote del Proveedor:</strong></label>
+                            <p id="detalle_supplier_batch">-</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>Recepción Conforme:</strong></label>
+                            <p id="detalle_receipt_conformity">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label><strong>Observaciones:</strong></label>
+                            <p id="detalle_observations">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.9/dist/signature_pad.umd.min.js"></script>
 <script>
 const solicitudes = @json($solicitudesJson);
+const recepciones = @json($recepcionesJson ?? []);
 let signaturePad = null;
 
 // Función para ajustar el tamaño del canvas
@@ -706,6 +809,38 @@ $('#registrarRecepcionModal').on('show.bs.modal', function (e) {
         document.querySelector('#registrarRecepcionModal .modal-title').textContent = 'Registrar Nueva Recepción';
     }
 });
+
+function verDetalleRecepcion(rawMaterialId) {
+    // Buscar la recepción en los datos cargados
+    const recepcion = recepciones.find(r => r.raw_material_id == rawMaterialId);
+    
+    if (!recepcion) {
+        alert('No se encontró la recepción');
+        return;
+    }
+    
+    // Llenar los campos del modal con los datos de la recepción
+    document.getElementById('detalle_raw_material_id').textContent = recepcion.raw_material_id;
+    document.getElementById('detalle_material_name').textContent = recepcion.material_name;
+    document.getElementById('detalle_supplier_name').textContent = recepcion.supplier_name;
+    document.getElementById('detalle_quantity').textContent = recepcion.quantity + ' ' + recepcion.unit;
+    document.getElementById('detalle_available_quantity').textContent = recepcion.available_quantity + ' ' + recepcion.unit;
+    document.getElementById('detalle_receipt_date').textContent = recepcion.receipt_date || 'N/A';
+    document.getElementById('detalle_expiration_date').textContent = recepcion.expiration_date || 'N/A';
+    document.getElementById('detalle_invoice_number').textContent = recepcion.invoice_number;
+    document.getElementById('detalle_supplier_batch').textContent = recepcion.supplier_batch;
+    
+    // Mostrar estado de conformidad
+    const conformidadHtml = recepcion.receipt_conformity 
+        ? '<span class="badge badge-success">Sí</span>' 
+        : '<span class="badge badge-danger">No</span>';
+    document.getElementById('detalle_receipt_conformity').innerHTML = conformidadHtml;
+    
+    document.getElementById('detalle_observations').textContent = recepcion.observations || 'Sin observaciones';
+    
+    // Mostrar modal
+    $('#verDetalleRecepcionModal').modal('show');
+}
 </script>
 @endpush
 

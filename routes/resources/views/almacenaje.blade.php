@@ -85,6 +85,7 @@
                                 <th>ID Lote</th>
                                 <th>Nombre</th>
                                 <th>Cliente</th>
+                                <th>Cantidad Producida</th>
                                 <th>Fecha Creación</th>
                                 <th>Estado</th>
                                 <th class="text-right">Acciones</th>
@@ -100,6 +101,7 @@
                                 <td>#{{ $lote->batch_code ?? $lote->batch_id }}</td>
                                 <td>{{ $lote->name ?? 'Sin nombre' }}</td>
                                 <td>{{ $lote->order->customer->business_name ?? 'N/A' }}</td>
+                                <td>{{ number_format($lote->produced_quantity ?? 0, 2) }}</td>
                                 <td>{{ \Carbon\Carbon::parse($lote->creation_date)->format('d/m/Y') }}</td>
                                 <td>
                                     @if($esCertificado)
@@ -110,22 +112,23 @@
                                 </td>
                                 <td class="text-right">
                                     @if($esCertificado)
-                                    <button class="btn btn-primary btn-sm" title="Almacenar" onclick="almacenarLote({{ $lote->batch_id }}, '{{ $lote->batch_code ?? $lote->batch_id }}', '{{ $lote->name ?? 'Sin nombre' }}')">
-                                        <i class="fas fa-warehouse"></i> Almacenar
-                                    </button>
-                                    @if($lote->storage->isNotEmpty())
-                                        <span class="badge badge-info ml-2" title="Ya tiene {{ $lote->storage->count() }} almacenaje(s)">
-                                            <i class="fas fa-check"></i> {{ $lote->storage->count() }} almacenaje(s)
-                                        </span>
-                                    @endif
+                                        @if($lote->storage->isEmpty())
+                                            <button class="btn btn-primary btn-sm" title="Almacenar" onclick="almacenarLote({{ $lote->batch_id }}, '{{ $lote->batch_code ?? $lote->batch_id }}', '{{ $lote->name ?? 'Sin nombre' }}', {{ $lote->produced_quantity ?? 0 }})">
+                                                <i class="fas fa-warehouse"></i> Almacenar
+                                            </button>
+                                        @else
+                                            <span class="badge badge-success">
+                                                <i class="fas fa-check"></i> Ya Almacenado
+                                            </span>
+                                        @endif
                                     @else
-                                    <span class="text-muted">Requiere certificación</span>
+                                        <span class="text-muted">Requiere certificación</span>
                                     @endif
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="6" class="text-center">No hay lotes certificados disponibles para almacenar</td>
+                                <td colspan="7" class="text-center">No hay lotes certificados disponibles para almacenar</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -198,7 +201,8 @@
                         <label for="quantity">Cantidad <span class="text-danger">*</span></label>
                         <input type="number" class="form-control @error('quantity') is-invalid @enderror" 
                                id="quantity" name="quantity" value="{{ old('quantity') }}" 
-                               placeholder="0" step="0.01" min="0" required>
+                               placeholder="0" step="0.01" min="0" required readonly>
+                        <small class="form-text text-muted">La cantidad debe ser igual a la cantidad producida del lote</small>
                         @error('quantity')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
@@ -210,14 +214,9 @@
                                   rows="3" placeholder="Observaciones sobre el almacenaje...">{{ old('observations') }}</textarea>
                     </div>
 
-                    <div class="alert alert-info mt-3">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        <strong>Almacenajes previos</strong>
-                        <div id="almacenajes_previos" class="mt-2">
-                            <div class="text-center">
-                                <i class="fas fa-spinner fa-spin"></i> Cargando...
-                            </div>
-                        </div>
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <strong>Importante:</strong> Solo se puede almacenar una vez toda la cantidad producida del lote.
                     </div>
 
                     <div class="modal-footer">
@@ -236,57 +235,23 @@
 <script>
 let currentBatchId = null;
 
-function almacenarLote(batchId, batchCode, batchName) {
+function almacenarLote(batchId, batchCode, batchName, producedQuantity) {
     currentBatchId = batchId;
     $('#batch_id').val(batchId);
     $('#modal_batch_code').text(batchCode);
     $('#modal_batch_name').text(batchName);
     $('#location').val('');
     $('#condition').val('');
-    $('#quantity').val('');
+    $('#quantity').val(producedQuantity || 0); // Prellenar con la cantidad producida
     $('#observations').val('');
     
-    // Cargar almacenajes previos
-    cargarAlmacenajesPrevios(batchId);
-    
     $('#registrarAlmacenajeModal').modal('show');
-}
-
-function cargarAlmacenajesPrevios(batchId) {
-    $('#almacenajes_previos').html('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>');
-    
-    fetch(`{{ url('almacenaje/lote') }}/${batchId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.length === 0) {
-                $('#almacenajes_previos').html('<p class="mb-0 text-muted">No hay registros previos.</p>');
-            } else {
-                let html = '<ul class="mb-0">';
-                data.forEach(function(almacen) {
-                    const fecha = new Date(almacen.storage_date).toLocaleDateString('es-ES', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                    html += `<li><strong>${fecha}</strong> - ${almacen.location} (${almacen.condition}) - Cantidad: ${almacen.quantity}</li>`;
-                });
-                html += '</ul>';
-                $('#almacenajes_previos').html(html);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            $('#almacenajes_previos').html('<p class="mb-0 text-danger">Error al cargar almacenajes previos.</p>');
-        });
 }
 
 // Limpiar modal al cerrar
 $('#registrarAlmacenajeModal').on('hidden.bs.modal', function () {
     currentBatchId = null;
     $('#registrarAlmacenajeForm')[0].reset();
-    $('#almacenajes_previos').html('');
 });
 </script>
 @endpush

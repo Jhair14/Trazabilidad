@@ -82,7 +82,7 @@
                         <tbody>
                             @forelse($lotes as $lote)
                             <tr>
-                                <td>#{{ $lote->batch_code ?? $lote->batch_id }}</td>
+                                <td>#{{ $lote->batch_id }}</td>
                                 <td>{{ $lote->name ?? 'Sin nombre' }}</td>
                                 <td>
                                     @php
@@ -102,7 +102,7 @@
                                 </td>
                                 <td>
                                     @if($lote->order)
-                                        #{{ $lote->order->order_number ?? $lote->order->order_id }}
+                                        {{ $lote->order->name ?? 'Sin nombre' }} - {{ $lote->order->customer->business_name ?? 'N/A' }}
                                     @else
                                         <span class="text-muted">Sin pedido</span>
                                     @endif
@@ -191,7 +191,7 @@
                                     <option value="">Sin pedido asociado</option>
                                     @foreach($pedidos as $pedido)
                                         <option value="{{ $pedido->order_id }}" {{ old('order_id') == $pedido->order_id ? 'selected' : '' }}>
-                                            Pedido #{{ $pedido->order_number ?? $pedido->order_id }} - {{ $pedido->customer->business_name ?? 'N/A' }}
+                                            {{ $pedido->name ?? 'Sin nombre' }} - {{ $pedido->customer->business_name ?? 'N/A' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -351,7 +351,7 @@
                                     <option value="">Sin pedido asociado</option>
                                     @foreach($pedidos as $pedido)
                                         <option value="{{ $pedido->order_id }}">
-                                            Pedido #{{ $pedido->order_number ?? $pedido->order_id }} - {{ $pedido->customer->business_name ?? 'N/A' }}
+                                            {{ $pedido->name ?? 'Sin nombre' }} - {{ $pedido->customer->business_name ?? 'N/A' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -585,7 +585,7 @@ function verLote(id) {
                             </tr>
                             <tr>
                                 <th>Pedido</th>
-                                <td>${data.order_number ? '#' + data.order_number + ' - ' + data.customer_name : 'Sin pedido'}</td>
+                                <td>${data.order_name ? data.order_name + ' - ' + (data.customer_name || 'N/A') : 'Sin pedido'}</td>
                             </tr>
                             <tr>
                                 <th>Fecha Creación</th>

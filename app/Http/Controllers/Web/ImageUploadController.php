@@ -197,13 +197,46 @@ class ImageUploadController extends Controller
         }
 
         try {
-            Cloudinary::destroy($request->input('public_id'));
+            // Verificar que Cloudinary esté configurado
+            $cloudName = env('CLOUDINARY_CLOUD_NAME');
+            $apiKey = env('CLOUDINARY_API_KEY');
+            $apiSecret = env('CLOUDINARY_API_SECRET');
+
+            if (!$cloudName || !$apiKey || !$apiSecret) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cloudinary no está configurado. Por favor, configure las variables de entorno.'
+                ], 500);
+            }
+
+            // Crear instancia de Cloudinary SDK
+            $cloudinary = new CloudinarySDK([
+                'cloud' => [
+                    'cloud_name' => $cloudName,
+                    'api_key' => $apiKey,
+                    'api_secret' => $apiSecret,
+                ],
+                'url' => [
+                    'secure' => true
+                ]
+            ]);
+
+            // Eliminar la imagen usando el public_id
+            $publicId = $request->input('public_id');
+            $result = $cloudinary->uploadApi()->destroy($publicId);
             
             return response()->json([
                 'success' => true,
-                'message' => 'Imagen eliminada exitosamente'
+                'message' => 'Imagen eliminada exitosamente',
+                'result' => $result
             ], 200);
         } catch (\Exception $e) {
+            \Log::error('Error al eliminar imagen de Cloudinary', [
+                'error' => $e->getMessage(),
+                'public_id' => $request->input('public_id'),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Error al eliminar la imagen: ' . $e->getMessage()
