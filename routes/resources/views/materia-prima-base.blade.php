@@ -132,6 +132,7 @@
                                 <th>Stock Mínimo</th>
                                 <th>Stock Máximo</th>
                                 <th>Estado</th>
+                                <th>Código</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -164,6 +165,7 @@
                                         <span class="badge badge-success">Disponible</span>
                                     @endif
                                 </td>
+                                <td>{{ $mp->code }}</td>
                                 <td class="text-right">
                                     <button class="btn btn-sm btn-info" title="Ver" onclick="verMateriaPrima({{ $mp->material_id }})">
                                         <i class="fas fa-eye"></i>
@@ -175,7 +177,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="11" class="text-center">No hay materias primas registradas</td>
+                                <td colspan="10" class="text-center">No hay materias primas registradas</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -295,7 +297,6 @@
                         <textarea class="form-control" id="description" name="description" 
                                   rows="3" placeholder="Descripción de la materia prima...">{{ old('description') }}</textarea>
                     </div>
-                    
                 </form>
             </div>
             <div class="modal-footer">
@@ -363,7 +364,7 @@
                         </ul>
                     </div>
                 @endif
-                <form method="POST" action="" id="editarMateriaPrimaForm" enctype="multipart/form-data">
+                <form method="POST" action="" id="editarMateriaPrimaForm">
                     @csrf
                     @method('PUT')
                     
@@ -485,21 +486,17 @@ function verMateriaPrima(id) {
             const unidad = unidades.find(u => u.unit_id == data.unit_id);
             const stockActual = data.available_quantity || '0.00';
             
-            const imageHtml = data.image_url 
-                ? `<div class="text-center mb-3">
-                    <img src="${data.image_url}" alt="${data.name}" 
-                         class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
-                   </div>`
-                : '<p class="text-muted text-center">Sin imagen</p>';
-            
             const content = `
                 <div class="row">
                     <div class="col-md-12">
-                        ${imageHtml}
                         <table class="table table-bordered">
                             <tr>
                                 <th style="width: 30%;">ID</th>
                                 <td>#${data.material_id}</td>
+                            </tr>
+                            <tr>
+                                <th>Código</th>
+                                <td><span class="badge badge-primary">${data.code}</span></td>
                             </tr>
                             <tr>
                                 <th>Nombre</th>
@@ -566,7 +563,6 @@ function editarMateriaPrima(id) {
             document.getElementById('edit_description').value = data.description || '';
             document.getElementById('edit_active').checked = data.active || false;
             
-            
             $('#editarMateriaPrimaModal').modal('show');
         })
         .catch(error => {
@@ -575,21 +571,10 @@ function editarMateriaPrima(id) {
         });
 }
 
-
 async function submitCrearMateriaPrima() {
     const form = document.getElementById('crearMateriaPrimaForm');
     const formData = new FormData(form);
     const submitButton = document.getElementById('crearMateriaPrimaBtn');
-    
-    // Validar campos requeridos antes de continuar
-    const name = form.querySelector('[name="name"]').value.trim();
-    const categoryId = form.querySelector('[name="category_id"]').value;
-    const unitId = form.querySelector('[name="unit_id"]').value;
-    
-    if (!name || !categoryId || !unitId) {
-        alert('Por favor, complete todos los campos requeridos (Nombre, Categoría y Unidad de Medida)');
-        return;
-    }
     
     submitButton.disabled = true;
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Creando...';
@@ -599,41 +584,18 @@ async function submitCrearMateriaPrima() {
         const response = await fetch(form.action, {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
             body: formData
         });
         
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Error en respuesta del servidor:', errorText);
-            
-            let errorMessage = 'Error al crear la materia prima';
-            try {
-                const errorData = JSON.parse(errorText);
-                if (errorData.message) {
-                    errorMessage = errorData.message;
-                } else if (errorData.errors) {
-                    const errors = Object.values(errorData.errors).flat();
-                    errorMessage = errors.join('\n');
-                }
-            } catch (e) {
-                errorMessage = 'Error al procesar la respuesta del servidor';
-            }
-            throw new Error(errorMessage);
-        }
-        
-        const responseData = await response.json();
-        
-        if (responseData.success !== false) {
-            // Si la respuesta es exitosa, recargar la página
+        if (response.ok) {
             window.location.reload();
         } else {
-            throw new Error(responseData.message || 'Error al crear la materia prima');
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Error al crear la materia prima');
         }
     } catch (error) {
-        console.error('Error completo:', error);
         alert('Error: ' + error.message);
         submitButton.disabled = false;
         submitButton.innerHTML = '<i class="fas fa-save mr-1"></i> Crear Materia Prima';
@@ -657,8 +619,7 @@ document.getElementById('editarMateriaPrimaForm').addEventListener('submit', asy
         const response = await fetch(this.action, {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
             body: formData
         });
@@ -675,8 +636,6 @@ document.getElementById('editarMateriaPrimaForm').addEventListener('submit', asy
         submitButton.innerHTML = '<i class="fas fa-save mr-1"></i> Actualizar Materia Prima';
     }
 });
-
-// Actualizar labels de inputs file
 
 function aplicarFiltros() {
     const categoria = document.getElementById('filtroCategoria').value;

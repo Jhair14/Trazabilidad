@@ -59,12 +59,14 @@ class RawMaterialBaseController extends Controller
         }
 
         try {
-            // Obtener el siguiente ID de la secuencia
-            $nextId = DB::selectOne("SELECT nextval('raw_material_base_seq') as id")->id;
+            // Get the next ID manually since sequence doesn't exist
+            $maxId = RawMaterialBase::max('material_id') ?? 0;
+            $nextId = $maxId + 1;
             
-            // Generar código automáticamente
+            // Generate code
             $code = 'MP-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
             
+            // Create material with manual ID
             $material = RawMaterialBase::create([
                 'material_id' => $nextId,
                 'category_id' => $request->category_id,

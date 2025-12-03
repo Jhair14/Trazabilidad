@@ -8,9 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class Operator extends Authenticatable implements JWTSubject
 {
+    use HasRoles;
+    
+    // Map to new English database table
     protected $table = 'operator';
     protected $primaryKey = 'operator_id';
     public $timestamps = false;
@@ -23,26 +27,23 @@ class Operator extends Authenticatable implements JWTSubject
         'username',
         'password_hash',
         'email',
-        'active'
+        'active',
     ];
 
     protected $hidden = [
         'password_hash',
-        'password',
     ];
 
     protected $casts = [
+        'operator_id' => 'integer',
+        'role_id' => 'integer',
         'active' => 'boolean',
     ];
 
+    // Relationship to operator role
     public function role(): BelongsTo
     {
         return $this->belongsTo(OperatorRole::class, 'role_id', 'role_id');
-    }
-
-    public function machines(): BelongsToMany
-    {
-        return $this->belongsToMany(Machine::class, 'operator_machine', 'operator_id', 'machine_id');
     }
 
     public function getJWTIdentifier()
@@ -57,7 +58,7 @@ class Operator extends Authenticatable implements JWTSubject
 
     public function getAuthPassword()
     {
-        return $this->password_hash;
+        return $this->attributes['password_hash'] ?? null;
     }
 }
 

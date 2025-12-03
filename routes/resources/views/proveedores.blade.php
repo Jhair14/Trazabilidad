@@ -111,15 +111,15 @@
                                     @endif
                                 </td>
                                 <td class="text-right">
-                                    <a href="{{ route('proveedores.show', $proveedor->supplier_id) }}" 
+                                    <a href="{{ route('proveedores.web.show', $proveedor->supplier_id) }}" 
                                        class="btn btn-sm btn-info" title="Ver">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="{{ route('proveedores.edit', $proveedor->supplier_id) }}" 
+                                    <a href="{{ route('proveedores.web.edit', $proveedor->supplier_id) }}" 
                                        class="btn btn-sm btn-warning" title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <form method="POST" action="{{ route('proveedores.destroy', $proveedor->supplier_id) }}" 
+                                    <form method="POST" action="{{ route('proveedores.web.destroy', $proveedor->supplier_id) }}" 
                                           style="display: inline;" 
                                           onsubmit="return confirm('¿Está seguro de eliminar este proveedor?');">
                                         @csrf
@@ -178,7 +178,7 @@
                         </ul>
                     </div>
                 @endif
-                <form method="POST" action="{{ route('proveedores.store') }}" id="crearProveedorForm">
+                <form method="POST" action="{{ route('proveedores.web.store') }}" id="crearProveedorForm">
                     @csrf
                     
                     <div class="row">

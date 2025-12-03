@@ -40,48 +40,73 @@
             transform: rotate(-90deg);
         }
 
-        /* Fix sidebar height to extend to bottom */
+        /* Sidebar scroll and height - Solo un scroll */
         .main-sidebar {
             height: 100vh !important;
-            position: fixed !important;
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+            width: 250px !important;
+        }
+
+        .main-sidebar > .brand-link,
+        .main-sidebar > .user-panel {
+            flex-shrink: 0;
         }
 
         .sidebar {
-            height: calc(100vh - 120px) !important;
+            flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
+            height: auto !important;
             display: flex;
             flex-direction: column;
         }
 
-        .sidebar nav {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar nav ul.nav-sidebar {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Ensure cerrar sesión stays at bottom */
-        .sidebar nav ul.nav-sidebar li:last-child {
+        .sidebar-footer {
+            flex-shrink: 0;
             margin-top: auto;
-            padding-top: 1rem;
         }
+
+        /* Ajustar el contenido cuando el sidebar está expandido */
+        .sidebar-expanded .content-wrapper,
+        .sidebar-expanded .main-footer,
+        .sidebar-expanded .main-header {
+            margin-left: 250px !important;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: #343a40;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #6c757d;
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #5a6268;
+        }
+
+        /* Asegurar que el menú tenga espacio al final */
+        .nav-sidebar {
+            padding-bottom: 20px;
+            min-height: 100%;
+        }
+
         </style>
         @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
             @vite(['resources/css/app.css', 'resources/js/app.js'])
         @endif
     </head>
-    <body class="hold-transition sidebar-mini layout-fixed">
+    <body class="hold-transition sidebar-expanded layout-fixed">
         <div class="wrapper">
             <!-- Navbar -->
             <nav class="main-header navbar navbar-expand navbar-white navbar-light">
-
-
                 <!-- Right navbar links -->
                 <ul class="navbar-nav ml-auto">
                     <!-- Navbar Search -->
@@ -176,117 +201,153 @@
 
         <nav class="mt-2">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-                <!-- INICIO -->
-                <li class="nav-header">Inicio</li>
+                <!-- PANELES DE CONTROL -->
+                @can('ver panel control')
+                <li class="nav-header">Paneles de Control</li>
                 <li class="nav-item">
                     <a href="{{ route('dashboard') }}" class="nav-link">
                         <i class="nav-icon fas fa-tachometer-alt"></i>
                         <p>Panel de Control</p>
                     </a>
                 </li>
+                @endcan
+                @can('ver panel cliente')
+                @if(!Auth::user()->can('ver panel control'))
+                <li class="nav-header">Paneles de Control</li>
+                @endif
                 <li class="nav-item">
                     <a href="{{ route('dashboard-cliente') }}" class="nav-link">
                         <i class="nav-icon fas fa-user"></i>
                         <p>Panel del Cliente</p>
                     </a>
                 </li>
-                <!-- MATERIA PRIMA -->
-                <li class="nav-header">Materia Prima</li>
-                <li class="nav-item">
-                    <a href="{{ route('materia-prima-base') }}" class="nav-link">
-                        <i class="nav-icon fas fa-cube"></i>
-                        <p>Materias Prima Base</p>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('solicitar-materia-prima') }}" class="nav-link">
-                        <i class="nav-icon fas fa-cube"></i>
-                        <p>Solicitar Materias Prima</p>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('recepcion-materia-prima') }}" class="nav-link">
-                        <i class="nav-icon fas fa-cube"></i>
-                        <p>Recepcion Materias Prima</p>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('proveedores.index') }}" class="nav-link">
-                        <i class="nav-icon fas fa-truck"></i>
-                        <p>Proveedores</p>
-                    </a>
-                </li>
-                <!-- LOTE -->
-                <li class="nav-header">Lote</li>
-                <li class="nav-item">
-                    <a href="{{ route('gestion-lotes') }}" class="nav-link">
-                        <i class="nav-icon fas fa-layer-group"></i>
-                        <p>Lotes</p>
-                    </a>
-                </li>
-                <!-- PROCESOS -->
-                <li class="nav-header">Procesos</li>
-                <li class="nav-item has-treeview">
-                    <a href="{{ route('maquinas.index') }}" class="nav-link">
-                      <i class="nav-icon fas fa-layer-group"></i>
-                        Maquinas
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('procesos.index') }}" class="nav-link">
-                        <i class="nav-icon fas fa-cube"></i>
-                        <p>Procesos</p>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('variables-estandar') }}" class="nav-link">
-                        <i class="nav-icon fas fa-sliders-h"></i>
-                        <p>Variables Estandar</p>
-                    </a>
-                </li>
-                <!-- CERTIFICACIÓN -->
-                <li class="nav-header">Certificación</li>
-                <li class="nav-item">
-                    <a href="{{ route('certificar-lote') }}" class="nav-link">
-                        <i class="nav-icon fas fa-user-check"></i>
-                        <p>Certificar Lote</p>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('certificados') }}" class="nav-link">
-                        <i class="nav-icon fas fa-clipboard-check"></i>
-                        <p>Certificados</p>
-                    </a>
-                </li>
-                <!-- ALMACEN -->
-                <li class="nav-header">Almacen</li>
-                <li class="nav-item">
-                    <a href="{{ route('almacenaje') }}" class="nav-link">
-                        <i class="nav-icon fas fa-warehouse"></i>
-                        <p>Almacenar lotes</p>
-                    </a>
-                </li>
-                {{-- <li class="nav-item">
-                    <a href="{{ route('lotes-almacenados') }}" class="nav-link">
-                        <i class="nav-icon fas fa-list"></i>
-                        <p>Lotes almacenados</p>
-                    </a>
-                </li> --}}
+                @endcan
                 <!-- PEDIDOS -->
+                @canany(['crear pedidos', 'ver mis pedidos', 'gestionar pedidos'])
                 <li class="nav-header">Pedidos</li>
+                @can('ver mis pedidos')
                 <li class="nav-item">
                     <a href="{{ route('mis-pedidos') }}" class="nav-link">
                         <i class="nav-icon fas fa-shopping-cart"></i>
                         <p>Mis Pedidos</p>
                     </a>
                 </li>
+                @endcan
+                @can('gestionar pedidos')
                 <li class="nav-item">
                     <a href="{{ route('gestion-pedidos') }}" class="nav-link">
                         <i class="nav-icon fas fa-list"></i>
                         <p>Gestión de Pedidos</p>
                     </a>
                 </li>
+                @endcan
+                @endcanany
+                <!-- MATERIA PRIMA -->
+                @canany(['ver materia prima', 'solicitar materia prima', 'recepcionar materia prima', 'gestionar proveedores'])
+                <li class="nav-header">Materia Prima</li>
+                @can('ver materia prima')
+                <li class="nav-item">
+                    <a href="{{ route('materia-prima-base') }}" class="nav-link">
+                        <i class="nav-icon fas fa-cube"></i>
+                        <p>Materias Prima Base</p>
+                    </a>
+                </li>
+                @endcan
+                @can('solicitar materia prima')
+                <li class="nav-item">
+                    <a href="{{ route('solicitar-materia-prima') }}" class="nav-link">
+                        <i class="nav-icon fas fa-cube"></i>
+                        <p>Solicitar Materias Prima</p>
+                    </a>
+                </li>
+                @endcan
+                @can('recepcionar materia prima')
+                <li class="nav-item">
+                    <a href="{{ route('recepcion-materia-prima') }}" class="nav-link">
+                        <i class="nav-icon fas fa-cube"></i>
+                        <p>Recepcion Materias Prima</p>
+                    </a>
+                </li>
+                @endcan
+                @can('gestionar proveedores')
+                <li class="nav-item">
+                    <a href="{{ route('proveedores.web.index') }}" class="nav-link">
+                        <i class="nav-icon fas fa-truck"></i>
+                        <p>Proveedores</p>
+                    </a>
+                </li>
+                @endcan
+                @endcanany
+                <!-- LOTES -->
+                @can('gestionar lotes')
+                <li class="nav-header">Lotes</li>
+                <li class="nav-item">
+                    <a href="{{ route('gestion-lotes') }}" class="nav-link">
+                        <i class="nav-icon fas fa-layer-group"></i>
+                        <p>Lotes</p>
+                    </a>
+                </li>
+                @endcan
+                <!-- PROCESOS -->
+                @canany(['gestionar maquinas', 'gestionar procesos', 'gestionar variables estandar'])
+                <li class="nav-header">Procesos</li>
+                @can('gestionar maquinas')
+                <li class="nav-item has-treeview">
+                    <a href="{{ route('maquinas.index') }}" class="nav-link">
+                      <i class="nav-icon fas fa-layer-group"></i>
+                        Maquinas
+                    </a>
+                </li>
+                @endcan
+                @can('gestionar procesos')
+                <li class="nav-item">
+                    <a href="{{ route('procesos.index') }}" class="nav-link">
+                        <i class="nav-icon fas fa-cube"></i>
+                        <p>Procesos</p>
+                    </a>
+                </li>
+                @endcan
+                @can('gestionar variables estandar')
+                <li class="nav-item">
+                    <a href="{{ route('variables-estandar') }}" class="nav-link">
+                        <i class="nav-icon fas fa-sliders-h"></i>
+                        <p>Variables Estandar</p>
+                    </a>
+                </li>
+                @endcan
+                @endcanany
+                <!-- CERTIFICACIONES -->
+                @canany(['certificar lotes', 'ver certificados'])
+                <li class="nav-header">Certificaciones</li>
+                @can('certificar lotes')
+                <li class="nav-item">
+                    <a href="{{ route('certificar-lote') }}" class="nav-link">
+                        <i class="nav-icon fas fa-user-check"></i>
+                        <p>Certificar Lote</p>
+                    </a>
+                </li>
+                @endcan
+                @can('ver certificados')
+                <li class="nav-item">
+                    <a href="{{ route('certificados') }}" class="nav-link">
+                        <i class="nav-icon fas fa-clipboard-check"></i>
+                        <p>Certificados</p>
+                    </a>
+                </li>
+                @endcan
+                @endcanany
+                <!-- ALMACENES -->
+                @can('almacenar lotes')
+                <li class="nav-header">Almacenes</li>
+                <li class="nav-item">
+                    <a href="{{ route('almacenaje') }}" class="nav-link">
+                        <i class="nav-icon fas fa-warehouse"></i>
+                        <p>Almacenar lotes</p>
+                    </a>
+                </li>
+                @endcan
                 <!-- ADMINISTRACIÓN -->
+                @can('gestionar usuarios')
                 <li class="nav-header">Administración</li>
                 <li class="nav-item">
                     <a href="{{ route('usuarios') }}" class="nav-link">
@@ -294,18 +355,20 @@
                         <p>Usuarios</p>
                     </a>
                 </li>
-                <!-- CERRAR SESIÓN -->
-                <li class="nav-item mt-3">
-                    <form method="POST" action="{{ route('logout') }}" class="w-100">
-                        @csrf
-                        <button type="submit" class="nav-link text-danger border-0 bg-transparent w-100 text-left" style="cursor: pointer; padding: 0.5rem 1rem;">
-                            <i class="nav-icon fas fa-sign-out-alt"></i>
-                            <p style="display: inline-block; margin: 0;">Cerrar sesión</p>
-                        </button>
-                    </form>
-                </li>
+                @endcan
             </ul>
         </nav>
+        
+        <!-- CERRAR SESIÓN - Siempre visible al final del sidebar -->
+        <div class="sidebar-footer" style="padding: 10px; border-top: 1px solid rgba(255,255,255,.1);">
+            <form method="POST" action="{{ route('logout') }}" class="w-100">
+                @csrf
+                <button type="submit" class="btn btn-block btn-danger btn-sm" style="cursor: pointer;">
+                    <i class="fas fa-sign-out-alt mr-2"></i>
+                    Cerrar sesión
+                </button>
+            </form>
+        </div>
     </div>
 </aside>
 

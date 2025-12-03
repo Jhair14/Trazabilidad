@@ -27,7 +27,15 @@ class SupplierController extends Controller
      */
     public function store(SupplierRequest $request): JsonResponse
     {
-        $supplier = Supplier::create($request->validated());
+        $data = $request->validated();
+        
+        // Manual ID generation if not auto-increment
+        if (empty($data['supplier_id'])) {
+            $maxId = Supplier::max('supplier_id') ?? 0;
+            $data['supplier_id'] = $maxId + 1;
+        }
+
+        $supplier = Supplier::create($data);
 
         return response()->json(new SupplierResource($supplier), 201);
     }

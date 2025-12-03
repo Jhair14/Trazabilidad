@@ -21,14 +21,22 @@ class ProcessRequest extends FormRequest
      */
     public function rules(): array
     {
-        $rules = [
-            // Add validation rules based on your table structure
+        return [
+            'name' => 'required|string|max:100',
+            'description' => 'nullable|string|max:255',
+            'active' => 'sometimes|boolean',
+            'process_machines' => 'sometimes|array',
+            'process_machines.*.machine_id' => 'required|integer|exists:machine,machine_id',
+            'process_machines.*.step_order' => 'sometimes|integer|min:1',
+            'process_machines.*.name' => 'required|string|max:100',
+            'process_machines.*.description' => 'nullable|string|max:255',
+            'process_machines.*.estimated_time' => 'nullable|integer|min:0',
+            'process_machines.*.variables' => 'sometimes|array',
+            'process_machines.*.variables.*.standard_variable_id' => 'required|integer|exists:standard_variable,variable_id',
+            'process_machines.*.variables.*.min_value' => 'nullable|numeric',
+            'process_machines.*.variables.*.max_value' => 'nullable|numeric',
+            'process_machines.*.variables.*.target_value' => 'nullable|numeric',
+            'process_machines.*.variables.*.mandatory' => 'sometimes|boolean',
         ];
-
-        if ($this->isMethod('PUT') || $this->isMethod('PATCH')) {
-            // Update unique rules if needed
-        }
-
-        return $rules;
     }
 }

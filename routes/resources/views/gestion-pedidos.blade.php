@@ -11,11 +11,6 @@
                     <i class="fas fa-shopping-cart mr-1"></i>
                     Gestión de Pedidos
                 </h3>
-                <div class="card-tools">
-                    <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#crearPedidoModal">
-                        <i class="fas fa-plus"></i> Crear Pedido
-                    </button>
-                </div>
             </div>
             <div class="card-body">
                 @if(session('success'))
@@ -47,7 +42,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>{{ $pedidos->where('priority', '>', 0)->count() }}</h3>
+                                <h3>{{ $stats['pendientes'] }}</h3>
                                 <p>Pendientes</p>
                             </div>
                             <div class="icon">
@@ -58,8 +53,8 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>{{ $pedidos->where('priority', 0)->count() }}</h3>
-                                <p>Completados</p>
+                                <h3>{{ $stats['aprobados'] }}</h3>
+                                <p>Aprobados</p>
                             </div>
                             <div class="icon">
                                 <i class="fas fa-check"></i>
@@ -69,8 +64,8 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-primary">
                             <div class="inner">
-                                <h3>{{ $pedidos->where('priority', '>', 0)->where('priority', '<=', 5)->count() }}</h3>
-                                <p>En Proceso</p>
+                                <h3>{{ $stats['en_produccion'] }}</h3>
+                                <p>En Producción</p>
                             </div>
                             <div class="icon">
                                 <i class="fas fa-cogs"></i>
@@ -85,8 +80,9 @@
                         <select class="form-control" id="filtroEstado">
                             <option value="">Todos los estados</option>
                             <option value="pendiente">Pendiente</option>
-                            <option value="materia_prima_solicitada">Materia Prima Solicitada</option>
-                            <option value="en_proceso">En Proceso</option>
+                            <option value="aprobado">Aprobado</option>
+                            <option value="rechazado">Rechazado</option>
+                            <option value="en_produccion">En Producción</option>
                             <option value="completado">Completado</option>
                             <option value="cancelado">Cancelado</option>
                         </select>
@@ -109,7 +105,7 @@
                     <table class="table table-bordered table-striped">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>Nombre del Pedido</th>
                                 <th>Cliente</th>
                                 <th>Descripción</th>
                                 <th>Estado</th>
@@ -121,29 +117,28 @@
                         <tbody>
                             @forelse($pedidos as $pedido)
                             <tr>
-                                <td>#{{ $pedido->order_number ?? $pedido->order_id }}</td>
+                                <td><strong>{{ $pedido->name ?? 'Sin nombre' }}</strong></td>
                                 <td>{{ $pedido->customer->business_name ?? 'N/A' }}</td>
                                 <td>{{ $pedido->description ?? 'Sin descripción' }}</td>
                                 <td>
-                                    @if($pedido->priority == 0)
-                                        <span class="badge badge-success">Completado</span>
-                                    @elseif($pedido->priority > 5)
-                                        <span class="badge badge-danger">Urgente</span>
-                                    @elseif($pedido->priority > 0)
+                                    @if($pedido->status == 'pendiente')
                                         <span class="badge badge-warning">Pendiente</span>
+                                    @elseif($pedido->status == 'aprobado')
+                                        <span class="badge badge-success">Aprobado</span>
+                                    @elseif($pedido->status == 'rechazado')
+                                        <span class="badge badge-danger">Rechazado</span>
+                                    @elseif($pedido->status == 'en_produccion')
+                                        <span class="badge badge-info">En Producción</span>
                                     @else
-                                        <span class="badge badge-info">En Proceso</span>
+                                        <span class="badge badge-secondary">{{ ucfirst($pedido->status) }}</span>
                                     @endif
                                 </td>
                                 <td>{{ \Carbon\Carbon::parse($pedido->creation_date)->format('Y-m-d') }}</td>
                                 <td>{{ $pedido->delivery_date ? \Carbon\Carbon::parse($pedido->delivery_date)->format('Y-m-d') : 'N/A' }}</td>
                                 <td>
-                                    <button class="btn btn-info btn-sm" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" title="Editar" onclick="editarPedido({{ $pedido->order_id }})">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
+                                    <a href="{{ route('gestion-pedidos.show', $pedido->order_id) }}" class="btn btn-info btn-sm" title="Ver Detalles">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </a>
                                 </td>
                             </tr>
                             @empty
@@ -171,65 +166,6 @@
     </div>
 </div>
 
-<!-- Modal Crear Pedido -->
-<div class="modal fade" id="crearPedidoModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 class="modal-title">Crear Nuevo Pedido</h4>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="crearPedidoForm">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="nombreCliente">Nombre del Cliente</label>
-                                <input type="text" class="form-control" id="nombreCliente" placeholder="Ej: Cliente ABC">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="fechaEntrega">Fecha de Entrega</label>
-                                <input type="date" class="form-control" id="fechaEntrega">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="descripcionPedido">Descripción del Pedido</label>
-                        <textarea class="form-control" id="descripcionPedido" rows="3" placeholder="Descripción detallada del pedido..."></textarea>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="cantidad">Cantidad</label>
-                                <input type="number" class="form-control" id="cantidad" placeholder="0" min="1">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="prioridad">Prioridad</label>
-                                <select class="form-control" id="prioridad">
-                                    <option value="normal">Normal</option>
-                                    <option value="alta">Alta</option>
-                                    <option value="urgente">Urgente</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="crearPedido()">Crear Pedido</button>
-            </div>
-        </div>
-    </div>
-</div>
 
 @endsection
 

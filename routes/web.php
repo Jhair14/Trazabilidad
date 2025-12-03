@@ -35,85 +35,118 @@ Route::get('/certificado-publico/{id}', [CertificadosController::class, 'showPub
 // Rutas protegidas
 Route::middleware(['auth'])->group(function () {
     // Dashboards
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard-cliente', [DashboardClienteController::class, 'index'])->name('dashboard-cliente');
-    Route::get('/dashboard-cliente/pedido/{orderId}', [DashboardClienteController::class, 'obtenerDetallesPedido'])->name('dashboard-cliente.pedido.detalles');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:ver panel control')->name('dashboard');
+    Route::get('/dashboard-cliente', [DashboardClienteController::class, 'index'])->middleware('permission:ver panel cliente')->name('dashboard-cliente');
+    Route::get('/dashboard-cliente/pedido/{orderId}', [DashboardClienteController::class, 'obtenerDetallesPedido'])->middleware('permission:ver panel cliente')->name('dashboard-cliente.pedido.detalles');
 
     // Materia Prima
-    Route::get('/materia-prima-base', [MateriaPrimaBaseController::class, 'index'])->name('materia-prima-base');
-    Route::post('/materia-prima-base', [MateriaPrimaBaseController::class, 'store']);
-    Route::get('/materia-prima-base/{id}', [MateriaPrimaBaseController::class, 'show'])->name('materia-prima-base.show');
-    Route::put('/materia-prima-base/{id}', [MateriaPrimaBaseController::class, 'update'])->name('materia-prima-base.update');
+    Route::middleware('permission:ver materia prima')->group(function () {
+        Route::get('/materia-prima-base', [MateriaPrimaBaseController::class, 'index'])->name('materia-prima-base');
+        Route::post('/materia-prima-base', [MateriaPrimaBaseController::class, 'store']);
+        Route::get('/materia-prima-base/{id}', [MateriaPrimaBaseController::class, 'show'])->name('materia-prima-base.show');
+        Route::put('/materia-prima-base/{id}', [MateriaPrimaBaseController::class, 'update'])->name('materia-prima-base.update');
+    });
     
-    Route::get('/solicitar-materia-prima', [SolicitarMateriaPrimaController::class, 'index'])->name('solicitar-materia-prima');
-    Route::post('/solicitar-materia-prima', [SolicitarMateriaPrimaController::class, 'store']);
+    Route::get('/solicitar-materia-prima', [SolicitarMateriaPrimaController::class, 'index'])->middleware('permission:solicitar materia prima')->name('solicitar-materia-prima');
+    Route::post('/solicitar-materia-prima', [SolicitarMateriaPrimaController::class, 'store'])->middleware('permission:solicitar materia prima');
     
-    Route::get('/recepcion-materia-prima', [RecepcionMateriaPrimaController::class, 'index'])->name('recepcion-materia-prima');
-    Route::post('/recepcion-materia-prima', [RecepcionMateriaPrimaController::class, 'store']);
+    Route::get('/recepcion-materia-prima', [RecepcionMateriaPrimaController::class, 'index'])->middleware('permission:recepcionar materia prima')->name('recepcion-materia-prima');
+    Route::post('/recepcion-materia-prima', [RecepcionMateriaPrimaController::class, 'store'])->middleware('permission:recepcionar materia prima');
 
     // Proveedores
-    Route::resource('proveedores', ProveedorWebController::class);
+    Route::resource('proveedores', ProveedorWebController::class, ['names' => [
+        'index' => 'proveedores.web.index',
+        'create' => 'proveedores.web.create',
+        'store' => 'proveedores.web.store',
+        'show' => 'proveedores.web.show',
+        'edit' => 'proveedores.web.edit',
+        'update' => 'proveedores.web.update',
+        'destroy' => 'proveedores.web.destroy',
+    ]])->middleware('permission:gestionar proveedores');
 
     // Gestión de Lotes
-    Route::get('/gestion-lotes', [GestionLotesController::class, 'index'])->name('gestion-lotes');
-    Route::post('/gestion-lotes', [GestionLotesController::class, 'store']);
-    Route::get('/gestion-lotes/{id}', [GestionLotesController::class, 'show'])->name('gestion-lotes.show');
-    Route::get('/gestion-lotes/{id}/edit', [GestionLotesController::class, 'edit'])->name('gestion-lotes.edit');
-    Route::put('/gestion-lotes/{id}', [GestionLotesController::class, 'update'])->name('gestion-lotes.update');
+    Route::middleware('permission:gestionar lotes')->group(function () {
+        Route::get('/gestion-lotes', [GestionLotesController::class, 'index'])->name('gestion-lotes');
+        Route::post('/gestion-lotes', [GestionLotesController::class, 'store']);
+        Route::get('/gestion-lotes/{id}', [GestionLotesController::class, 'show'])->name('gestion-lotes.show');
+        Route::get('/gestion-lotes/{id}/edit', [GestionLotesController::class, 'edit'])->name('gestion-lotes.edit');
+        Route::put('/gestion-lotes/{id}', [GestionLotesController::class, 'update'])->name('gestion-lotes.update');
+    });
 
     // Máquinas
-    Route::resource('maquinas', MaquinaWebController::class);
+    Route::resource('maquinas', MaquinaWebController::class)->middleware('permission:gestionar maquinas');
 
     // Procesos
-    Route::resource('procesos', ProcesoWebController::class);
+    Route::resource('procesos', ProcesoWebController::class)->middleware('permission:gestionar procesos');
 
     // Variables Estándar
-    Route::get('/variables-estandar', [VariablesEstandarController::class, 'index'])->name('variables-estandar');
-    Route::post('/variables-estandar', [VariablesEstandarController::class, 'store']);
-    Route::get('/variables-estandar/{id}', [VariablesEstandarController::class, 'show'])->name('variables-estandar.show');
-    Route::put('/variables-estandar/{id}', [VariablesEstandarController::class, 'update'])->name('variables-estandar.update');
-    Route::delete('/variables-estandar/{id}', [VariablesEstandarController::class, 'destroy'])->name('variables-estandar.destroy');
+    Route::middleware('permission:gestionar variables estandar')->group(function () {
+        Route::get('/variables-estandar', [VariablesEstandarController::class, 'index'])->name('variables-estandar');
+        Route::post('/variables-estandar', [VariablesEstandarController::class, 'store']);
+        Route::get('/variables-estandar/{id}', [VariablesEstandarController::class, 'show'])->name('variables-estandar.show');
+        Route::put('/variables-estandar/{id}', [VariablesEstandarController::class, 'update'])->name('variables-estandar.update');
+        Route::delete('/variables-estandar/{id}', [VariablesEstandarController::class, 'destroy'])->name('variables-estandar.destroy');
+    });
 
     // Proceso de Transformación
-    Route::get('/proceso/{batchId}', [ProcesoTransformacionController::class, 'index'])->name('proceso-transformacion');
-    Route::post('/proceso/{batchId}/asignar', [ProcesoTransformacionController::class, 'asignarProceso'])->name('proceso-transformacion.asignar');
-    Route::get('/proceso/{batchId}/maquina/{processMachineId}', [ProcesoTransformacionController::class, 'mostrarFormulario'])->name('proceso-transformacion.mostrar-formulario');
-    Route::post('/proceso/{batchId}/maquina/{processMachineId}', [ProcesoTransformacionController::class, 'registrarFormulario'])->name('proceso-transformacion.registrar');
-    Route::get('/proceso/{batchId}/maquina/{processMachineId}/formulario', [ProcesoTransformacionController::class, 'obtenerFormulario'])->name('proceso-transformacion.formulario');
-    Route::get('/proceso/{processId}/maquinas', [ProcesoTransformacionController::class, 'obtenerMaquinasProceso'])->name('proceso-transformacion.maquinas');
+    Route::get('/proceso/{batchId}', [ProcesoTransformacionController::class, 'index'])->middleware('permission:gestionar procesos')->name('proceso-transformacion');
+    Route::post('/proceso/{batchId}/asignar', [ProcesoTransformacionController::class, 'asignarProceso'])->middleware('permission:gestionar procesos')->name('proceso-transformacion.asignar');
+    Route::get('/proceso/{batchId}/maquina/{processMachineId}', [ProcesoTransformacionController::class, 'mostrarFormulario'])->middleware('permission:gestionar procesos')->name('proceso-transformacion.mostrar-formulario');
+    Route::post('/proceso/{batchId}/maquina/{processMachineId}', [ProcesoTransformacionController::class, 'registrarFormulario'])->middleware('permission:gestionar procesos')->name('proceso-transformacion.registrar');
+    Route::get('/proceso/{batchId}/maquina/{processMachineId}/formulario', [ProcesoTransformacionController::class, 'obtenerFormulario'])->middleware('permission:gestionar procesos')->name('proceso-transformacion.formulario');
+    Route::get('/proceso/{processId}/maquinas', [ProcesoTransformacionController::class, 'obtenerMaquinasProceso'])->middleware('permission:gestionar procesos')->name('proceso-transformacion.maquinas');
 
     // Certificación
-    Route::get('/certificar-lote', [CertificarLoteController::class, 'index'])->name('certificar-lote');
-    Route::post('/certificar-lote/{batchId}', [CertificarLoteController::class, 'finalizar'])->name('certificar-lote.finalizar');
-    Route::get('/certificar-lote/{batchId}/log', [CertificarLoteController::class, 'obtenerLog'])->name('certificar-lote.log');
+    Route::get('/certificar-lote', [CertificarLoteController::class, 'index'])->middleware('permission:certificar lotes')->name('certificar-lote');
+    Route::post('/certificar-lote/{batchId}', [CertificarLoteController::class, 'finalizar'])->middleware('permission:certificar lotes')->name('certificar-lote.finalizar');
+    Route::get('/certificar-lote/{batchId}/log', [CertificarLoteController::class, 'obtenerLog'])->middleware('permission:certificar lotes')->name('certificar-lote.log');
     
-    Route::get('/certificados', [CertificadosController::class, 'index'])->name('certificados');
-    Route::get('/certificado/{id}', [CertificadosController::class, 'show'])->name('certificado.show');
-    Route::get('/certificado/{id}/qr', [CertificadosController::class, 'qr'])->name('certificado.qr');
+    Route::get('/certificados', [CertificadosController::class, 'index'])->middleware('permission:ver certificados')->name('certificados');
+    Route::get('/certificado/{id}', [CertificadosController::class, 'show'])->middleware('permission:ver certificados')->name('certificado.show');
+    Route::get('/certificado/{id}/qr', [CertificadosController::class, 'qr'])->middleware('permission:ver certificados')->name('certificado.qr');
 
     // Almacenaje
-    Route::get('/almacenaje', [AlmacenajeController::class, 'index'])->name('almacenaje');
-    Route::post('/almacenaje', [AlmacenajeController::class, 'almacenar'])->name('almacenaje.store');
-    Route::get('/almacenaje/lote/{batchId}', [AlmacenajeController::class, 'obtenerAlmacenajesPorLote'])->name('almacenaje.por-lote');
+    Route::get('/almacenaje', [AlmacenajeController::class, 'index'])->middleware('permission:almacenar lotes')->name('almacenaje');
+    Route::post('/almacenaje', [AlmacenajeController::class, 'almacenar'])->middleware('permission:almacenar lotes')->name('almacenaje.store');
+    Route::get('/almacenaje/lote/{batchId}', [AlmacenajeController::class, 'obtenerAlmacenajesPorLote'])->middleware('permission:almacenar lotes')->name('almacenaje.por-lote');
     
-    Route::get('/lotes-almacenados', [LotesAlmacenadosController::class, 'index'])->name('lotes-almacenados');
-    Route::get('/lotes-almacenados/lote/{batchId}', [LotesAlmacenadosController::class, 'obtenerAlmacenajesPorLote'])->name('lotes-almacenados.por-lote');
+    Route::get('/lotes-almacenados', [LotesAlmacenadosController::class, 'index'])->middleware('permission:almacenar lotes')->name('lotes-almacenados');
+    Route::get('/lotes-almacenados/lote/{batchId}', [LotesAlmacenadosController::class, 'obtenerAlmacenajesPorLote'])->middleware('permission:almacenar lotes')->name('lotes-almacenados.por-lote');
 
     // Pedidos
-    Route::get('/mis-pedidos', [PedidosController::class, 'misPedidos'])->name('mis-pedidos');
-    Route::post('/mis-pedidos', [PedidosController::class, 'crearPedido'])->name('mis-pedidos.store');
-    Route::get('/mis-pedidos/{id}', [PedidosController::class, 'show'])->name('mis-pedidos.show');
+    Route::middleware('permission:crear pedidos')->group(function () {
+        Route::get('/crear-pedido', [PedidosController::class, 'crearPedidoForm'])->name('crear-pedido');
+        Route::post('/mis-pedidos', [PedidosController::class, 'crearPedido'])->name('mis-pedidos.store');
+    });
     
-    Route::get('/gestion-pedidos', [GestionPedidosController::class, 'index'])->name('gestion-pedidos');
-    Route::put('/gestion-pedidos/{id}', [GestionPedidosController::class, 'update'])->name('gestion-pedidos.update');
+    Route::middleware('permission:ver mis pedidos')->group(function () {
+        Route::get('/mis-pedidos', [PedidosController::class, 'misPedidos'])->name('mis-pedidos');
+        Route::post('/mis-pedidos/{id}/cancel', [PedidosController::class, 'cancel'])->middleware('permission:cancelar mis pedidos')->name('mis-pedidos.cancel');
+    });
+    
+    Route::middleware('permission:gestionar pedidos')->group(function () {
+        Route::get('/gestion-pedidos', [GestionPedidosController::class, 'index'])->name('gestion-pedidos');
+        Route::get('/gestion-pedidos/{id}', [GestionPedidosController::class, 'show'])->name('gestion-pedidos.show');
+        Route::put('/gestion-pedidos/{id}', [GestionPedidosController::class, 'update'])->name('gestion-pedidos.update');
+        Route::post('/gestion-pedidos/{orderId}/product/{productId}/approve', [GestionPedidosController::class, 'approveProduct'])->middleware('permission:aprobar pedidos')->name('gestion-pedidos.approve-product');
+        Route::post('/gestion-pedidos/{orderId}/product/{productId}/reject', [GestionPedidosController::class, 'rejectProduct'])->middleware('permission:rechazar pedidos')->name('gestion-pedidos.reject-product');
+    });
 
     // Usuarios/Operadores
-    Route::get('/usuarios', [UsuariosController::class, 'index'])->name('usuarios');
-    Route::post('/usuarios', [UsuariosController::class, 'store']);
-    Route::put('/usuarios/{id}', [UsuariosController::class, 'update']);
+    Route::get('/usuarios', [UsuariosController::class, 'index'])->middleware('permission:gestionar usuarios')->name('usuarios');
+    Route::post('/usuarios', [UsuariosController::class, 'store'])->middleware('permission:gestionar usuarios');
+    Route::put('/usuarios/{id}', [UsuariosController::class, 'update'])->middleware('permission:gestionar usuarios');
 
     // Operadores (CRUD completo)
-    Route::resource('operadores', OperadorWebController::class);
+    Route::resource('operadores', OperadorWebController::class, ['names' => [
+        'index' => 'operadores.web.index',
+        'create' => 'operadores.web.create',
+        'store' => 'operadores.web.store',
+        'show' => 'operadores.web.show',
+        'edit' => 'operadores.web.edit',
+        'update' => 'operadores.web.update',
+        'destroy' => 'operadores.web.destroy',
+    ]])->middleware('permission:gestionar usuarios');
 
     // Carga de imágenes
     Route::post('/upload-image', [\App\Http\Controllers\Web\ImageUploadController::class, 'upload'])->name('upload-image');

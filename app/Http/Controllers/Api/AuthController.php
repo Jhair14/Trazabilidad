@@ -21,10 +21,10 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
-            'username' => 'required|string|max:60|unique:operator,username',
+            'username' => 'required|string|max:60|unique:Operador,Usuario',
             'password' => 'required|string|min:6',
             'email' => 'nullable|email|max:100',
-            'role_id' => 'required|integer|exists:operator_role,role_id',
+            'role_id' => 'nullable|string|max:100', // Cargo is a string field
         ]);
 
         if ($validator->fails()) {
@@ -35,23 +35,19 @@ class AuthController extends Controller
         }
 
         try {
-            // Obtener el siguiente ID de la secuencia
-            $nextId = DB::selectOne("SELECT nextval('operator_seq') as id")->id;
-            
+            // For SQLite, we let autoincrement handle the ID
+            // Combine first_name and last_name into Nombre
             $operator = Operator::create([
-                'operator_id' => $nextId,
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
-                'username' => $request->username,
-                'password_hash' => Hash::make($request->password),
-                'email' => $request->email,
-                'role_id' => $request->role_id,
-                'active' => true,
+                'Nombre' => trim($request->first_name . ' ' . $request->last_name),
+                'Usuario' => $request->username,
+                'PasswordHash' => Hash::make($request->password),
+                'Email' => $request->email,
+                'Cargo' => $request->role_id ?? 'Operator', // Default role
             ]);
 
             return response()->json([
                 'message' => 'Usuario registrado exitosamente',
-                'operator_id' => $operator->operator_id
+                'operator_id' => $operator->IdOperador
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -87,12 +83,6 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'Credenciales inválidas'
             ], 401);
-        }
-
-        if (!$operator->active) {
-            return response()->json([
-                'message' => 'Usuario inactivo'
-            ], 403);
         }
 
         try {

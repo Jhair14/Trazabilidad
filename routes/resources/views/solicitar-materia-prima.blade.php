@@ -197,23 +197,23 @@
                     @csrf
                     
                     <!-- Pedido Asociado -->
-                            <div class="form-group">
+                    <div class="form-group">
                         <label for="order_id">
                             <i class="fas fa-shopping-cart mr-1"></i>
                             Pedido Asociado <span class="text-danger">*</span>
                         </label>
-                                <select class="form-control @error('order_id') is-invalid @enderror" 
-                                        id="order_id" name="order_id" required>
-                                    <option value="">Seleccionar pedido...</option>
-                                    @foreach($pedidos as $pedido)
-                                        <option value="{{ $pedido->order_id }}" {{ old('order_id') == $pedido->order_id ? 'selected' : '' }}>
-                                            Pedido #{{ $pedido->order_number ?? $pedido->order_id }} - {{ $pedido->customer->business_name ?? 'N/A' }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('order_id')
-                                    <span class="invalid-feedback">{{ $message }}</span>
-                                @enderror
+                        <select class="form-control @error('order_id') is-invalid @enderror" 
+                                id="order_id" name="order_id" required>
+                            <option value="">Seleccionar pedido...</option>
+                            @foreach($pedidos as $pedido)
+                                <option value="{{ $pedido->order_id }}" {{ old('order_id') == $pedido->order_id ? 'selected' : '' }}>
+                                    {{ $pedido->name ?? 'Sin nombre' }} - {{ $pedido->customer->business_name ?? 'N/A' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('order_id')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
                         <small class="form-text text-muted">Seleccione el pedido al que pertenece esta solicitud</small>
                     </div>
                     
@@ -227,10 +227,7 @@
                                 </label>
                                 <input type="date" class="form-control @error('required_date') is-invalid @enderror" 
                                        id="required_date" name="required_date" 
-                                       value="{{ old('required_date') }}"
-                                       min="{{ date('Y-m-d') }}"
-                                       title="No se pueden seleccionar fechas anteriores a hoy"
-                                       required>
+                                       value="{{ old('required_date') }}" required>
                                 @error('required_date')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
@@ -285,8 +282,8 @@
                                         <td>
                                             <div class="input-group input-group-sm">
                                                 <input type="number" class="form-control" 
-                                                   name="materials[0][requested_quantity]" 
-                                                   placeholder="0.00" step="0.01" min="0" required>
+                                                       name="materials[0][requested_quantity]" 
+                                                       placeholder="0.00" step="0.01" min="0" required>
                                             </div>
                                         </td>
                                         <td class="text-center">
@@ -358,8 +355,8 @@ function addMaterial() {
         <td>
             <div class="input-group input-group-sm">
                 <input type="number" class="form-control" 
-                   name="materials[${materialIndex}][requested_quantity]" 
-                   placeholder="0.00" step="0.01" min="0" required>
+                       name="materials[${materialIndex}][requested_quantity]" 
+                       placeholder="0.00" step="0.01" min="0" required>
             </div>
         </td>
         <td class="text-center">
