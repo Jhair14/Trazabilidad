@@ -97,7 +97,6 @@ class MateriaPrimaBaseController extends Controller
             'unit_id' => 'required|integer|exists:unit_of_measure,unit_id',
             'name' => 'required|string|max:100',
             'description' => 'nullable|string|max:255',
-            'image_url' => 'nullable|string|max:500', // URL de imagen desde Cloudinary
             'minimum_stock' => 'nullable|numeric|min:0',
             'maximum_stock' => 'nullable|numeric|min:0',
         ]);
@@ -129,7 +128,6 @@ class MateriaPrimaBaseController extends Controller
                 'code' => $code,
                 'name' => $request->name,
                 'description' => $request->description,
-                'image_url' => $request->image_url ?? null,
                 'available_quantity' => 0,
                 'minimum_stock' => $request->minimum_stock ?? 0,
                 'maximum_stock' => $request->maximum_stock,
@@ -169,7 +167,6 @@ class MateriaPrimaBaseController extends Controller
                 'category_id' => $materia->category_id,
                 'unit_id' => $materia->unit_id,
                 'description' => $materia->description,
-                'image_url' => $materia->image_url,
                 'minimum_stock' => $materia->minimum_stock,
                 'maximum_stock' => $materia->maximum_stock,
                 'current_stock' => $calculated,
@@ -188,8 +185,6 @@ class MateriaPrimaBaseController extends Controller
             'category_id' => 'required|integer|exists:raw_material_category,category_id',
             'unit_id' => 'required|integer|exists:unit_of_measure,unit_id',
             'description' => 'nullable|string|max:255',
-            'image_url' => 'nullable|string|max:500', // URL de imagen desde Cloudinary
-            'current_image_url' => 'nullable|string|max:500', // Para mantener la imagen actual si no se sube una nueva
             'minimum_stock' => 'nullable|numeric|min:0',
             'maximum_stock' => 'nullable|numeric|min:0',
             'active' => 'nullable|boolean',
@@ -207,13 +202,6 @@ class MateriaPrimaBaseController extends Controller
             $updateData = $request->only([
                 'name', 'category_id', 'unit_id', 'description', 'minimum_stock', 'maximum_stock', 'active'
             ]);
-            
-            // Si no se proporciona una nueva imagen, mantener la actual
-            if (empty($request->image_url) && !empty($request->current_image_url)) {
-                $updateData['image_url'] = $request->current_image_url;
-            } elseif (!empty($request->image_url)) {
-                $updateData['image_url'] = $request->image_url;
-            }
             
             $materia->update($updateData);
 

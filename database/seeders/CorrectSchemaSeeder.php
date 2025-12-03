@@ -40,12 +40,11 @@ class CorrectSchemaSeeder extends Seeder
             DB::table('status')->insert($status);
         }
 
-        // Create Operator Roles
+        // Create Operator Roles - Solo 3 roles: cliente, operador, admin
         $roles = [
-            ['role_id' => 1, 'code' => 'ADMIN', 'name' => 'Administrator', 'access_level' => 5],
-            ['role_id' => 2, 'code' => 'PROD_MGR', 'name' => 'Production Manager', 'access_level' => 4],
-            ['role_id' => 3, 'code' => 'OPERATOR', 'name' => 'Machine Operator', 'access_level' => 2],
-            ['role_id' => 4, 'code' => 'INSPECTOR', 'name' => 'Quality Inspector', 'access_level' => 3],
+            ['role_id' => 1, 'code' => 'ADMIN', 'name' => 'Administrador', 'description' => 'Administrador del sistema', 'access_level' => 5, 'active' => true],
+            ['role_id' => 2, 'code' => 'OPERATOR', 'name' => 'Operador', 'description' => 'Operador de producción', 'access_level' => 3, 'active' => true],
+            ['role_id' => 3, 'code' => 'CLIENT', 'name' => 'Cliente', 'description' => 'Cliente que realiza pedidos', 'access_level' => 1, 'active' => true],
         ];
 
         foreach ($roles as $role) {
@@ -87,6 +86,64 @@ class CorrectSchemaSeeder extends Seeder
 
         foreach ($categories as $category) {
             DB::table('raw_material_category')->insert($category);
+        }
+
+        // Create Products
+        $products = [
+            [
+                'product_id' => 1,
+                'code' => 'PROD-ORG-001',
+                'name' => 'Aceite Orgánico Premium',
+                'type' => 'organico',
+                'weight' => 0.5,
+                'unit_id' => 1, // KG
+                'description' => 'Aceite orgánico de alta calidad',
+                'active' => true,
+            ],
+            [
+                'product_id' => 2,
+                'code' => 'PROD-UNIVALLE-001',
+                'name' => 'Harina Univalle',
+                'type' => 'marca_univalle',
+                'weight' => 1.0,
+                'unit_id' => 1, // KG
+                'description' => 'Harina marca Univalle',
+                'active' => true,
+            ],
+            [
+                'product_id' => 3,
+                'code' => 'PROD-COMEST-001',
+                'name' => 'Arroz Premium',
+                'type' => 'comestibles',
+                'weight' => 2.5,
+                'unit_id' => 1, // KG
+                'description' => 'Arroz de alta calidad',
+                'active' => true,
+            ],
+            [
+                'product_id' => 4,
+                'code' => 'PROD-ORG-002',
+                'name' => 'Miel Orgánica',
+                'type' => 'organico',
+                'weight' => 0.25,
+                'unit_id' => 1, // KG
+                'description' => 'Miel 100% orgánica',
+                'active' => true,
+            ],
+            [
+                'product_id' => 5,
+                'code' => 'PROD-UNIVALLE-002',
+                'name' => 'Azúcar Univalle',
+                'type' => 'marca_univalle',
+                'weight' => 1.0,
+                'unit_id' => 1, // KG
+                'description' => 'Azúcar marca Univalle',
+                'active' => true,
+            ],
+        ];
+
+        foreach ($products as $product) {
+            DB::table('product')->insert($product);
         }
 
         // Create Raw Material Bases

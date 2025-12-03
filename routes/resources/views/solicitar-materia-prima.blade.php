@@ -207,7 +207,7 @@
                             <option value="">Seleccionar pedido...</option>
                             @foreach($pedidos as $pedido)
                                 <option value="{{ $pedido->order_id }}" {{ old('order_id') == $pedido->order_id ? 'selected' : '' }}>
-                                    Pedido #{{ $pedido->order_number ?? $pedido->order_id }} - {{ $pedido->customer->business_name ?? 'N/A' }}
+                                    {{ $pedido->name ?? 'Sin nombre' }} - {{ $pedido->customer->business_name ?? 'N/A' }}
                                 </option>
                             @endforeach
                         </select>

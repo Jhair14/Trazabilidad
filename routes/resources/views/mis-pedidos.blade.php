@@ -75,9 +75,9 @@
             Mis Pedidos
         </h3>
         <div class="card-tools">
-            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalNuevoPedido">
+            <a href="{{ route('crear-pedido') }}" class="btn btn-primary btn-sm">
                 <i class="fas fa-plus"></i> Nuevo Pedido
-            </button>
+            </a>
         </div>
     </div>
     <div class="card-body p-0">
@@ -85,7 +85,7 @@
             <table class="table table-hover table-striped">
                 <thead>
                     <tr>
-                        <th>ID Pedido</th>
+                        <th>Nombre del Pedido</th>
                         <th>Descripción</th>
                         <th>Fecha</th>
                         <th>Estado</th>
@@ -96,30 +96,34 @@
                 <tbody>
                     @forelse($pedidos as $pedido)
                     <tr>
-                        <td>#{{ $pedido->order_number ?? $pedido->order_id }}</td>
+                        <td><strong>{{ $pedido->name ?? 'Sin nombre' }}</strong></td>
                         <td>{{ $pedido->description ?? 'Sin descripción' }}</td>
                         <td>{{ \Carbon\Carbon::parse($pedido->creation_date)->format('d/m/Y') }}</td>
                         <td>
-                            @if($pedido->priority == 0)
+                            @if($pedido->status == 'completado')
                                 <span class="badge badge-success">Completado</span>
-                            @elseif($pedido->priority > 5)
-                                <span class="badge badge-danger">Urgente</span>
-                            @elseif($pedido->priority > 0)
-                                <span class="badge badge-warning">Pendiente</span>
+                            @elseif($pedido->status == 'aprobado')
+                                <span class="badge badge-info">Aprobado</span>
+                            @elseif($pedido->status == 'rechazado')
+                                <span class="badge badge-danger">Rechazado</span>
+                            @elseif($pedido->status == 'en_produccion')
+                                <span class="badge badge-primary">En Producción</span>
+                            @elseif($pedido->status == 'cancelado')
+                                <span class="badge badge-secondary">Cancelado</span>
                             @else
-                                <span class="badge badge-primary">En Proceso</span>
+                                <span class="badge badge-warning">Pendiente</span>
                             @endif
                         </td>
                         <td>
                             <div class="progress progress-sm">
-                                @if($pedido->priority == 0)
+                                @if($pedido->status == 'completado')
                                     <div class="progress-bar bg-success" style="width: 100%"></div>
-                                @elseif($pedido->priority > 5)
-                                    <div class="progress-bar bg-danger" style="width: 20%"></div>
-                                @elseif($pedido->priority > 0)
-                                    <div class="progress-bar bg-warning" style="width: 40%"></div>
+                                @elseif($pedido->status == 'aprobado' || $pedido->status == 'en_produccion')
+                                    <div class="progress-bar bg-primary" style="width: 70%"></div>
+                                @elseif($pedido->status == 'pendiente')
+                                    <div class="progress-bar bg-warning" style="width: 30%"></div>
                                 @else
-                                    <div class="progress-bar bg-primary" style="width: 60%"></div>
+                                    <div class="progress-bar bg-danger" style="width: 0%"></div>
                                 @endif
                             </div>
                         </td>
@@ -127,10 +131,17 @@
                             <button class="btn btn-sm btn-info" title="Ver Detalles">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            @if($pedido->priority > 0)
+                            @if($pedido->status === 'pendiente' && (!$pedido->editable_until || \Carbon\Carbon::parse($pedido->editable_until)->isFuture()))
                             <button class="btn btn-sm btn-warning" title="Editar">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            <form action="{{ route('mis-pedidos') }}/{{ $pedido->order_id }}/cancel" method="POST" style="display: inline;" onsubmit="return confirm('¿Está seguro de cancelar este pedido?');">
+                                @csrf
+                                @method('POST')
+                                <button type="submit" class="btn btn-sm btn-danger" title="Cancelar">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
                             @endif
                         </td>
                     </tr>
@@ -150,87 +161,6 @@
     @endif
 </div>
 
-<!-- Modal para Nuevo Pedido -->
-<div class="modal fade" id="modalNuevoPedido" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 class="modal-title">Nuevo Pedido</h4>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                @if($errors->any())
-                    <div class="alert alert-danger">
-                        <ul class="mb-0">
-                            @foreach($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-                <form method="POST" action="{{ route('mis-pedidos.store') }}">
-                    @csrf
-                    
-                    <div class="form-group">
-                        <label for="description">Descripción del Pedido</label>
-                        <textarea class="form-control" id="description" name="description" 
-                                  rows="3" placeholder="Describe detalladamente tu pedido...">{{ old('description') }}</textarea>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="delivery_date">Fecha de Entrega Deseada</label>
-                                <input type="date" class="form-control" id="delivery_date" 
-                                       name="delivery_date" value="{{ old('delivery_date') }}">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="priority">Prioridad</label>
-                                <select class="form-control" id="priority" name="priority">
-                                    <option value="1" {{ old('priority', 1) == 1 ? 'selected' : '' }}>Normal</option>
-                                    <option value="5" {{ old('priority') == 5 ? 'selected' : '' }}>Alta</option>
-                                    <option value="10" {{ old('priority') == 10 ? 'selected' : '' }}>Urgente</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="observations">Observaciones Adicionales</label>
-                        <textarea class="form-control" id="observations" name="observations" 
-                                  rows="2" placeholder="Cualquier observación especial...">{{ old('observations') }}</textarea>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Crear Pedido</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-@push('scripts')
-<script>
-$(document).ready(function() {
-    // Actualizar token CSRF cuando se abre el modal para evitar expiración
-    $('#modalNuevoPedido').on('show.bs.modal', function() {
-        // Obtener el token CSRF actual del meta tag
-        var token = $('meta[name="csrf-token"]').attr('content');
-        
-        // Actualizar el token en el formulario del modal si existe
-        var $tokenInput = $('#modalNuevoPedido form input[name="_token"]');
-        if (token && $tokenInput.length) {
-            $tokenInput.val(token);
-        }
-    });
-});
-</script>
-@endpush
 @endsection
 
 

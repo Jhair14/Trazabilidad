@@ -124,7 +124,6 @@
                     <table class="table table-bordered table-striped">
                         <thead>
                             <tr>
-                                <th>Imagen</th>
                                 <th>ID</th>
                                 <th>Nombre</th>
                                 <th>Categoría</th>
@@ -145,17 +144,6 @@
                                 $maximum = $mp->maximum_stock ?? 0;
                             @endphp
                             <tr>
-                                <td>
-                                    @if($mp->image_url)
-                                        <img src="{{ $mp->image_url }}" alt="{{ $mp->name }}" 
-                                             class="img-thumbnail" style="max-width: 60px; max-height: 60px; object-fit: cover;">
-                                    @else
-                                        <div class="bg-light d-flex align-items-center justify-content-center" 
-                                             style="width: 60px; height: 60px;">
-                                            <i class="fas fa-image text-muted"></i>
-                                        </div>
-                                    @endif
-                                </td>
                                 <td>#{{ $mp->material_id }}</td>
                                 <td>{{ $mp->name }}</td>
                                 <td>{{ $mp->category->name ?? 'N/A' }}</td>
@@ -189,7 +177,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="11" class="text-center">No hay materias primas registradas</td>
+                                <td colspan="10" class="text-center">No hay materias primas registradas</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -232,7 +220,7 @@
                         </ul>
                     </div>
                 @endif
-                <form method="POST" action="{{ route('materia-prima-base') }}" id="crearMateriaPrimaForm" enctype="multipart/form-data">
+                <form method="POST" action="{{ route('materia-prima-base') }}" id="crearMateriaPrimaForm">
                     @csrf
                     <div class="row">
                         <div class="col-md-12">
@@ -309,32 +297,6 @@
                         <textarea class="form-control" id="description" name="description" 
                                   rows="3" placeholder="Descripción de la materia prima...">{{ old('description') }}</textarea>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="image_file">
-                            <i class="fas fa-image mr-1"></i>
-                            Imagen de la Materia Prima
-                        </label>
-                        <div class="custom-file">
-                            <input type="file" class="custom-file-input @error('image_file') is-invalid @enderror" 
-                                   id="image_file" name="image_file" accept="image/jpeg,image/jpg,image/png" 
-                                   onchange="previewImage(this, 'mp_image_preview')">
-                            <label class="custom-file-label" for="image_file">Seleccionar imagen...</label>
-                            @error('image_file')
-                                <span class="invalid-feedback">{{ $message }}</span>
-                            @enderror
-                        </div>
-                        <small class="form-text text-muted">Formatos permitidos: JPG, JPEG, PNG (máx. 5MB)</small>
-                        
-                        <!-- Previsualización de imagen -->
-                        <div id="mp_image_preview_container" class="mt-3" style="display: none;">
-                            <img id="mp_image_preview" src="" alt="Vista previa" 
-                                 class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
-                            <button type="button" class="btn btn-sm btn-danger mt-2" onclick="clearImagePreview('mp_image_preview')">
-                                <i class="fas fa-times"></i> Eliminar
-                            </button>
-                        </div>
-                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -402,7 +364,7 @@
                         </ul>
                     </div>
                 @endif
-                <form method="POST" action="" id="editarMateriaPrimaForm" enctype="multipart/form-data">
+                <form method="POST" action="" id="editarMateriaPrimaForm">
                     @csrf
                     @method('PUT')
                     
@@ -489,38 +451,6 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="edit_image_file">
-                            <i class="fas fa-image mr-1"></i>
-                            Imagen de la Materia Prima
-                        </label>
-                        <div class="custom-file">
-                            <input type="file" class="custom-file-input" 
-                                   id="edit_image_file" name="image_file" accept="image/jpeg,image/jpg,image/png" 
-                                   onchange="previewImage(this, 'edit_mp_image_preview')">
-                            <label class="custom-file-label" for="edit_image_file">Seleccionar nueva imagen...</label>
-                        </div>
-                        <small class="form-text text-muted">Dejar vacío para mantener la imagen actual</small>
-                        
-                        <!-- Previsualización de nueva imagen -->
-                        <div id="edit_mp_image_preview_container" class="mt-3" style="display: none;">
-                            <p class="text-muted small">Nueva imagen:</p>
-                            <img id="edit_mp_image_preview" src="" alt="Vista previa" 
-                                 class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
-                            <button type="button" class="btn btn-sm btn-danger mt-2" onclick="clearImagePreview('edit_mp_image_preview')">
-                                <i class="fas fa-times"></i> Eliminar
-                            </button>
-                        </div>
-                        
-                        <!-- Imagen actual -->
-                        <input type="hidden" id="edit_current_image_url" name="current_image_url">
-                        <div id="edit_current_mp_image_container" class="mt-2" style="display: none;">
-                            <p class="text-muted small">Imagen actual:</p>
-                            <img id="edit_current_mp_image" src="" alt="Imagen actual" 
-                                 class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
                         <label>
                             <input type="checkbox" name="active" id="edit_active" value="1">
                             Materia Prima Activa
@@ -556,17 +486,9 @@ function verMateriaPrima(id) {
             const unidad = unidades.find(u => u.unit_id == data.unit_id);
             const stockActual = data.available_quantity || '0.00';
             
-            const imageHtml = data.image_url 
-                ? `<div class="text-center mb-3">
-                    <img src="${data.image_url}" alt="${data.name}" 
-                         class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
-                   </div>`
-                : '<p class="text-muted text-center">Sin imagen</p>';
-            
             const content = `
                 <div class="row">
                     <div class="col-md-12">
-                        ${imageHtml}
                         <table class="table table-bordered">
                             <tr>
                                 <th style="width: 30%;">ID</th>
@@ -641,20 +563,6 @@ function editarMateriaPrima(id) {
             document.getElementById('edit_description').value = data.description || '';
             document.getElementById('edit_active').checked = data.active || false;
             
-            // Mostrar imagen actual si existe
-            if (data.image_url) {
-                document.getElementById('edit_current_image_url').value = data.image_url;
-                document.getElementById('edit_current_mp_image').src = data.image_url;
-                document.getElementById('edit_current_mp_image_container').style.display = 'block';
-            } else {
-                document.getElementById('edit_current_image_url').value = '';
-                document.getElementById('edit_current_mp_image_container').style.display = 'none';
-            }
-            
-            // Limpiar previsualización de nueva imagen
-            document.getElementById('edit_image_file').value = '';
-            document.getElementById('edit_mp_image_preview_container').style.display = 'none';
-            
             $('#editarMateriaPrimaModal').modal('show');
         })
         .catch(error => {
@@ -663,62 +571,15 @@ function editarMateriaPrima(id) {
         });
 }
 
-function previewImage(input, previewId) {
-    const file = input.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById(previewId).src = e.target.result;
-            const containerId = previewId === 'mp_image_preview' ? 'mp_image_preview_container' : 'edit_mp_image_preview_container';
-            document.getElementById(containerId).style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-function clearImagePreview(previewId) {
-    const inputId = previewId === 'mp_image_preview' ? 'image_file' : 'edit_image_file';
-    document.getElementById(inputId).value = '';
-    document.getElementById(previewId).src = '';
-    const containerId = previewId === 'mp_image_preview' ? 'mp_image_preview_container' : 'edit_mp_image_preview_container';
-    document.getElementById(containerId).style.display = 'none';
-}
-
 async function submitCrearMateriaPrima() {
     const form = document.getElementById('crearMateriaPrimaForm');
     const formData = new FormData(form);
-    const imageFile = document.getElementById('image_file').files[0];
     const submitButton = document.getElementById('crearMateriaPrimaBtn');
     
     submitButton.disabled = true;
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Creando...';
     
     try {
-        // Si hay una imagen, subirla primero
-        if (imageFile) {
-            const uploadFormData = new FormData();
-            uploadFormData.append('image', imageFile);
-            uploadFormData.append('folder', 'materias-primas');
-            
-            const uploadResponse = await fetch('{{ route("upload-image") }}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: uploadFormData
-            });
-            
-            const uploadResult = await uploadResponse.json();
-            
-            if (!uploadResult.success) {
-                throw new Error(uploadResult.message || 'Error al subir la imagen');
-            }
-            
-            formData.append('image_url', uploadResult.imageUrl);
-        }
-        
-        formData.delete('image_file');
-        
         // Enviar formulario
         const response = await fetch(form.action, {
             method: 'POST',
@@ -741,46 +602,17 @@ async function submitCrearMateriaPrima() {
     }
 }
 
-// Manejar envío del formulario de edición con carga de imagen
+// Manejar envío del formulario de edición
 document.getElementById('editarMateriaPrimaForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
     const formData = new FormData(this);
-    const imageFile = document.getElementById('edit_image_file').files[0];
-    const currentImageUrl = document.getElementById('edit_current_image_url').value;
     const submitButton = this.querySelector('button[type="submit"]');
     
     submitButton.disabled = true;
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Actualizando...';
     
     try {
-        // Si hay una imagen nueva, subirla primero
-        if (imageFile) {
-            const uploadFormData = new FormData();
-            uploadFormData.append('image', imageFile);
-            uploadFormData.append('folder', 'materias-primas');
-            
-            const uploadResponse = await fetch('{{ route("upload-image") }}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: uploadFormData
-            });
-            
-            const uploadResult = await uploadResponse.json();
-            
-            if (!uploadResult.success) {
-                throw new Error(uploadResult.message || 'Error al subir la imagen');
-            }
-            
-            formData.append('image_url', uploadResult.imageUrl);
-        } else {
-            // Mantener la imagen actual
-            formData.append('current_image_url', currentImageUrl);
-        }
-        
-        formData.delete('edit_image_file');
         formData.append('_method', 'PUT');
         
         // Enviar formulario
@@ -803,19 +635,6 @@ document.getElementById('editarMateriaPrimaForm').addEventListener('submit', asy
         submitButton.disabled = false;
         submitButton.innerHTML = '<i class="fas fa-save mr-1"></i> Actualizar Materia Prima';
     }
-});
-
-// Actualizar labels de inputs file
-document.getElementById('image_file')?.addEventListener('change', function(e) {
-    const fileName = e.target.files[0]?.name || 'Seleccionar imagen...';
-    const label = this.nextElementSibling;
-    if (label) label.textContent = fileName;
-});
-
-document.getElementById('edit_image_file')?.addEventListener('change', function(e) {
-    const fileName = e.target.files[0]?.name || 'Seleccionar nueva imagen...';
-    const label = this.nextElementSibling;
-    if (label) label.textContent = fileName;
 });
 
 function aplicarFiltros() {

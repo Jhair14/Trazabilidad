@@ -39,7 +39,7 @@ class ProveedorWebController extends Controller
             $data['supplier_id'] = $nextId;
             $data['active'] = true;
             Supplier::create($data);
-            return redirect()->route('proveedores.index')->with('success', 'Proveedor creado exitosamente');
+            return redirect()->route('proveedores.web.index')->with('success', 'Proveedor creado exitosamente');
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Error al crear proveedor: ' . $e->getMessage())
@@ -74,14 +74,14 @@ class ProveedorWebController extends Controller
         
         $proveedor = Supplier::findOrFail($id);
         $proveedor->update($data);
-        return redirect()->route('proveedores.index')->with('success', 'Proveedor actualizado exitosamente');
+        return redirect()->route('proveedores.web.index')->with('success', 'Proveedor actualizado exitosamente');
     }
 
     public function destroy($id)
     {
         $proveedor = Supplier::findOrFail($id);
         $proveedor->update(['active' => false]);
-        return redirect()->route('proveedores.index')->with('success', 'Proveedor eliminado exitosamente');
+        return redirect()->route('proveedores.web.index')->with('success', 'Proveedor eliminado exitosamente');
     }
 }
 

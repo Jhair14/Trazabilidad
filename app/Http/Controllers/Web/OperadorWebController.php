@@ -66,7 +66,7 @@ class OperadorWebController extends Controller
                 $operador->machines()->attach($request->maquina_ids);
             }
 
-            return redirect()->route('operadores.index')
+            return redirect()->route('operadores.web.index')
                 ->with('success', 'Operador creado exitosamente');
         } catch (\Exception $e) {
             return redirect()->back()
@@ -126,7 +126,7 @@ class OperadorWebController extends Controller
                 $operador->machines()->sync($request->maquina_ids);
             }
 
-            return redirect()->route('operadores.index')
+            return redirect()->route('operadores.web.index')
                 ->with('success', 'Operador actualizado exitosamente');
         } catch (\Exception $e) {
             return redirect()->back()
@@ -139,7 +139,7 @@ class OperadorWebController extends Controller
         try {
             $operador = Operator::findOrFail($id);
             $operador->update(['active' => false]);
-            return redirect()->route('operadores.index')
+            return redirect()->route('operadores.web.index')
                 ->with('success', 'Operador eliminado exitosamente');
         } catch (\Exception $e) {
             return redirect()->back()

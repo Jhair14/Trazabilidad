@@ -21,7 +21,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('operadores.store') }}">
+        <form method="POST" action="{{ route('operadores.web.store') }}">
             @csrf
             
             <div class="row">
@@ -116,7 +116,7 @@
                     <i class="fas fa-save mr-1"></i>
                     Guardar Operador
                 </button>
-                <a href="{{ route('operadores.index') }}" class="btn btn-secondary">
+                <a href="{{ route('operadores.web.index') }}" class="btn btn-secondary">
                     <i class="fas fa-times mr-1"></i>
                     Cancelar
                 </a>

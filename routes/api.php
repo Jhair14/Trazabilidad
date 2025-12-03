@@ -37,6 +37,17 @@ Route::middleware('auth:api')->group(function () {
     Route::apiResource('raw-material-bases', RawMaterialBaseController::class);
     Route::apiResource('raw-materials', RawMaterialController::class);
     Route::apiResource('customer-orders', CustomerOrderController::class);
+    Route::post('/customer-orders/{id}/cancel', [CustomerOrderController::class, 'cancel']);
+    Route::apiResource('products', \App\Http\Controllers\Api\ProductController::class);
+    // Order Approval Routes
+    Route::prefix('order-approval')->group(function () {
+        Route::get('/pending', [\App\Http\Controllers\Api\OrderApprovalController::class, 'pendingOrders']);
+        Route::get('/{id}', [\App\Http\Controllers\Api\OrderApprovalController::class, 'show']);
+        Route::post('/{orderId}/approve', [\App\Http\Controllers\Api\OrderApprovalController::class, 'approveOrder']);
+        Route::post('/{orderId}/product/{productId}/approve', [\App\Http\Controllers\Api\OrderApprovalController::class, 'approveProduct']);
+        Route::post('/{orderId}/product/{productId}/reject', [\App\Http\Controllers\Api\OrderApprovalController::class, 'rejectProduct']);
+    });
+          
     Route::apiResource('production-batches', ProductionBatchController::class);
     Route::apiResource('batch-raw-materials', \App\Http\Controllers\Api\BatchRawMaterialController::class);
     Route::apiResource('material-movement-logs', MaterialMovementLogController::class);

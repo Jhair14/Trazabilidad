@@ -12,9 +12,36 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->api(prepend: [
+            \App\Http\Middleware\Cors::class,
+        ]);
+        
+        // Registrar middleware de Spatie Permission
+        $middleware->alias([
+            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Return JSON responses for ALL API routes errors
+        $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+
+                // Don't expose sensitive error details in production
+                $message = $e->getMessage();
+                if (config('app.env') === 'production' && $status === 500) {
+                    $message = 'Internal server error';
+                }
+
+                return response()->json([
+                    'message' => $message,
+                    'error' => class_basename($e),
+                ], $status);
+            }
+        });
+
         // Manejar error 419 (Page Expired) para la creación de pedidos
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
             if ($request->is('mis-pedidos') && $request->isMethod('post')) {

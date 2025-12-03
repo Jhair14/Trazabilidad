@@ -8,9 +8,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class Operator extends Authenticatable implements JWTSubject
 {
+    use HasRoles;
+    
     // Map to new English database table
     protected $table = 'operator';
     protected $primaryKey = 'operator_id';

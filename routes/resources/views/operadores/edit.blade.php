@@ -21,7 +21,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('operadores.update', $operador->operator_id) }}">
+        <form method="POST" action="{{ route('operadores.web.update', $operador->operator_id) }}">
             @csrf
             @method('PUT')
             
@@ -126,7 +126,7 @@
                     <i class="fas fa-save mr-1"></i>
                     Actualizar Operador
                 </button>
-                <a href="{{ route('operadores.index') }}" class="btn btn-secondary">
+                <a href="{{ route('operadores.web.index') }}" class="btn btn-secondary">
                     <i class="fas fa-times mr-1"></i>
                     Cancelar
                 </a>
