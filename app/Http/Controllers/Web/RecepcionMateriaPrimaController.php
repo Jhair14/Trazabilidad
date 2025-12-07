@@ -112,8 +112,17 @@ class RecepcionMateriaPrimaController extends Controller
             $supplier = Supplier::findOrFail($request->supplier_id);
             
             // Sincronizar la secuencia y obtener el siguiente ID
-            $maxId = DB::table('raw_material')->max('raw_material_id') ?? 0;
-            DB::statement("SELECT setval('raw_material_seq', {$maxId}, true)");
+            $maxId = DB::table('raw_material')->max('raw_material_id');
+            
+            // Solo sincronizar la secuencia si hay registros existentes
+            // Si no hay registros, PostgreSQL manejará automáticamente el siguiente valor
+            if ($maxId !== null && $maxId > 0) {
+                // Sincronizar la secuencia con el máximo ID existente
+                // El tercer parámetro 'true' hace que el siguiente nextval devuelva maxId + 1
+                DB::statement("SELECT setval('raw_material_seq', {$maxId}, true)");
+            }
+            
+            // Obtener el siguiente ID de la secuencia
             $nextId = DB::selectOne("SELECT nextval('raw_material_seq') as id")->id;
             
             // Convertir receipt_conformity a boolean correctamente
@@ -129,9 +138,10 @@ class RecepcionMateriaPrimaController extends Controller
             // Crear registro en raw_material usando SQL directo para evitar conflictos
             $rawMaterialId = DB::selectOne("
                 INSERT INTO raw_material (raw_material_id, material_id, supplier_id, supplier_batch, invoice_number, receipt_date, expiration_date, quantity, available_quantity, receipt_conformity, observations)
-                VALUES (nextval('raw_material_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING raw_material_id
             ", [
+                $nextId,
                 $request->material_id,
                 $request->supplier_id,
                 $request->supplier_batch,
@@ -185,18 +195,22 @@ class RecepcionMateriaPrimaController extends Controller
             }
 
             // Sincronizar secuencia y registrar en log de movimientos
-            $maxLogId = DB::table('material_movement_log')->max('log_id') ?? 0;
-            if ($maxLogId > 0) {
+            $maxLogId = DB::table('material_movement_log')->max('log_id');
+            
+            // Solo sincronizar la secuencia si hay registros existentes
+            if ($maxLogId !== null && $maxLogId > 0) {
                 DB::statement("SELECT setval('material_movement_log_seq', {$maxLogId}, true)");
-            } else {
-                DB::statement("SELECT setval('material_movement_log_seq', 1, false)");
             }
             
+            // Obtener el siguiente ID del log
+            $logNextId = DB::selectOne("SELECT nextval('material_movement_log_seq') as id")->id;
+            
             DB::selectOne("
-                INSERT INTO material_movement_log (log_id, material_id, movement_type_id, user_id, quantity, previous_balance, new_balance, observations)
-                VALUES (nextval('material_movement_log_seq'), ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO material_movement_log (log_id, material_id, movement_type_id, user_id, quantity, previous_balance, new_balance, description)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING log_id
             ", [
+                $logNextId,
                 $request->material_id,
                 1, // Entrada
                 auth()->id(),

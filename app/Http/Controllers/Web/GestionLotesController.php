@@ -102,17 +102,24 @@ class GestionLotesController extends Controller
             $orderId = $request->order_id;
             if (!$orderId) {
                 // Sincronizar secuencia y obtener el siguiente ID para order
-                $maxOrderId = DB::table('customer_order')->max('order_id') ?? 0;
-                DB::statement("SELECT setval('customer_order_seq', {$maxOrderId}, true)");
+                $maxOrderId = DB::table('customer_order')->max('order_id');
+                
+                // Solo sincronizar la secuencia si hay registros existentes
+                if ($maxOrderId !== null && $maxOrderId > 0) {
+                    DB::statement("SELECT setval('customer_order_seq', {$maxOrderId}, true)");
+                }
+                
+                // Obtener el siguiente ID de la secuencia
                 $orderNextId = DB::selectOne("SELECT nextval('customer_order_seq') as id")->id;
                 $orderNumber = 'INTERNO-' . str_pad($orderNextId, 4, '0', STR_PAD_LEFT) . '-' . date('Ymd');
                 
                 // Crear un pedido genérico interno usando SQL directo
                 $orderId = DB::selectOne("
                     INSERT INTO customer_order (order_id, order_number, customer_id, creation_date, priority, description)
-                    VALUES (nextval('customer_order_seq'), ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     RETURNING order_id
                 ", [
+                    $orderNextId,
                     $orderNumber,
                     1, // Cliente por defecto
                     now()->toDateString(),
@@ -122,8 +129,14 @@ class GestionLotesController extends Controller
             }
 
             // Sincronizar secuencia y obtener el siguiente ID para batch
-            $maxBatchId = DB::table('production_batch')->max('batch_id') ?? 0;
-            DB::statement("SELECT setval('production_batch_seq', {$maxBatchId}, true)");
+            $maxBatchId = DB::table('production_batch')->max('batch_id');
+            
+            // Solo sincronizar la secuencia si hay registros existentes
+            if ($maxBatchId !== null && $maxBatchId > 0) {
+                DB::statement("SELECT setval('production_batch_seq', {$maxBatchId}, true)");
+            }
+            
+            // Obtener el siguiente ID de la secuencia
             $batchNextId = DB::selectOne("SELECT nextval('production_batch_seq') as id")->id;
             
             // Generar código de lote automáticamente
@@ -132,9 +145,10 @@ class GestionLotesController extends Controller
             // Crear batch usando SQL directo
             $batchId = DB::selectOne("
                 INSERT INTO production_batch (batch_id, order_id, batch_code, name, creation_date, target_quantity, observations)
-                VALUES (nextval('production_batch_seq'), ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 RETURNING batch_id
             ", [
+                $batchNextId,
                 $orderId,
                 $batchCode,
                 $request->name ?? 'Unnamed Batch',
@@ -147,11 +161,21 @@ class GestionLotesController extends Controller
 
             // Crear batch raw materials - buscar o crear instancias de RawMaterial
             foreach ($request->raw_materials as $rm) {
-                $materialBase = RawMaterialBase::findOrFail($rm['material_id']);
+                $materialBase = RawMaterialBase::with('rawMaterials')->findOrFail($rm['material_id']);
+                
+                // Calcular cantidad disponible dinámicamente desde las materias primas recibidas
+                $calculatedAvailable = $materialBase->rawMaterials
+                    ->where('receipt_conformity', true)
+                    ->sum('available_quantity') ?? 0;
+                
+                // Si no hay materias primas recibidas, usar el valor almacenado
+                if ($calculatedAvailable == 0 && $materialBase->rawMaterials->count() == 0) {
+                    $calculatedAvailable = $materialBase->available_quantity ?? 0;
+                }
                 
                 // Verificar disponibilidad
-                if ($materialBase->available_quantity < $rm['planned_quantity']) {
-                    throw new \Exception("No hay suficiente cantidad disponible de {$materialBase->name}. Disponible: {$materialBase->available_quantity}");
+                if ($calculatedAvailable < $rm['planned_quantity']) {
+                    throw new \Exception("No hay suficiente cantidad disponible de {$materialBase->name}. Disponible: {$calculatedAvailable}");
                 }
 
                 // Buscar una instancia de RawMaterial disponible para esta materia prima base
@@ -166,14 +190,22 @@ class GestionLotesController extends Controller
                 }
 
                 // Sincronizar secuencia y crear batch raw material
-                $maxBatchMaterialId = DB::table('batch_raw_material')->max('batch_material_id') ?? 0;
-                DB::statement("SELECT setval('batch_raw_material_seq', {$maxBatchMaterialId}, true)");
+                $maxBatchMaterialId = DB::table('batch_raw_material')->max('batch_material_id');
+                
+                // Solo sincronizar la secuencia si hay registros existentes
+                if ($maxBatchMaterialId !== null && $maxBatchMaterialId > 0) {
+                    DB::statement("SELECT setval('batch_raw_material_seq', {$maxBatchMaterialId}, true)");
+                }
+                
+                // Obtener el siguiente ID de la secuencia
+                $batchMaterialNextId = DB::selectOne("SELECT nextval('batch_raw_material_seq') as id")->id;
                 
                 $batchMaterialId = DB::selectOne("
                     INSERT INTO batch_raw_material (batch_material_id, batch_id, raw_material_id, planned_quantity, used_quantity)
-                    VALUES (nextval('batch_raw_material_seq'), ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?)
                     RETURNING batch_material_id
                 ", [
+                    $batchMaterialNextId,
                     $batch->batch_id,
                     $rawMaterial->raw_material_id,
                     $rm['planned_quantity'],
@@ -189,14 +221,22 @@ class GestionLotesController extends Controller
                 $rawMaterial->save();
 
                 // Sincronizar secuencia y registrar en log de movimientos
-                $maxLogId = DB::table('material_movement_log')->max('log_id') ?? 0;
-                DB::statement("SELECT setval('material_movement_log_seq', {$maxLogId}, true)");
+                $maxLogId = DB::table('material_movement_log')->max('log_id');
+                
+                // Solo sincronizar la secuencia si hay registros existentes
+                if ($maxLogId !== null && $maxLogId > 0) {
+                    DB::statement("SELECT setval('material_movement_log_seq', {$maxLogId}, true)");
+                }
+                
+                // Obtener el siguiente ID del log
+                $logNextId = DB::selectOne("SELECT nextval('material_movement_log_seq') as id")->id;
                 
                 DB::selectOne("
-                    INSERT INTO material_movement_log (log_id, material_id, movement_type_id, user_id, quantity, previous_balance, new_balance, observations)
-                    VALUES (nextval('material_movement_log_seq'), ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO material_movement_log (log_id, material_id, movement_type_id, user_id, quantity, previous_balance, new_balance, description)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     RETURNING log_id
                 ", [
+                    $logNextId,
                     $rm['material_id'],
                     2, // Salida
                     auth()->id(),

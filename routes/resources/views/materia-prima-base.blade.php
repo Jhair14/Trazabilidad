@@ -576,27 +576,73 @@ async function submitCrearMateriaPrima() {
     const formData = new FormData(form);
     const submitButton = document.getElementById('crearMateriaPrimaBtn');
     
+    // Validar campos requeridos antes de enviar
+    const name = form.querySelector('#name').value.trim();
+    const categoryId = form.querySelector('#category_id').value;
+    const unitId = form.querySelector('#unit_id').value;
+    
+    if (!name || !categoryId || !unitId) {
+        alert('Por favor complete todos los campos requeridos');
+        return;
+    }
+    
     submitButton.disabled = true;
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Creando...';
     
     try {
+        // Obtener el token CSRF del meta tag o del formulario
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                         form.querySelector('input[name="_token"]')?.value || 
+                         '{{ csrf_token() }}';
+        
         // Enviar formulario
         const response = await fetch(form.action, {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
             },
             body: formData
         });
         
+        const contentType = response.headers.get('content-type');
+        
         if (response.ok) {
-            window.location.reload();
+            // Si la respuesta es JSON (AJAX)
+            if (contentType && contentType.includes('application/json')) {
+                const data = await response.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    throw new Error(data.message || 'Error al crear la materia prima');
+                }
+            } else {
+                // Si es un redirect HTML, recargar la página
+                window.location.reload();
+            }
         } else {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Error al crear la materia prima');
+            // Manejar errores de validación
+            if (contentType && contentType.includes('application/json')) {
+                const errorData = await response.json();
+                let errorMessage = 'Error al crear la materia prima';
+                
+                if (errorData.errors) {
+                    const errors = Object.values(errorData.errors).flat();
+                    errorMessage = errors.join('\n');
+                } else if (errorData.message) {
+                    errorMessage = errorData.message;
+                }
+                
+                alert(errorMessage);
+            } else {
+                // Si es un redirect con errores, recargar para mostrar los errores
+                window.location.reload();
+            }
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        console.error('Error:', error);
+        alert('Error: ' + (error.message || 'Error al crear la materia prima. Por favor intente nuevamente.'));
         submitButton.disabled = false;
         submitButton.innerHTML = '<i class="fas fa-save mr-1"></i> Crear Materia Prima';
     }

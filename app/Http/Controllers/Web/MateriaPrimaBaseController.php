@@ -102,6 +102,15 @@ class MateriaPrimaBaseController extends Controller
         ]);
 
         if ($validator->fails()) {
+            // Si es una petición AJAX, retornar JSON
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
@@ -116,8 +125,17 @@ class MateriaPrimaBaseController extends Controller
             $unidad = UnitOfMeasure::findOrFail($request->unit_id);
             
             // Sincronizar la secuencia y obtener el siguiente ID
-            $maxId = DB::table('raw_material_base')->max('material_id') ?? 0;
-            DB::statement("SELECT setval('raw_material_base_seq', {$maxId}, true)");
+            $maxId = DB::table('raw_material_base')->max('material_id');
+            
+            // Solo sincronizar la secuencia si hay registros existentes
+            // Si no hay registros, PostgreSQL manejará automáticamente el siguiente valor
+            if ($maxId !== null && $maxId > 0) {
+                // Sincronizar la secuencia con el máximo ID existente
+                // El tercer parámetro 'true' hace que el siguiente nextval devuelva maxId + 1
+                DB::statement("SELECT setval('raw_material_base_seq', {$maxId}, true)");
+            }
+            
+            // Obtener el siguiente ID de la secuencia
             $nextId = DB::selectOne("SELECT nextval('raw_material_base_seq') as id")->id;
             
             // Generar código automáticamente
@@ -126,9 +144,10 @@ class MateriaPrimaBaseController extends Controller
             // Crear usando SQL directo para evitar conflictos
             $materialId = DB::selectOne("
                 INSERT INTO raw_material_base (material_id, category_id, unit_id, code, name, description, available_quantity, minimum_stock, maximum_stock, active)
-                VALUES (nextval('raw_material_base_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING material_id
             ", [
+                $nextId,
                 $request->category_id,
                 $request->unit_id,
                 $code,
@@ -139,8 +158,6 @@ class MateriaPrimaBaseController extends Controller
                 $request->maximum_stock,
                 true
             ])->material_id;
-            
-            $nextId = $materialId; // Para usar en la respuesta
 
             DB::commit();
 

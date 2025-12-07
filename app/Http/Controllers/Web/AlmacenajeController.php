@@ -13,16 +13,49 @@ class AlmacenajeController extends Controller
 {
     public function index()
     {
-        // Mostrar solo lotes certificados que aún no han sido almacenados
+        // Mostrar TODOS los lotes certificados (incluyendo los ya almacenados)
         $lotes = ProductionBatch::whereHas('latestFinalEvaluation', function($query) {
                 $query->whereRaw("LOWER(reason) NOT LIKE '%falló%'");
             })
-            ->whereDoesntHave('storage') // Solo lotes sin almacenajes previos
             ->with(['order.customer', 'latestFinalEvaluation', 'storage'])
             ->orderBy('creation_date', 'desc')
             ->get();
 
-        return view('almacenaje', compact('lotes'));
+        // Calcular estadísticas sobre TODOS los lotes, no solo los filtrados
+        $allLotes = ProductionBatch::with(['latestFinalEvaluation', 'storage'])->get();
+        
+        // Lotes disponibles para almacenar (certificados sin almacenar)
+        $lotesDisponibles = $allLotes->filter(function($lote) {
+            $eval = $lote->latestFinalEvaluation;
+            $esCertificado = $eval && !str_contains(strtolower($eval->reason ?? ''), 'falló');
+            return $esCertificado && $lote->storage->isEmpty();
+        });
+        
+        // Lotes certificados (todos los que tienen evaluación exitosa)
+        $lotesCertificados = $allLotes->filter(function($lote) {
+            $eval = $lote->latestFinalEvaluation;
+            return $eval && !str_contains(strtolower($eval->reason ?? ''), 'falló');
+        });
+        
+        // Lotes sin certificar (sin evaluación o evaluación fallida)
+        $lotesSinCertificar = $allLotes->filter(function($lote) {
+            $eval = $lote->latestFinalEvaluation;
+            return !$eval || str_contains(strtolower($eval->reason ?? ''), 'falló');
+        });
+        
+        // Lotes ya almacenados
+        $lotesAlmacenados = $allLotes->filter(function($lote) {
+            return $lote->storage->isNotEmpty();
+        });
+
+        $stats = [
+            'disponibles' => $lotesDisponibles->count(),
+            'certificados' => $lotesCertificados->count(),
+            'sin_certificar' => $lotesSinCertificar->count(),
+            'almacenados' => $lotesAlmacenados->count(),
+        ];
+
+        return view('almacenaje', compact('lotes', 'stats'));
     }
 
     public function obtenerAlmacenajesPorLote($batchId)
@@ -61,18 +94,29 @@ class AlmacenajeController extends Controller
                     ->withInput();
             }
 
-            // Validar que la cantidad almacenada sea igual a la cantidad producida
+            // Validar que la cantidad almacenada sea igual a la cantidad producida o objetivo
             $producedQuantity = $batch->produced_quantity ?? 0;
+            $targetQuantity = $batch->target_quantity ?? 0;
+            
+            // Si no hay cantidad producida, usar la cantidad objetivo
+            $expectedQuantity = ($producedQuantity > 0) ? $producedQuantity : $targetQuantity;
             $requestedQuantity = $request->quantity;
 
-            if (abs($requestedQuantity - $producedQuantity) > 0.01) {
+            if ($expectedQuantity > 0 && abs($requestedQuantity - $expectedQuantity) > 0.01) {
+                $tipoCantidad = ($producedQuantity > 0) ? 'producida' : 'objetivo';
                 return redirect()->back()
-                    ->with('error', "La cantidad almacenada ({$requestedQuantity}) debe ser igual a la cantidad producida ({$producedQuantity}).")
+                    ->with('error', "La cantidad almacenada ({$requestedQuantity}) debe ser igual a la cantidad {$tipoCantidad} ({$expectedQuantity}).")
                     ->withInput();
             }
 
             // Sincronizar la secuencia con el máximo ID existente
-            DB::statement("SELECT setval('storage_seq', COALESCE((SELECT MAX(storage_id) FROM storage), 0), true)");
+            $maxStorageId = DB::table('storage')->max('storage_id');
+            
+            // Solo sincronizar la secuencia si hay registros existentes
+            // Si no hay registros, PostgreSQL manejará automáticamente el siguiente valor
+            if ($maxStorageId !== null && $maxStorageId > 0) {
+                DB::statement("SELECT setval('storage_seq', {$maxStorageId}, true)");
+            }
 
             // Obtener el siguiente ID de la secuencia
             $nextId = DB::selectOne("SELECT nextval('storage_seq') as id")->id;
