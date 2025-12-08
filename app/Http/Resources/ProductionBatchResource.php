@@ -27,7 +27,9 @@ class ProductionBatchResource extends JsonResource
             'observations' => $this->observations,
             'order' => $this->whenLoaded('order'),
             'raw_materials' => BatchRawMaterialResource::collection($this->whenLoaded('rawMaterials')),
+            'final_evaluation' => $this->whenLoaded('finalEvaluation', function() {
+                return $this->finalEvaluation->first();
+            }),
         ];
     }
 }
-

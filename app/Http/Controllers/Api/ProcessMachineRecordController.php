@@ -81,7 +81,13 @@ class ProcessMachineRecordController extends Controller
                 }
 
                 if ($enteredValue !== null) {
-                    if ($enteredValue < $variable->min_value || $enteredValue > $variable->max_value) {
+                    // Only validate min_value if it's set
+                    if ($variable->min_value !== null && $enteredValue < $variable->min_value) {
+                        $meetsStandard = false;
+                        break;
+                    }
+                    // Only validate max_value if it's set
+                    if ($variable->max_value !== null && $enteredValue > $variable->max_value) {
                         $meetsStandard = false;
                         break;
                     }

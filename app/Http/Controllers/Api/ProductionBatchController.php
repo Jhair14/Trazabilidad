@@ -21,7 +21,11 @@ class ProductionBatchController extends Controller
      */
     public function index(Request $request)
     {
-        $batches = ProductionBatch::with(['order.customer', 'rawMaterials.rawMaterial.materialBase'])
+        $batches = ProductionBatch::with([
+            'order.customer', 
+            'rawMaterials.rawMaterial.materialBase',
+            'finalEvaluation'
+        ])
             ->orderBy('creation_date', 'desc')
             ->orderBy('batch_id', 'desc')
             ->paginate($request->get('per_page', 15));
@@ -38,6 +42,7 @@ class ProductionBatchController extends Controller
         $productionBatch->load([
             'order.customer',
             'rawMaterials.rawMaterial.materialBase',
+            'finalEvaluation',
             // Commented out until these tables are created:
             // 'processMachineRecords.processMachine.machine',
             // 'finalEvaluation.inspector',
@@ -412,7 +417,10 @@ class ProductionBatchController extends Controller
                 'finalEvaluation.inspector'
             ])->findOrFail($batchId);
 
-            if (!$batch->finalEvaluation) {
+            // Get the final evaluation (it's a collection, so get first)
+            $finalEvaluation = $batch->finalEvaluation->first();
+            
+            if (!$finalEvaluation) {
                 return response()->json([
                     'message' => 'El lote aún no ha sido evaluado'
                 ], 404);
@@ -436,15 +444,15 @@ class ProductionBatchController extends Controller
 
             // Format final result
             $finalResult = [
-                'status' => str_contains(strtolower($batch->finalEvaluation->reason ?? ''), 'falló') 
+                'status' => str_contains(strtolower($finalEvaluation->reason ?? ''), 'falló') 
                     ? 'No Certificado' 
                     : 'Certificado',
-                'reason' => $batch->finalEvaluation->reason ?? 'N/A',
-                'evaluation_date' => $batch->finalEvaluation->evaluation_date 
-                    ? $batch->finalEvaluation->evaluation_date->toDateTimeString() 
+                'reason' => $finalEvaluation->reason ?? 'N/A',
+                'evaluation_date' => $finalEvaluation->evaluation_date 
+                    ? $finalEvaluation->evaluation_date->toDateTimeString() 
                     : null,
-                'inspector' => $batch->finalEvaluation->inspector 
-                    ? $batch->finalEvaluation->inspector->name 
+                'inspector' => $finalEvaluation->inspector 
+                    ? $finalEvaluation->inspector->name 
                     : 'N/A',
             ];
 
