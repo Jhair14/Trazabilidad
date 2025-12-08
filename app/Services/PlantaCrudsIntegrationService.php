@@ -20,9 +20,10 @@ class PlantaCrudsIntegrationService
      * Send approved order to PlantaCruds for shipping
      * 
      * @param CustomerOrder $order
+     * @param \App\Models\Storage|null $storage Storage record with pickup location
      * @return array Array of results, one per destination
      */
-    public function sendOrderToShipping(CustomerOrder $order): array
+    public function sendOrderToShipping(CustomerOrder $order, ?\App\Models\Storage $storage = null): array
     {
         // Load all relations
         $order->load([
@@ -36,7 +37,7 @@ class PlantaCrudsIntegrationService
         // Create one Envio per destination
         foreach ($order->destinations as $destination) {
             try {
-                $envioData = $this->buildEnvioData($order, $destination);
+                $envioData = $this->buildEnvioData($order, $destination, $storage);
                 $response = $this->createEnvio($envioData);
 
                 $results[] = [
@@ -81,9 +82,10 @@ class PlantaCrudsIntegrationService
      * 
      * @param CustomerOrder $order
      * @param OrderDestination $destination
+     * @param \App\Models\Storage|null $storage Storage record with pickup location
      * @return array
      */
-    private function buildEnvioData(CustomerOrder $order, OrderDestination $destination): array
+    private function buildEnvioData(CustomerOrder $order, OrderDestination $destination, ?\App\Models\Storage $storage = null): array
     {
         // Prioridad: almacen_destino_id (seleccionado en UI) > almacen_origen_id (legacy) > buscar/crear
         if (!empty($destination->almacen_destino_id)) {
@@ -94,7 +96,16 @@ class PlantaCrudsIntegrationService
             $almacenId = $destination->almacen_origen_id;
         } else {
             // Fallback: buscar o crear almacén basado en la ubicación
-            $almacenId = $this->findOrCreateAlmacen($destination);
+            // Si hay storage con ubicación de recojo, usar esa ubicación
+            if ($storage && $storage->pickup_latitude && $storage->pickup_longitude) {
+                $almacenId = $this->findOrCreateAlmacenByCoordinates(
+                    $storage->pickup_latitude,
+                    $storage->pickup_longitude,
+                    $storage->pickup_address
+                );
+            } else {
+                $almacenId = $this->findOrCreateAlmacen($destination);
+            }
         }
 
         // Build products array
@@ -117,7 +128,7 @@ class PlantaCrudsIntegrationService
             'categoria' => 'general',
             'fecha_estimada_entrega' => $order->delivery_date ?? now()->addDays(3)->format('Y-m-d'),
             'hora_estimada' => '14:00', // Default time
-            'observaciones' => $this->buildObservations($order, $destination),
+            'observaciones' => $this->buildObservations($order, $destination, $storage),
             'productos' => $productos,
         ];
     }
@@ -127,9 +138,10 @@ class PlantaCrudsIntegrationService
      * 
      * @param CustomerOrder $order
      * @param OrderDestination $destination
+     * @param \App\Models\Storage|null $storage Storage record with pickup location
      * @return string
      */
-    private function buildObservations(CustomerOrder $order, OrderDestination $destination): string
+    private function buildObservations(CustomerOrder $order, OrderDestination $destination, ?\App\Models\Storage $storage = null): string
     {
         $obs = "Pedido: {$order->order_number}\n";
         $obs .= "Cliente: {$order->customer->business_name}\n";
@@ -138,8 +150,20 @@ class PlantaCrudsIntegrationService
             $obs .= "Notas: {$order->observations}\n";
         }
 
+        // Agregar información de ubicación de recojo si está disponible
+        if ($storage && $storage->pickup_address) {
+            $obs .= "\n📍 UBICACIÓN DE RECOJO:\n";
+            $obs .= "Dirección: {$storage->pickup_address}\n";
+            if ($storage->pickup_reference) {
+                $obs .= "Referencia: {$storage->pickup_reference}\n";
+            }
+            if ($storage->pickup_latitude && $storage->pickup_longitude) {
+                $obs .= "Coordenadas: {$storage->pickup_latitude}, {$storage->pickup_longitude}\n";
+            }
+        }
+
         if ($destination->delivery_instructions) {
-            $obs .= "Instrucciones: {$destination->delivery_instructions}\n";
+            $obs .= "\nInstrucciones de entrega: {$destination->delivery_instructions}\n";
         }
 
         if ($destination->contact_name) {
@@ -151,13 +175,84 @@ class PlantaCrudsIntegrationService
         }
 
         if ($destination->address) {
-            $obs .= "Dirección: {$destination->address}";
+            $obs .= "Dirección de entrega: {$destination->address}";
             if ($destination->reference) {
                 $obs .= " ({$destination->reference})";
             }
         }
 
         return trim($obs);
+    }
+
+    /**
+     * Find almacen by coordinates
+     * 
+     * @param float $latitude
+     * @param float $longitude
+     * @param string|null $address
+     * @return int
+     * @throws \Exception
+     */
+    private function findOrCreateAlmacenByCoordinates(float $latitude, float $longitude, ?string $address = null): int
+    {
+        try {
+            $response = Http::timeout(10)->get("{$this->apiUrl}/almacenes");
+
+            if ($response->successful()) {
+                $almacenes = $response->json('data', []);
+
+                // Try to find by coordinates
+                foreach ($almacenes as $almacen) {
+                    if (
+                        isset($almacen['latitud']) && isset($almacen['longitud']) &&
+                        $this->coordinatesMatch(
+                            $almacen['latitud'],
+                            $almacen['longitud'],
+                            $latitude,
+                            $longitude
+                        )
+                    ) {
+                        Log::info('Found almacen by pickup coordinates', [
+                            'almacen_id' => $almacen['id'],
+                            'almacen_nombre' => $almacen['nombre'],
+                        ]);
+                        return $almacen['id'];
+                    }
+                }
+
+                // Try to find by address match
+                if ($address) {
+                    foreach ($almacenes as $almacen) {
+                        $almacenAddress = $almacen['direccion_completa'] ?? $almacen['nombre'] ?? '';
+                        if (
+                            stripos($almacenAddress, $address) !== false ||
+                            stripos($address, $almacenAddress) !== false
+                        ) {
+                            Log::info('Found almacen by pickup address match', [
+                                'almacen_id' => $almacen['id'],
+                                'almacen_nombre' => $almacen['nombre'],
+                            ]);
+                            return $almacen['id'];
+                        }
+                    }
+                }
+
+                // Use first active non-plant almacen
+                foreach ($almacenes as $almacen) {
+                    if (($almacen['activo'] ?? true) && !($almacen['es_planta'] ?? false)) {
+                        Log::warning('No matching almacen found for pickup location, using default', [
+                            'almacen_id' => $almacen['id'],
+                            'pickup_address' => $address,
+                        ]);
+                        return $almacen['id'];
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to fetch almacenes list for pickup location', ['error' => $e->getMessage()]);
+        }
+
+        throw new \Exception("No hay almacenes disponibles en plantaCruds para la ubicación de recojo: {$address}");
     }
 
     /**

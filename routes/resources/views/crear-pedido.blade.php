@@ -79,32 +79,6 @@
                                       rows="2" placeholder="Descripción general del pedido...">{{ old('description') }}</textarea>
                         </div>
                         
-                        <!-- Origen y Destino - Formato idéntico a PlantaCruds -->
-                        <div class="alert alert-info mb-3">
-                            <i class="fas fa-info-circle"></i> <strong>Origen:</strong> 
-                            Todos los envíos salen desde la Planta Principal de PlantaCruds
-                        </div>
-                        
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label><i class="fas fa-industry text-success"></i> Origen (Planta) - Solo lectura</label>
-                                    @if(!empty($planta))
-                                        <input type="text" class="form-control bg-light" 
-                                               value="{{ $planta['nombre'] ?? 'Planta Principal' }}" readonly>
-                                        <small class="text-muted">
-                                            📍 {{ $planta['direccion_completa'] ?? $planta['direccion'] ?? 'Santa Cruz, Bolivia' }}
-                                        </small>
-                                    @else
-                                        <input type="text" class="form-control bg-light" 
-                                               value="Planta Principal (PlantaCruds)" readonly>
-                                        <small class="text-muted">
-                                            📍 El origen se determinará automáticamente desde PlantaCruds
-                                        </small>
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
                         <hr class="my-4">
                         
                         <h5 class="mb-3"><i class="fas fa-box"></i> Productos</h5>
@@ -626,19 +600,6 @@ function addDestination(silent = false) {
                 </button>
             </div>
             <div class="card-body">
-                <!-- Selector de Almacén Destino (Integración PlantaCruds) -->
-                <div class="form-group">
-                    <label><i class="fas fa-warehouse text-primary"></i> Almacén Destino (PlantaCruds) <span class="text-danger">*</span></label>
-                    <select class="form-control almacen-destino-select" 
-                            name="destinations[${destinationIndex}][almacen_destino_id]" 
-                            required
-                            onchange="updateDestinationFromAlmacen(${destinationIndex}, this)">
-                        <option value="">-- Seleccione almacén destino --</option>
-                        ${almacenesDestinoOptions}
-                    </select>
-                    <small class="text-muted almacen-direccion-info"></small>
-                </div>
-                
                 <div class="form-group">
                     <label>Dirección <span class="text-danger">*</span></label>
                     <div class="input-group">
@@ -1059,7 +1020,7 @@ function openMap(destIndex) {
     
     setTimeout(() => {
         if (!map) {
-            map = L.map('map').setView([4.6097, -74.0817], 13); // Bogotá por defecto
+            map = L.map('map').setView([-17.8146, -63.1561], 13); // Santa Cruz de la Sierra, Bolivia
             
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors'

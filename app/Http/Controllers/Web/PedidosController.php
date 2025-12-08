@@ -101,8 +101,7 @@ class PedidosController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Obtener planta (origen) y almacenes destino desde plantaCruds
-        $planta = null;
+        // Obtener almacenes destino desde plantaCruds
         $almacenesDestino = [];
 
         try {
@@ -111,9 +110,8 @@ class PedidosController extends Controller
             if ($resp->successful()) {
                 $almacenes = $resp->json('data', []);
                 foreach ($almacenes as $alm) {
-                    if (!empty($alm['es_planta']) && $alm['es_planta']) {
-                        $planta = $alm;
-                    } else {
+                    // Solo almacenes destino (no plantas)
+                    if (empty($alm['es_planta']) || !$alm['es_planta']) {
                         $almacenesDestino[] = $alm;
                     }
                 }
@@ -122,7 +120,7 @@ class PedidosController extends Controller
             \Log::warning('No se pudieron obtener almacenes de plantaCruds: ' . $e->getMessage());
         }
 
-        return view('crear-pedido', compact('products', 'planta', 'almacenesDestino'));
+        return view('crear-pedido', compact('products', 'almacenesDestino'));
     }
 
     public function crearPedido(Request $request)
@@ -148,8 +146,8 @@ class PedidosController extends Controller
             'products.*.quantity' => 'required|integer|min:1',
             'products.*.observations' => 'nullable|string',
             'destinations' => 'required|array|min:1',
-            'destinations.*.almacen_destino_id' => 'required|integer',
-            'destinations.*.address' => 'nullable|string|max:500',
+            'destinations.*.almacen_destino_id' => 'nullable|integer',
+            'destinations.*.address' => 'required|string|max:500',
             'destinations.*.latitude' => 'nullable|numeric|between:-90,90',
             'destinations.*.longitude' => 'nullable|numeric|between:-180,180',
             'destinations.*.reference' => 'nullable|string|max:200',
@@ -160,6 +158,23 @@ class PedidosController extends Controller
             'destinations.*.products.*.order_product_index' => 'required|integer|min:0',
             'destinations.*.products.*.quantity' => 'required|integer|min:1',
             'almacen_id' => 'nullable|integer',
+        ], [
+            'name.required' => 'El nombre del pedido es obligatorio.',
+            'products.required' => 'Debe agregar al menos un producto al pedido.',
+            'products.min' => 'Debe agregar al menos un producto al pedido.',
+            'products.*.product_id.required' => 'Debe seleccionar un producto.',
+            'products.*.product_id.exists' => 'El producto seleccionado no existe.',
+            'products.*.quantity.required' => 'Debe especificar la cantidad del producto.',
+            'products.*.quantity.min' => 'La cantidad debe ser mayor a 0.',
+            'destinations.required' => 'Debe agregar al menos un destino para el pedido.',
+            'destinations.min' => 'Debe agregar al menos un destino para el pedido.',
+            'destinations.*.address.required' => 'La dirección del destino es obligatoria. Por favor, ingrese la dirección o seleccione una ubicación en el mapa.',
+            'destinations.*.address.max' => 'La dirección no puede exceder los 500 caracteres.',
+            'destinations.*.products.required' => 'Debe asignar al menos un producto a este destino.',
+            'destinations.*.products.min' => 'Debe asignar al menos un producto a este destino.',
+            'destinations.*.products.*.order_product_index.required' => 'Debe seleccionar un producto válido.',
+            'destinations.*.products.*.quantity.required' => 'Debe especificar la cantidad para este producto.',
+            'destinations.*.products.*.quantity.min' => 'La cantidad debe ser mayor a 0.',
         ]);
 
         if ($validator->fails()) {
@@ -270,8 +285,6 @@ class PedidosController extends Controller
                     'contact_name' => $destData['contact_name'] ?? null,
                     'contact_phone' => $destData['contact_phone'] ?? null,
                     'delivery_instructions' => $destData['delivery_instructions'] ?? null,
-                    'almacen_origen_id' => $selectedAlmacenId ?? null,
-                    'almacen_origen_nombre' => $almacenName ?? null,
                     'almacen_destino_id' => $almacenDestinoId,
                     'almacen_destino_nombre' => $almacenDestinoNombre,
                 ]);
@@ -438,17 +451,15 @@ class PedidosController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Obtener planta y almacenes destino
-        $planta = null;
+        // Obtener almacenes destino
         $almacenesDestino = [];
         try {
             $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost/plantaCruds/public/api');
             $resp = Http::timeout(5)->get("{$apiUrl}/almacenes");
             if ($resp->successful()) {
                 foreach ($resp->json('data', []) as $alm) {
-                    if (!empty($alm['es_planta']) && $alm['es_planta']) {
-                        $planta = $alm;
-                    } else {
+                    // Solo almacenes destino (no plantas)
+                    if (empty($alm['es_planta']) || !$alm['es_planta']) {
                         $almacenesDestino[] = $alm;
                     }
                 }
@@ -457,7 +468,7 @@ class PedidosController extends Controller
             \Log::warning('No se pudieron obtener almacenes de plantaCruds en edit: ' . $e->getMessage());
         }
 
-        return view('editar-pedido', compact('pedido', 'products', 'planta', 'almacenesDestino'));
+        return view('editar-pedido', compact('pedido', 'products', 'almacenesDestino'));
     }
 
     public function update(Request $request, $id)
@@ -495,8 +506,8 @@ class PedidosController extends Controller
             'products.*.quantity' => 'required|numeric|min:0.0001',
             'products.*.observations' => 'nullable|string',
             'destinations' => 'required|array|min:1',
-            'destinations.*.almacen_destino_id' => 'required|integer',
-            'destinations.*.address' => 'nullable|string|max:500',
+            'destinations.*.almacen_destino_id' => 'nullable|integer',
+            'destinations.*.address' => 'required|string|max:500',
             'destinations.*.latitude' => 'nullable|numeric|between:-90,90',
             'destinations.*.longitude' => 'nullable|numeric|between:-180,180',
             'destinations.*.reference' => 'nullable|string|max:200',
@@ -506,6 +517,23 @@ class PedidosController extends Controller
             'destinations.*.products' => 'required|array|min:1',
             'destinations.*.products.*.order_product_index' => 'required|integer|min:0',
             'destinations.*.products.*.quantity' => 'required|numeric|min:0.0001',
+        ], [
+            'name.required' => 'El nombre del pedido es obligatorio.',
+            'products.required' => 'Debe agregar al menos un producto al pedido.',
+            'products.min' => 'Debe agregar al menos un producto al pedido.',
+            'products.*.product_id.required' => 'Debe seleccionar un producto.',
+            'products.*.product_id.exists' => 'El producto seleccionado no existe.',
+            'products.*.quantity.required' => 'Debe especificar la cantidad del producto.',
+            'products.*.quantity.min' => 'La cantidad debe ser mayor a 0.',
+            'destinations.required' => 'Debe agregar al menos un destino para el pedido.',
+            'destinations.min' => 'Debe agregar al menos un destino para el pedido.',
+            'destinations.*.address.required' => 'La dirección del destino es obligatoria. Por favor, ingrese la dirección o seleccione una ubicación en el mapa.',
+            'destinations.*.address.max' => 'La dirección no puede exceder los 500 caracteres.',
+            'destinations.*.products.required' => 'Debe asignar al menos un producto a este destino.',
+            'destinations.*.products.min' => 'Debe asignar al menos un producto a este destino.',
+            'destinations.*.products.*.order_product_index.required' => 'Debe seleccionar un producto válido.',
+            'destinations.*.products.*.quantity.required' => 'Debe especificar la cantidad para este producto.',
+            'destinations.*.products.*.quantity.min' => 'La cantidad debe ser mayor a 0.',
         ]);
 
         if ($validator->fails()) {
@@ -612,8 +640,6 @@ class PedidosController extends Controller
                     'contact_name' => $destData['contact_name'] ?? null,
                     'contact_phone' => $destData['contact_phone'] ?? null,
                     'delivery_instructions' => $destData['delivery_instructions'] ?? null,
-                    'almacen_origen_id' => $selectedAlmacenId ?? null,
-                    'almacen_origen_nombre' => $almacenName ?? null,
                     'almacen_destino_id' => $almacenDestinoId,
                     'almacen_destino_nombre' => $almacenDestinoNombre,
                 ]);

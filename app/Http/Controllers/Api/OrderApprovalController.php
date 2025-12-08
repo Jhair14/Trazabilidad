@@ -214,61 +214,7 @@ class OrderApprovalController extends Controller
 
             DB::commit();
 
-            // Integración con plantaCruds - Enviar pedido aprobado
-            $enviosCreated = [];
-            $integrationErrors = [];
-            
-            try {
-                $integrationService = new PlantaCrudsIntegrationService();
-                $results = $integrationService->sendOrderToShipping($order);
-                
-                // Guardar tracking de cada destino
-                foreach ($results as $result) {
-                    $trackingData = [
-                        'order_id' => $order->order_id,
-                        'destination_id' => $result['destination_id'],
-                        'status' => $result['success'] ? 'success' : 'failed',
-                    ];
-                    
-                    if ($result['success']) {
-                        $trackingData['envio_id'] = $result['envio_id'];
-                        $trackingData['envio_codigo'] = $result['envio_codigo'];
-                        $trackingData['response_data'] = $result['response'] ?? null;
-                        $enviosCreated[] = [
-                            'destination_id' => $result['destination_id'],
-                            'envio_codigo' => $result['envio_codigo'],
-                        ];
-                    } else {
-                        $trackingData['error_message'] = $result['error'];
-                        $integrationErrors[] = [
-                            'destination_id' => $result['destination_id'],
-                            'error' => $result['error'],
-                        ];
-                    }
-                    
-                    OrderEnvioTracking::create($trackingData);
-                }
-                
-                Log::info('PlantaCruds integration completed', [
-                    'order_id' => $order->order_id,
-                    'order_number' => $order->order_number,
-                    'total_destinations' => count($results),
-                    'successful' => count($enviosCreated),
-                    'failed' => count($integrationErrors),
-                ]);
-                
-            } catch (\Exception $e) {
-                Log::error('PlantaCruds integration failed', [
-                    'order_id' => $order->order_id,
-                    'order_number' => $order->order_number,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-                
-                $integrationErrors[] = [
-                    'error' => 'Error general de integración: ' . $e->getMessage(),
-                ];
-            }
+            // NOTA: El envío a plantaCruds ahora se realiza al almacenar el lote, no al aprobar el pedido
 
             $response = [
                 'message' => 'Pedido aprobado exitosamente',
@@ -296,6 +242,8 @@ class OrderApprovalController extends Controller
         }
     }
 }
+
+
 
 
 

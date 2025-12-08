@@ -138,7 +138,7 @@
                             <textarea name="observations" id="observations" class="form-control" rows="3" 
                                       placeholder="Observaciones sobre la certificación..."></textarea>
                         </div>
-                        <button type="submit" class="btn btn-success btn-lg" onclick="return confirm('¿Desea finalizar y certificar este proceso?')">
+                        <button type="button" class="btn btn-success btn-lg" data-toggle="modal" data-target="#modalConfirmarFinalizacion">
                             <i class="fas fa-check-circle mr-1"></i> Finalizar Proceso
                         </button>
                     </form>
@@ -149,5 +149,55 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de Confirmación para Finalizar Proceso -->
+<div class="modal fade" id="modalConfirmarFinalizacion" tabindex="-1" role="dialog" aria-labelledby="modalConfirmarFinalizacionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="modalConfirmarFinalizacionLabel">
+                    <i class="fas fa-check-circle mr-2"></i>Confirmar Finalización y Certificación
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <h5>¿Desea finalizar y certificar este proceso?</h5>
+                    <p class="text-muted mt-3">
+                        Esta acción finalizará el proceso de transformación y certificará el lote. 
+                        Una vez certificado, el lote estará disponible para almacenamiento.
+                    </p>
+                    <div class="alert alert-info mt-3">
+                        <strong>Lote:</strong> {{ $batch->batch_code ?? $batch->batch_id }}<br>
+                        <strong>Nombre:</strong> {{ $batch->name ?? 'Sin nombre' }}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-success" id="btnConfirmarFinalizacion">
+                    <i class="fas fa-check-circle mr-1"></i> Sí, Finalizar y Certificar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    // Cuando se confirma en el modal, enviar el formulario
+    $('#btnConfirmarFinalizacion').on('click', function() {
+        $('#finalizarProcesoForm').submit();
+    });
+});
+</script>
+@endpush
 

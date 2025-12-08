@@ -85,25 +85,6 @@
                                       rows="2" placeholder="Descripción general del pedido...">{{ old('description', $pedido->description) }}</textarea>
                         </div>
 
-                        <div class="form-group mb-4">
-                            <label for="almacen_id">Almacén de Origen (desde PlantaCruds)</label>
-                            @php
-                                $selectedAlmacen = old('almacen_id') ?? ($pedido->destinations->first()->almacen_origen_id ?? null);
-                            @endphp
-                            @if(!empty($almacenes) && count($almacenes) > 0)
-                                <select class="form-control" id="almacen_id" name="almacen_id">
-                                    <option value="">-- Seleccione almacén (opcional) --</option>
-                                    @foreach($almacenes as $alm)
-                                        <option value="{{ $alm['id'] }}" {{ $selectedAlmacen == $alm['id'] ? 'selected' : '' }}>
-                                            {{ $alm['nombre'] ?? ($alm['nombre_comercial'] ?? 'Almacén ' . $alm['id']) }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            @else
-                                <div class="alert alert-info">No se encontraron almacenes desde PlantaCruds. El sistema intentará seleccionar uno automáticamente al aprobar el pedido.</div>
-                            @endif
-                        </div>
-                        
                         <hr class="my-4">
                         
                         <h5 class="mb-3"><i class="fas fa-box"></i> Productos</h5>
@@ -1163,7 +1144,7 @@ function openMap(destIndex) {
     
     setTimeout(() => {
         if (!map) {
-            map = L.map('map').setView([4.6097, -74.0817], 13); // Bogotá por defecto
+            map = L.map('map').setView([-17.8146, -63.1561], 13); // Santa Cruz de la Sierra, Bolivia
             
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors'

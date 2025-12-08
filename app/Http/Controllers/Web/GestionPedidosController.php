@@ -125,30 +125,10 @@ class GestionPedidosController extends Controller
 
             DB::commit();
 
-            // Enviar pedidos a plantaCruds para crear envíos
-            try {
-                $integration = new PlantaCrudsIntegrationService();
-                $results = $integration->sendOrderToShipping($order);
-
-                // Guardar tracking por cada resultado
-                foreach ($results as $res) {
-                    OrderEnvioTracking::create([
-                        'order_id' => $order->order_id,
-                        'destination_id' => $res['destination_id'] ?? null,
-                        'envio_id' => $res['envio_id'] ?? null,
-                        'envio_codigo' => $res['envio_codigo'] ?? null,
-                        'status' => $res['success'] ? 'success' : 'failed',
-                        'error_message' => $res['success'] ? null : ($res['error'] ?? 'Unknown error'),
-                        'request_data' => $res['response']['request'] ?? null,
-                        'response_data' => $res['response'] ?? null,
-                    ]);
-                }
-            } catch (\Exception $e) {
-                \Log::error('Error integrando con plantaCruds al aprobar pedido: ' . $e->getMessage(), ['order_id' => $order->order_id]);
-            }
+            // NOTA: El envío a plantaCruds ahora se realiza al almacenar el lote, no al aprobar el pedido
 
             return redirect()->route('gestion-pedidos.show', $orderId)
-                ->with('success', 'Pedido aprobado exitosamente');
+                ->with('success', 'Pedido aprobado exitosamente. El envío se creará cuando se almacene el lote.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()

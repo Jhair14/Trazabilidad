@@ -18,12 +18,18 @@ class Storage extends Model
         'condition',
         'quantity',
         'observations',
+        'pickup_latitude',
+        'pickup_longitude',
+        'pickup_address',
+        'pickup_reference',
         'storage_date',
         'retrieval_date'
     ];
 
     protected $casts = [
         'quantity' => 'decimal:4',
+        'pickup_latitude' => 'decimal:8',
+        'pickup_longitude' => 'decimal:8',
         'storage_date' => 'datetime',
         'retrieval_date' => 'datetime',
     ];
