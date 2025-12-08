@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CustomerOrder;
 use App\Models\OrderProduct;
+use App\Models\OrderEnvioTracking;
+use App\Services\PlantaCrudsIntegrationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderApprovalController extends Controller
 {
@@ -211,10 +214,79 @@ class OrderApprovalController extends Controller
 
             DB::commit();
 
-            return response()->json([
+            // Integración con plantaCruds - Enviar pedido aprobado
+            $enviosCreated = [];
+            $integrationErrors = [];
+            
+            try {
+                $integrationService = new PlantaCrudsIntegrationService();
+                $results = $integrationService->sendOrderToShipping($order);
+                
+                // Guardar tracking de cada destino
+                foreach ($results as $result) {
+                    $trackingData = [
+                        'order_id' => $order->order_id,
+                        'destination_id' => $result['destination_id'],
+                        'status' => $result['success'] ? 'success' : 'failed',
+                    ];
+                    
+                    if ($result['success']) {
+                        $trackingData['envio_id'] = $result['envio_id'];
+                        $trackingData['envio_codigo'] = $result['envio_codigo'];
+                        $trackingData['response_data'] = $result['response'] ?? null;
+                        $enviosCreated[] = [
+                            'destination_id' => $result['destination_id'],
+                            'envio_codigo' => $result['envio_codigo'],
+                        ];
+                    } else {
+                        $trackingData['error_message'] = $result['error'];
+                        $integrationErrors[] = [
+                            'destination_id' => $result['destination_id'],
+                            'error' => $result['error'],
+                        ];
+                    }
+                    
+                    OrderEnvioTracking::create($trackingData);
+                }
+                
+                Log::info('PlantaCruds integration completed', [
+                    'order_id' => $order->order_id,
+                    'order_number' => $order->order_number,
+                    'total_destinations' => count($results),
+                    'successful' => count($enviosCreated),
+                    'failed' => count($integrationErrors),
+                ]);
+                
+            } catch (\Exception $e) {
+                Log::error('PlantaCruds integration failed', [
+                    'order_id' => $order->order_id,
+                    'order_number' => $order->order_number,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                
+                $integrationErrors[] = [
+                    'error' => 'Error general de integración: ' . $e->getMessage(),
+                ];
+            }
+
+            $response = [
                 'message' => 'Pedido aprobado exitosamente',
-                'order' => $order->load('orderProducts.product', 'approver')
-            ]);
+                'order' => $order->load('orderProducts.product', 'approver'),
+            ];
+            
+            if (!empty($enviosCreated)) {
+                $response['envios_created'] = $enviosCreated;
+                $response['integration_success'] = true;
+            }
+            
+            if (!empty($integrationErrors)) {
+                $response['integration_errors'] = $integrationErrors;
+                $response['integration_partial_success'] = !empty($enviosCreated);
+            }
+
+            return response()->json($response);
+            
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([

@@ -79,6 +79,32 @@
                                       rows="2" placeholder="Descripción general del pedido...">{{ old('description') }}</textarea>
                         </div>
                         
+                        <!-- Origen y Destino - Formato idéntico a PlantaCruds -->
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle"></i> <strong>Origen:</strong> 
+                            Todos los envíos salen desde la Planta Principal de PlantaCruds
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label><i class="fas fa-industry text-success"></i> Origen (Planta) - Solo lectura</label>
+                                    @if(!empty($planta))
+                                        <input type="text" class="form-control bg-light" 
+                                               value="{{ $planta['nombre'] ?? 'Planta Principal' }}" readonly>
+                                        <small class="text-muted">
+                                            📍 {{ $planta['direccion_completa'] ?? $planta['direccion'] ?? 'Santa Cruz, Bolivia' }}
+                                        </small>
+                                    @else
+                                        <input type="text" class="form-control bg-light" 
+                                               value="Planta Principal (PlantaCruds)" readonly>
+                                        <small class="text-muted">
+                                            📍 El origen se determinará automáticamente desde PlantaCruds
+                                        </small>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
                         <hr class="my-4">
                         
                         <h5 class="mb-3"><i class="fas fa-box"></i> Productos</h5>
@@ -260,6 +286,50 @@ let destinationProducts = {}; // {destinationIndex: [{index, productId, productN
 let productAssignments = {}; // {productIndex: totalAssigned} - Para rastrear cuánto se ha asignado de cada producto
 let currentProductSelectorDestination = null;
 let isSubmitting = false;
+
+// Datos de almacenes destino desde PlantaCruds
+const almacenesDestino = @json($almacenesDestino ?? []);
+
+// Generar opciones HTML para el selector de almacenes
+let almacenesDestinoOptions = '';
+almacenesDestino.forEach(alm => {
+    const nombre = alm.nombre || alm.nombre_comercial || 'Almacén ' + alm.id;
+    const direccion = alm.direccion_completa || alm.direccion || '';
+    const lat = alm.latitud || '';
+    const lng = alm.longitud || '';
+    almacenesDestinoOptions += `<option value="${alm.id}" data-direccion="${direccion}" data-lat="${lat}" data-lng="${lng}">📦 ${nombre}</option>`;
+});
+
+// Función para actualizar dirección cuando se selecciona un almacén
+function updateDestinationFromAlmacen(destIndex, selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const destinationCard = document.querySelector(`.destination-item[data-index="${destIndex}"]`);
+    
+    if (!destinationCard) return;
+    
+    const direccion = selectedOption.dataset.direccion || '';
+    const lat = selectedOption.dataset.lat || '';
+    const lng = selectedOption.dataset.lng || '';
+    
+    // Actualizar campos de dirección
+    const addressInput = destinationCard.querySelector('.destination-address');
+    const latInput = destinationCard.querySelector('.destination-latitude');
+    const lngInput = destinationCard.querySelector('.destination-longitude');
+    const infoElement = destinationCard.querySelector('.almacen-direccion-info');
+    
+    if (addressInput && direccion) {
+        addressInput.value = direccion;
+    }
+    if (latInput && lat) {
+        latInput.value = lat;
+    }
+    if (lngInput && lng) {
+        lngInput.value = lng;
+    }
+    if (infoElement) {
+        infoElement.innerHTML = direccion ? `📍 ${direccion}` : '';
+    }
+}
 
 // Inicializar productos seleccionados
 document.querySelectorAll('.product-select').forEach(select => {
@@ -549,13 +619,26 @@ function addDestination(silent = false) {
     
     const destinationHtml = `
         <div class="destination-item card mb-3" data-index="${destinationIndex}">
-            <div class="card-header">
-                <h5>Destino ${destinationIndex}</h5>
-                <button type="button" class="btn btn-sm btn-danger float-right" onclick="removeDestination(${destinationIndex})">
-                    <i class="fas fa-times"></i>
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-warehouse"></i> Destino ${destinationIndex}</h5>
+                <button type="button" class="btn btn-sm btn-light float-right" onclick="removeDestination(${destinationIndex})">
+                    <i class="fas fa-times text-danger"></i>
                 </button>
             </div>
             <div class="card-body">
+                <!-- Selector de Almacén Destino (Integración PlantaCruds) -->
+                <div class="form-group">
+                    <label><i class="fas fa-warehouse text-primary"></i> Almacén Destino (PlantaCruds) <span class="text-danger">*</span></label>
+                    <select class="form-control almacen-destino-select" 
+                            name="destinations[${destinationIndex}][almacen_destino_id]" 
+                            required
+                            onchange="updateDestinationFromAlmacen(${destinationIndex}, this)">
+                        <option value="">-- Seleccione almacén destino --</option>
+                        ${almacenesDestinoOptions}
+                    </select>
+                    <small class="text-muted almacen-direccion-info"></small>
+                </div>
+                
                 <div class="form-group">
                     <label>Dirección <span class="text-danger">*</span></label>
                     <div class="input-group">
@@ -597,7 +680,7 @@ function addDestination(silent = false) {
                     <textarea class="form-control" name="destinations[${destinationIndex}][delivery_instructions]" rows="2"></textarea>
                 </div>
                 
-                <h6>Productos para este destino:</h6>
+                <h6><i class="fas fa-box"></i> Productos para este destino:</h6>
                 <div class="destination-products" data-destination-index="${destinationIndex}">
                     <p class="text-muted">No hay productos asignados aún. Use el botón "Agregar Producto" para asignar.</p>
                 </div>

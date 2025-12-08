@@ -274,6 +274,71 @@
                     @endforeach
                 </div>
                 @endif
+
+                <!-- Envíos creados en PlantaCruds -->
+                <h5 class="mb-3 mt-4">Envíos en PlantaCruds</h5>
+                @if(isset($trackings) && $trackings->count() > 0)
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Destino ID</th>
+                                <th>Envío ID</th>
+                                <th>Código</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($trackings as $t)
+                            <tr>
+                                <td>{{ $loop->iteration }}</td>
+                                <td>{{ $t->destination_id ?? 'N/A' }}</td>
+                                <td>{{ $t->envio_id ?? 'N/A' }}</td>
+                                <td>{{ $t->envio_codigo ?? 'N/A' }}</td>
+                                <td>
+                                    @if($t->status == 'success')
+                                        <span class="badge badge-success">Creado</span>
+                                    @elseif($t->status == 'failed')
+                                        <span class="badge badge-danger">Error</span>
+                                    @else
+                                        <span class="badge badge-secondary">{{ ucfirst($t->status) }}</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($t->envio_id)
+                                        <a href="{{ $plantaBase }}/envios/{{ $t->envio_id }}" target="_blank" class="btn btn-sm btn-primary">Ver en PlantaCruds</a>
+                                    @endif
+                                    @if($t->status == 'failed' && $t->error_message)
+                                        <button class="btn btn-sm btn-outline-danger" data-toggle="modal" data-target="#trackErrorModal{{ $t->id }}">Ver error</button>
+                                        <!-- Modal -->
+                                        <div class="modal fade" id="trackErrorModal{{ $t->id }}" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Error Envío #{{ $t->id }}</h5>
+                                                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <pre style="white-space: pre-wrap;">{{ $t->error_message }}</pre>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @else
+                <div class="alert alert-info">No se han creado envíos todavía para este pedido.</div>
+                @endif
             </div>
         </div>
     </div>

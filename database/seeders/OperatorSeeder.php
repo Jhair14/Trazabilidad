@@ -24,6 +24,16 @@ class OperatorSeeder extends Seeder
                 'email' => 'jhair@gmail.com',
                 'active' => true,
             ],
+            [
+                'operator_id' => 2,
+                'role_id' => 1, // ADMIN
+                'first_name' => 'Admin',
+                'last_name' => 'User',
+                'username' => 'admin',
+                'password_hash' => '$2y$12$R5QvNQItfWqSalSFzAoyGeUHA9lAwGyfpw50IgsleDgibPNWFNOby',
+                'email' => 'admin@admin.com',
+                'active' => true,
+            ],
         ];
 
         foreach ($operators as $operatorData) {

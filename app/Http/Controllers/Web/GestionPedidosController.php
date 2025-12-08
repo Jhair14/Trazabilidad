@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\CustomerOrder;
 use App\Models\Customer;
 use App\Models\OrderProduct;
+use App\Models\OrderEnvioTracking;
+use App\Services\PlantaCrudsIntegrationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
@@ -43,7 +45,13 @@ class GestionPedidosController extends Controller
             'approver'
         ])->findOrFail($id);
 
-        return view('gestion-pedidos-detalle', compact('pedido'));
+        $trackings = OrderEnvioTracking::where('order_id', $pedido->order_id)->orderBy('created_at', 'desc')->get();
+
+        // Base web URL of PlantaCruds (try to derive from API URL)
+        $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost/plantaCruds/public/api');
+        $plantaBase = rtrim(str_replace('/api', '', $apiUrl), '/');
+
+        return view('gestion-pedidos-detalle', compact('pedido', 'trackings', 'plantaBase'));
     }
 
     public function update(Request $request, $id)
@@ -116,6 +124,28 @@ class GestionPedidosController extends Controller
             ]);
 
             DB::commit();
+
+            // Enviar pedidos a plantaCruds para crear envíos
+            try {
+                $integration = new PlantaCrudsIntegrationService();
+                $results = $integration->sendOrderToShipping($order);
+
+                // Guardar tracking por cada resultado
+                foreach ($results as $res) {
+                    OrderEnvioTracking::create([
+                        'order_id' => $order->order_id,
+                        'destination_id' => $res['destination_id'] ?? null,
+                        'envio_id' => $res['envio_id'] ?? null,
+                        'envio_codigo' => $res['envio_codigo'] ?? null,
+                        'status' => $res['success'] ? 'success' : 'failed',
+                        'error_message' => $res['success'] ? null : ($res['error'] ?? 'Unknown error'),
+                        'request_data' => $res['response']['request'] ?? null,
+                        'response_data' => $res['response'] ?? null,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error integrando con plantaCruds al aprobar pedido: ' . $e->getMessage(), ['order_id' => $order->order_id]);
+            }
 
             return redirect()->route('gestion-pedidos.show', $orderId)
                 ->with('success', 'Pedido aprobado exitosamente');

@@ -11,7 +11,7 @@ class OrderDestination extends Model
     protected $table = 'order_destination';
     protected $primaryKey = 'destination_id';
     public $timestamps = true;
-    
+
     protected $fillable = [
         'destination_id',
         'order_id',
@@ -21,7 +21,11 @@ class OrderDestination extends Model
         'longitude',
         'contact_name',
         'contact_phone',
-        'delivery_instructions'
+        'delivery_instructions',
+        'almacen_origen_id',
+        'almacen_origen_nombre',
+        'almacen_destino_id',
+        'almacen_destino_nombre'
     ];
 
     protected $casts = [
