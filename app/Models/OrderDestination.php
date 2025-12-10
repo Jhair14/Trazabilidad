@@ -8,20 +8,20 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OrderDestination extends Model
 {
-    protected $table = 'order_destination';
-    protected $primaryKey = 'destination_id';
+    protected $table = 'destino_pedido';
+    protected $primaryKey = 'destino_id';
     public $timestamps = true;
 
     protected $fillable = [
-        'destination_id',
-        'order_id',
-        'address',
-        'reference',
-        'latitude',
-        'longitude',
-        'contact_name',
-        'contact_phone',
-        'delivery_instructions',
+        'destino_id',
+        'pedido_id',
+        'direccion',
+        'referencia',
+        'latitud',
+        'longitud',
+        'nombre_contacto',
+        'telefono_contacto',
+        'instrucciones_entrega',
         'almacen_origen_id',
         'almacen_origen_nombre',
         'almacen_destino_id',
@@ -29,18 +29,18 @@ class OrderDestination extends Model
     ];
 
     protected $casts = [
-        'latitude' => 'decimal:8',
-        'longitude' => 'decimal:8',
+        'latitud' => 'decimal:8',
+        'longitud' => 'decimal:8',
     ];
 
     public function order(): BelongsTo
     {
-        return $this->belongsTo(CustomerOrder::class, 'order_id', 'order_id');
+        return $this->belongsTo(CustomerOrder::class, 'pedido_id', 'pedido_id');
     }
 
     public function destinationProducts(): HasMany
     {
-        return $this->hasMany(OrderDestinationProduct::class, 'destination_id', 'destination_id');
+        return $this->hasMany(OrderDestinationProduct::class, 'destino_id', 'destino_id');
     }
 }
 

@@ -74,15 +74,6 @@
                         @if($ultimoPedido->delivery_date)
                         <p><strong>Fecha de entrega:</strong> {{ \Carbon\Carbon::parse($ultimoPedido->delivery_date)->format('d/m/Y') }}</p>
                         @endif
-                        <p><strong>Prioridad:</strong> 
-                            @if($ultimoPedido->priority >= 8)
-                                <span class="badge badge-danger">Alta</span>
-                            @elseif($ultimoPedido->priority >= 5)
-                                <span class="badge badge-warning">Media</span>
-                            @else
-                                <span class="badge badge-info">Normal</span>
-                            @endif
-                        </p>
                     </div>
                     <div class="col-md-6">
                         @php
@@ -149,7 +140,7 @@
                             <h3 class="timeline-header">Materia Prima Solicitada</h3>
                             <div class="timeline-body">
                                 Solicitud #{{ $primeraSolicitud->request_number ?? $primeraSolicitud->request_id }} - 
-                                @if($primeraSolicitud->priority == 0)
+                                @if($primeraSolicitud->estado == 'completada')
                                     <span class="badge badge-success">Completada</span>
                                 @else
                                     <span class="badge badge-warning">Pendiente</span>
@@ -321,7 +312,6 @@
                                 <th>Descripción</th>
                                 <th>Fecha Creación</th>
                                 <th>Fecha Entrega</th>
-                                <th>Prioridad</th>
                                 <th>Estado</th>
                                 <th>Lotes</th>
                                 <th>Acciones</th>
@@ -358,15 +348,6 @@
                                 <td>{{ $pedido->description ?? 'Sin descripción' }}</td>
                                 <td>{{ \Carbon\Carbon::parse($pedido->creation_date)->format('d/m/Y') }}</td>
                                 <td>{{ $pedido->delivery_date ? \Carbon\Carbon::parse($pedido->delivery_date)->format('d/m/Y') : 'N/A' }}</td>
-                                <td>
-                                    @if($pedido->priority >= 8)
-                                        <span class="badge badge-danger">Alta</span>
-                                    @elseif($pedido->priority >= 5)
-                                        <span class="badge badge-warning">Media</span>
-                                    @else
-                                        <span class="badge badge-info">Normal</span>
-                                    @endif
-                                </td>
                                 <td>
                                     @if($estadoPedido === 'Certificado')
                                         <span class="badge badge-success">{{ $estadoPedido }}</span>
@@ -655,14 +636,6 @@ function verDetallesPedido(orderId) {
                                 <td>${data.pedido.delivery_date}</td>
                             </tr>
                             ` : ''}
-                            <tr>
-                                <th>Prioridad</th>
-                                <td>
-                                    ${data.pedido.priority >= 8 ? '<span class="badge badge-danger">Alta</span>' : 
-                                      data.pedido.priority >= 5 ? '<span class="badge badge-warning">Media</span>' : 
-                                      '<span class="badge badge-info">Normal</span>'}
-                                </td>
-                            </tr>
                             ${data.pedido.observations ? `
                             <tr>
                                 <th>Observaciones</th>

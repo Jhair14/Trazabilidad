@@ -9,59 +9,59 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ProductionBatch extends Model
 {
-    protected $table = 'production_batch';
-    protected $primaryKey = 'batch_id';
+    protected $table = 'lote_produccion';
+    protected $primaryKey = 'lote_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'batch_id',
-        'order_id',
-        'batch_code',
-        'name',
-        'creation_date',
-        'start_time',
-        'end_time',
-        'target_quantity',
-        'produced_quantity',
-        'observations'
+        'lote_id',
+        'pedido_id',
+        'codigo_lote',
+        'nombre',
+        'fecha_creacion',
+        'hora_inicio',
+        'hora_fin',
+        'cantidad_objetivo',
+        'cantidad_producida',
+        'observaciones'
     ];
 
     protected $casts = [
-        'creation_date' => 'date',
-        'start_time' => 'datetime',
-        'end_time' => 'datetime',
-        'target_quantity' => 'decimal:4',
-        'produced_quantity' => 'decimal:4',
+        'fecha_creacion' => 'date',
+        'hora_inicio' => 'datetime',
+        'hora_fin' => 'datetime',
+        'cantidad_objetivo' => 'decimal:4',
+        'cantidad_producida' => 'decimal:4',
     ];
 
     public function order(): BelongsTo
     {
-        return $this->belongsTo(CustomerOrder::class, 'order_id', 'order_id');
+        return $this->belongsTo(CustomerOrder::class, 'pedido_id', 'pedido_id');
     }
 
     public function rawMaterials(): HasMany
     {
-        return $this->hasMany(BatchRawMaterial::class, 'batch_id', 'batch_id');
+        return $this->hasMany(BatchRawMaterial::class, 'lote_id', 'lote_id');
     }
 
     public function processMachineRecords(): HasMany
     {
-        return $this->hasMany(ProcessMachineRecord::class, 'batch_id', 'batch_id');
+        return $this->hasMany(ProcessMachineRecord::class, 'lote_id', 'lote_id');
     }
 
     public function finalEvaluation(): HasMany
     {
-        return $this->hasMany(ProcessFinalEvaluation::class, 'batch_id', 'batch_id');
+        return $this->hasMany(ProcessFinalEvaluation::class, 'lote_id', 'lote_id');
     }
 
     public function latestFinalEvaluation(): HasOne
     {
-        return $this->hasOne(ProcessFinalEvaluation::class, 'batch_id', 'batch_id')
-            ->latest('evaluation_date');
+        return $this->hasOne(ProcessFinalEvaluation::class, 'lote_id', 'lote_id')
+            ->latest('fecha_evaluacion');
     }
 
     public function storage(): HasMany
     {
-        return $this->hasMany(Storage::class, 'batch_id', 'batch_id');
+        return $this->hasMany(Storage::class, 'lote_id', 'lote_id');
     }
 }

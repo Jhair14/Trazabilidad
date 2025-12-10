@@ -14,7 +14,7 @@ class OrderEnvioTracking extends Model
      *
      * @var string
      */
-    protected $table = 'order_envio_tracking';
+    protected $table = 'seguimiento_envio_pedido';
 
     /**
      * The attributes that are mass assignable.
@@ -22,14 +22,14 @@ class OrderEnvioTracking extends Model
      * @var array
      */
     protected $fillable = [
-        'order_id',
-        'destination_id',
+        'pedido_id',
+        'destino_id',
         'envio_id',
-        'envio_codigo',
-        'status',
-        'error_message',
-        'request_data',
-        'response_data',
+        'codigo_envio',
+        'estado',
+        'mensaje_error',
+        'datos_solicitud',
+        'datos_respuesta',
     ];
 
     /**
@@ -38,8 +38,8 @@ class OrderEnvioTracking extends Model
      * @var array
      */
     protected $casts = [
-        'request_data' => 'array',
-        'response_data' => 'array',
+        'datos_solicitud' => 'array',
+        'datos_respuesta' => 'array',
     ];
 
     /**
@@ -47,7 +47,7 @@ class OrderEnvioTracking extends Model
      */
     public function order()
     {
-        return $this->belongsTo(CustomerOrder::class, 'order_id', 'order_id');
+        return $this->belongsTo(CustomerOrder::class, 'pedido_id', 'pedido_id');
     }
 
     /**
@@ -55,7 +55,7 @@ class OrderEnvioTracking extends Model
      */
     public function destination()
     {
-        return $this->belongsTo(OrderDestination::class, 'destination_id', 'destination_id');
+        return $this->belongsTo(OrderDestination::class, 'destino_id', 'destino_id');
     }
 
     /**
@@ -63,7 +63,7 @@ class OrderEnvioTracking extends Model
      */
     public function scopeSuccessful($query)
     {
-        return $query->where('status', 'success');
+        return $query->where('estado', 'success');
     }
 
     /**
@@ -71,7 +71,7 @@ class OrderEnvioTracking extends Model
      */
     public function scopeFailed($query)
     {
-        return $query->where('status', 'failed');
+        return $query->where('estado', 'failed');
     }
 
     /**
@@ -79,6 +79,6 @@ class OrderEnvioTracking extends Model
      */
     public function scopePending($query)
     {
-        return $query->where('status', 'pending');
+        return $query->where('estado', 'pending');
     }
 }

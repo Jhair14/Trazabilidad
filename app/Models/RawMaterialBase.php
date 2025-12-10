@@ -8,38 +8,38 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RawMaterialBase extends Model
 {
-    protected $table = 'raw_material_base';
+    protected $table = 'materia_prima_base';
     protected $primaryKey = 'material_id';
     public $timestamps = false;
     
     protected $fillable = [
         'material_id',
-        'category_id',
-        'unit_id',
-        'code',
-        'name',
-        'description',
-        'available_quantity',
-        'minimum_stock',
-        'maximum_stock',
-        'active'
+        'categoria_id',
+        'unidad_id',
+        'codigo',
+        'nombre',
+        'descripcion',
+        'cantidad_disponible',
+        'stock_minimo',
+        'stock_maximo',
+        'activo'
     ];
 
     protected $casts = [
-        'available_quantity' => 'decimal:4',
-        'minimum_stock' => 'decimal:4',
-        'maximum_stock' => 'decimal:4',
-        'active' => 'boolean',
+        'cantidad_disponible' => 'decimal:4',
+        'stock_minimo' => 'decimal:4',
+        'stock_maximo' => 'decimal:4',
+        'activo' => 'boolean',
     ];
 
     public function category(): BelongsTo
     {
-        return $this->belongsTo(RawMaterialCategory::class, 'category_id', 'category_id');
+        return $this->belongsTo(RawMaterialCategory::class, 'categoria_id', 'categoria_id');
     }
 
     public function unit(): BelongsTo
     {
-        return $this->belongsTo(UnitOfMeasure::class, 'unit_id', 'unit_id');
+        return $this->belongsTo(UnitOfMeasure::class, 'unidad_id', 'unidad_id');
     }
 
     public function rawMaterials(): HasMany

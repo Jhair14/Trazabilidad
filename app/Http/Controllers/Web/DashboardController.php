@@ -15,16 +15,16 @@ class DashboardController extends Controller
     {
         // Estadísticas para el dashboard
         $totalLotes = ProductionBatch::count();
-        $lotesPendientes = ProductionBatch::whereNull('start_time')->count();
-        $lotesEnProceso = ProductionBatch::whereNotNull('start_time')
-            ->whereNull('end_time')->count();
-        $lotesCompletados = ProductionBatch::whereNotNull('end_time')->count();
+        $lotesPendientes = ProductionBatch::whereNull('hora_inicio')->count();
+        $lotesEnProceso = ProductionBatch::whereNotNull('hora_inicio')
+            ->whereNull('hora_fin')->count();
+        $lotesCompletados = ProductionBatch::whereNotNull('hora_fin')->count();
         $lotesCertificados = ProductionBatch::whereHas('finalEvaluation', function($query) {
-            $query->whereRaw("LOWER(reason) NOT LIKE '%falló%'");
+            $query->whereRaw("LOWER(razon) NOT LIKE '%falló%'");
         })->count();
         
         $totalPedidos = CustomerOrder::count();
-        $pedidosPendientes = CustomerOrder::where('priority', '>', 0)->count();
+        $pedidosPendientes = CustomerOrder::where('estado', 'pendiente')->count();
         
         $stats = [
             'total_lotes' => $totalLotes,
@@ -34,29 +34,29 @@ class DashboardController extends Controller
             'lotes_certificados' => $lotesCertificados,
             'total_pedidos' => $totalPedidos,
             'pedidos_pendientes' => $pedidosPendientes,
-            'materias_primas' => RawMaterialBase::where('active', true)->count(),
-            'stock_bajo' => RawMaterialBase::whereColumn('available_quantity', '<=', 'minimum_stock')
-                ->where('active', true)->count(),
+            'materias_primas' => RawMaterialBase::where('activo', true)->count(),
+            'stock_bajo' => RawMaterialBase::whereColumn('cantidad_disponible', '<=', 'stock_minimo')
+                ->where('activo', true)->count(),
         ];
 
         // Lotes recientes
         $lotes_recientes = ProductionBatch::with(['order.customer', 'latestFinalEvaluation'])
-            ->orderBy('creation_date', 'desc')
+            ->orderBy('fecha_creacion', 'desc')
             ->limit(5)
             ->get();
 
         // Pedidos recientes
         $pedidos_recientes = CustomerOrder::with('customer')
-            ->orderBy('creation_date', 'desc')
+            ->orderBy('fecha_creacion', 'desc')
             ->limit(5)
             ->get();
 
         // Estadísticas para gráficas
         $pedidosPorEstado = [
-            'pendiente' => CustomerOrder::where('priority', '>', 0)->count(),
+            'pendiente' => CustomerOrder::where('estado', 'pendiente')->count(),
             'materia_prima_solicitada' => 0, // Necesitarías un campo de estado
-            'en_proceso' => ProductionBatch::whereNotNull('start_time')->whereNull('end_time')->count(),
-            'produccion_finalizada' => ProductionBatch::whereNotNull('end_time')->count(),
+            'en_proceso' => ProductionBatch::whereNotNull('hora_inicio')->whereNull('hora_fin')->count(),
+            'produccion_finalizada' => ProductionBatch::whereNotNull('hora_fin')->count(),
             'almacenado' => ProductionBatch::whereHas('storage')->count(),
             'cancelado' => 0,
         ];
@@ -66,7 +66,7 @@ class DashboardController extends Controller
             'en_proceso' => $lotesEnProceso,
             'certificado' => $lotesCertificados,
             'no_certificado' => ProductionBatch::whereHas('finalEvaluation', function($query) {
-                $query->whereRaw("LOWER(reason) LIKE '%falló%'");
+                $query->whereRaw("LOWER(razon) LIKE '%falló%'");
             })->count(),
             'almacenado' => ProductionBatch::whereHas('storage')->count(),
         ];

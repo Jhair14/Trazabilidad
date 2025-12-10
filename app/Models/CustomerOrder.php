@@ -8,63 +8,61 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CustomerOrder extends Model
 {
-    protected $table = 'customer_order';
-    protected $primaryKey = 'order_id';
+    protected $table = 'pedido_cliente';
+    protected $primaryKey = 'pedido_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'order_id',
-        'customer_id',
-        'order_number',
-        'name',
-        'status',
-        'creation_date',
-        'delivery_date',
-        'priority',
-        'description',
-        'observations',
-        'editable_until',
-        'approved_at',
-        'approved_by',
-        'rejection_reason'
+        'pedido_id',
+        'cliente_id',
+        'numero_pedido',
+        'nombre',
+        'estado',
+        'fecha_creacion',
+        'fecha_entrega',
+        'descripcion',
+        'observaciones',
+        'editable_hasta',
+        'aprobado_en',
+        'aprobado_por',
+        'razon_rechazo'
     ];
 
     protected $casts = [
-        'creation_date' => 'date',
-        'delivery_date' => 'date',
-        'priority' => 'integer',
-        'editable_until' => 'datetime',
-        'approved_at' => 'datetime',
+        'fecha_creacion' => 'date',
+        'fecha_entrega' => 'date',
+        'editable_hasta' => 'datetime',
+        'aprobado_en' => 'datetime',
     ];
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class, 'customer_id', 'customer_id');
+        return $this->belongsTo(Customer::class, 'cliente_id', 'cliente_id');
     }
 
     public function batches(): HasMany
     {
-        return $this->hasMany(ProductionBatch::class, 'order_id', 'order_id');
+        return $this->hasMany(ProductionBatch::class, 'pedido_id', 'pedido_id');
     }
 
     public function materialRequests(): HasMany
     {
-        return $this->hasMany(MaterialRequest::class, 'order_id', 'order_id');
+        return $this->hasMany(MaterialRequest::class, 'pedido_id', 'pedido_id');
     }
 
     public function orderProducts(): HasMany
     {
-        return $this->hasMany(OrderProduct::class, 'order_id', 'order_id');
+        return $this->hasMany(OrderProduct::class, 'pedido_id', 'pedido_id');
     }
 
     public function destinations(): HasMany
     {
-        return $this->hasMany(OrderDestination::class, 'order_id', 'order_id');
+        return $this->hasMany(OrderDestination::class, 'pedido_id', 'pedido_id');
     }
 
     public function approver(): BelongsTo
     {
-        return $this->belongsTo(Operator::class, 'approved_by', 'operator_id');
+        return $this->belongsTo(Operator::class, 'aprobado_por', 'operador_id');
     }
 
     /**
@@ -72,11 +70,11 @@ class CustomerOrder extends Model
      */
     public function canBeEdited(): bool
     {
-        if ($this->status !== 'pendiente') {
+        if ($this->estado !== 'pendiente') {
             return false;
         }
 
-        if ($this->editable_until && now()->greaterThan($this->editable_until)) {
+        if ($this->editable_hasta && now()->greaterThan($this->editable_hasta)) {
             return false;
         }
 

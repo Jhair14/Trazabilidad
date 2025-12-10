@@ -44,7 +44,7 @@
                     </div>
                 @endif
 
-                <form id="pedidoForm" method="POST" action="{{ route('mis-pedidos.update', $pedido->order_id) }}" onsubmit="return handleFormSubmit(event)">
+                <form id="pedidoForm" method="POST" action="{{ route('mis-pedidos.update', $pedido->pedido_id) }}" onsubmit="return handleFormSubmit(event)">
                     @csrf
                     @method('PUT')
                     
@@ -55,34 +55,24 @@
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="name">Nombre del Pedido <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="name" name="name" 
-                                           value="{{ old('name', $pedido->name) }}" required placeholder="Ej: Pedido Enero 2025">
+                                    <label for="nombre">Nombre del Pedido <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="nombre" name="nombre" 
+                                           value="{{ old('nombre', $pedido->nombre) }}" required placeholder="Ej: Pedido Enero 2025">
                                 </div>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="delivery_date">Fecha de Entrega Deseada</label>
-                                    <input type="date" class="form-control" id="delivery_date" 
-                                           name="delivery_date" value="{{ old('delivery_date', $pedido->delivery_date ? $pedido->delivery_date->format('Y-m-d') : '') }}" min="{{ date('Y-m-d', strtotime('+1 day')) }}">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="priority">Prioridad</label>
-                                    <select class="form-control" id="priority" name="priority">
-                                        <option value="1" {{ old('priority', $pedido->priority) == 1 ? 'selected' : '' }}>Normal</option>
-                                        <option value="5" {{ old('priority', $pedido->priority) == 5 ? 'selected' : '' }}>Alta</option>
-                                        <option value="10" {{ old('priority', $pedido->priority) == 10 ? 'selected' : '' }}>Urgente</option>
-                                    </select>
+                                    <label for="fecha_entrega">Fecha de Entrega Deseada</label>
+                                    <input type="date" class="form-control" id="fecha_entrega" 
+                                           name="fecha_entrega" value="{{ old('fecha_entrega', $pedido->fecha_entrega ? $pedido->fecha_entrega->format('Y-m-d') : '') }}" min="{{ date('Y-m-d', strtotime('+1 day')) }}">
                                 </div>
                             </div>
                         </div>
                         
                         <div class="form-group mb-4">
-                            <label for="description">Descripción</label>
-                            <textarea class="form-control" id="description" name="description" 
-                                      rows="2" placeholder="Descripción general del pedido...">{{ old('description', $pedido->description) }}</textarea>
+                            <label for="descripcion">Descripción</label>
+                            <textarea class="form-control" id="descripcion" name="descripcion" 
+                                      rows="2" placeholder="Descripción general del pedido...">{{ old('descripcion', $pedido->descripcion) }}</textarea>
                         </div>
 
                         <hr class="my-4">
@@ -100,12 +90,13 @@
                                                 <select class="form-control product-select" name="products[{{ $index }}][product_id]" required>
                                                     <option value="">Seleccione un producto</option>
                                                     @foreach($products as $product)
-                                                        <option value="{{ $product->product_id }}" 
-                                                                data-type="{{ $product->type }}"
-                                                                data-weight="{{ $product->weight }}"
-                                                                data-unit="{{ $product->unit->name ?? '' }}"
-                                                                {{ old('products.' . $index . '.product_id', $orderProduct->product_id) == $product->product_id ? 'selected' : '' }}>
-                                                            {{ $product->name }}
+                                                        <option value="{{ $product->producto_id }}" 
+                                                                data-type="{{ $product->tipo }}"
+                                                                data-weight="{{ $product->peso }}"
+                                                                data-unit="{{ $product->unit->nombre ?? '' }}"
+                                                                data-precio="{{ $product->precio_unitario ?? 0 }}"
+                                                                {{ old('products.' . $index . '.product_id', $orderProduct->producto_id) == $product->producto_id ? 'selected' : '' }}>
+                                                            {{ $product->nombre }} @if($product->precio_unitario) - Bs. {{ number_format($product->precio_unitario, 2) }} @endif
                                                         </option>
                                                     @endforeach
                                                 </select>
@@ -116,14 +107,30 @@
                                                 <label>Cantidad <span class="text-danger">*</span></label>
                                                 <input type="number" class="form-control product-quantity" 
                                                        name="products[{{ $index }}][quantity]" step="1" min="1" 
-                                                       value="{{ old('products.' . $index . '.quantity', intval($orderProduct->quantity)) }}" required>
+                                                       value="{{ old('products.' . $index . '.quantity', intval($orderProduct->cantidad)) }}" required>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-2">
                                             <div class="form-group">
                                                 <label>Unidad</label>
                                                 <input type="text" class="form-control product-unit" 
-                                                       value="{{ $orderProduct->product->unit->name ?? '' }}" readonly>
+                                                       value="{{ $orderProduct->product->unit->nombre ?? '' }}" readonly>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label>Precio Unitario</label>
+                                                <input type="text" class="form-control product-precio-unitario" readonly 
+                                                       value="Bs. {{ number_format($orderProduct->product->precio_unitario ?? 0, 2) }}" 
+                                                       style="font-weight: bold; color: #28a745;">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label>Precio Total</label>
+                                                <input type="text" class="form-control product-precio-total" readonly 
+                                                       value="Bs. {{ number_format($orderProduct->precio ?? ($orderProduct->product->precio_unitario ?? 0) * $orderProduct->cantidad, 2) }}" 
+                                                       style="font-weight: bold; color: #007bff;">
                                             </div>
                                         </div>
                                         <div class="col-md-1">
@@ -137,9 +144,13 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="form-group">
-                                        <label>Observaciones</label>
-                                        <textarea class="form-control" name="products[{{ $index }}][observations]" rows="2">{{ old('products.' . $index . '.observations', $orderProduct->observations) }}</textarea>
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label>Observaciones</label>
+                                                <textarea class="form-control" name="products[{{ $index }}][observations]" rows="2">{{ old('products.' . $index . '.observations', $orderProduct->observations) }}</textarea>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -149,6 +160,36 @@
                         <button type="button" class="btn btn-success mb-3" onclick="addProduct()">
                             <i class="fas fa-plus"></i> Agregar Producto
                         </button>
+                        
+                        <!-- Resumen de Precios -->
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5><i class="fas fa-calculator"></i> Resumen del Pedido</h5>
+                                        <table class="table table-sm">
+                                            <tbody>
+                                                <tr>
+                                                    <td><strong>Total de Productos:</strong></td>
+                                                    <td><span id="totalProductos">{{ $pedido->orderProducts->count() }}</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Cantidad Total:</strong></td>
+                                                    <td><span id="cantidadTotal">{{ number_format($pedido->orderProducts->sum('cantidad'), 2) }}</span></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5><i class="fas fa-money-bill-wave"></i> Total del Pedido</h5>
+                                        <div class="alert alert-info mb-0">
+                                            <h3 class="mb-0" id="precioTotalPedido">Bs. {{ number_format($pedido->orderProducts->sum('precio'), 2) }}</h3>
+                                            <small>Precio total calculado automáticamente</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         
                         <div class="float-right">
                             <button type="button" class="btn btn-primary" onclick="nextStep()">
@@ -263,7 +304,7 @@
 
 <script>
 let currentStep = 1;
-let productIndex = {{ $pedido->orderProducts->count() > 0 ? $pedido->orderProducts->count() - 1 : 0 }};
+let productIndex = {{ $pedido->orderProducts->count() > 0 ? $pedido->orderProducts->count() : 0 }};
 let destinationIndex = 0;
 let currentDestinationIndex = null;
 let map = null;
@@ -274,28 +315,226 @@ let productAssignments = {}; // {productIndex: totalAssigned} - Para rastrear cu
 let currentProductSelectorDestination = null;
 let isSubmitting = false;
 
-// Inicializar productos seleccionados
-document.querySelectorAll('.product-select').forEach(select => {
-    select.addEventListener('change', function() {
-        updateProductUnit(this);
-        updateSelectedProducts();
-    });
-});
+// Función para actualizar precio unitario y total de un producto
+function updateProductPrice(selectElement) {
+    const productItem = selectElement.closest('.product-item');
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const precioUnitario = parseFloat(selectedOption.dataset.precio || 0);
+    const cantidadInput = productItem.querySelector('.product-quantity');
+    const cantidad = parseFloat(cantidadInput.value || 0);
+    
+    const precioUnitarioInput = productItem.querySelector('.product-precio-unitario');
+    const precioTotalInput = productItem.querySelector('.product-precio-total');
+    
+    if (precioUnitarioInput) {
+        precioUnitarioInput.value = `Bs. ${precioUnitario.toFixed(2)}`;
+    }
+    
+    if (precioTotalInput) {
+        const precioTotal = precioUnitario * cantidad;
+        precioTotalInput.value = `Bs. ${precioTotal.toFixed(2)}`;
+    }
+    
+    // Recalcular totales
+    calculateTotals();
+}
 
-document.querySelectorAll('.product-quantity').forEach(input => {
-    input.addEventListener('change', function() {
+// Función para calcular totales del pedido
+function calculateTotals() {
+    let totalProductos = 0;
+    let cantidadTotal = 0;
+    let precioTotalPedido = 0;
+    
+    document.querySelectorAll('.product-item').forEach(item => {
+        const select = item.querySelector('.product-select');
+        const cantidadInput = item.querySelector('.product-quantity');
+        
+        if (select && select.value && cantidadInput && cantidadInput.value) {
+            const selectedOption = select.options[select.selectedIndex];
+            const precioUnitario = parseFloat(selectedOption.dataset.precio || 0);
+            const cantidad = parseFloat(cantidadInput.value || 0);
+            
+            if (cantidad > 0) {
+                totalProductos++;
+                cantidadTotal += cantidad;
+                precioTotalPedido += precioUnitario * cantidad;
+            }
+        }
+    });
+    
+    // Actualizar resumen
+    const totalProductosEl = document.getElementById('totalProductos');
+    const cantidadTotalEl = document.getElementById('cantidadTotal');
+    const precioTotalPedidoEl = document.getElementById('precioTotalPedido');
+    
+    if (totalProductosEl) totalProductosEl.textContent = totalProductos;
+    if (cantidadTotalEl) cantidadTotalEl.textContent = cantidadTotal.toFixed(2);
+    if (precioTotalPedidoEl) precioTotalPedidoEl.textContent = `Bs. ${precioTotalPedido.toFixed(2)}`;
+}
+
+// Función para agregar event listeners a un input de cantidad
+function checkAndAdjustProductAssignments(productIndex, newQuantity) {
+    // Calcular cuánto está asignado actualmente de este producto
+    let totalAssigned = 0;
+    const assignmentsByDestination = {};
+    
+    Object.keys(destinationProducts).forEach(destIdx => {
+        if (destinationProducts[destIdx] && Array.isArray(destinationProducts[destIdx])) {
+            destinationProducts[destIdx].forEach(p => {
+                if (p.index === productIndex) {
+                    const assignedQty = parseFloat(p.assignedQuantity || 0);
+                    totalAssigned += assignedQty;
+                    if (!assignmentsByDestination[destIdx]) {
+                        assignmentsByDestination[destIdx] = [];
+                    }
+                    assignmentsByDestination[destIdx].push({
+                        product: p,
+                        assignedQty: assignedQty
+                    });
+                }
+            });
+        }
+    });
+    
+    // Si la cantidad asignada excede la nueva cantidad, ajustar o eliminar asignaciones
+    if (totalAssigned > newQuantity) {
+        const excess = totalAssigned - newQuantity;
+        let remainingToRemove = excess;
+        
+        // Eliminar asignaciones empezando por los últimos destinos hasta cubrir el exceso
+        const destIndices = Object.keys(assignmentsByDestination).sort((a, b) => parseInt(b) - parseInt(a));
+        
+        for (let destIdx of destIndices) {
+            if (remainingToRemove <= 0) break;
+            
+            const assignments = assignmentsByDestination[destIdx];
+            for (let assignment of assignments) {
+                if (remainingToRemove <= 0) break;
+                
+                const toRemove = Math.min(remainingToRemove, assignment.assignedQty);
+                const productInDest = destinationProducts[destIdx].find(p => 
+                    p.index === productIndex && 
+                    Math.abs(parseFloat(p.assignedQuantity || 0) - assignment.assignedQty) < 0.0001
+                );
+                
+                if (productInDest) {
+                    const newAssignedQty = parseFloat(productInDest.assignedQuantity || 0) - toRemove;
+                    if (newAssignedQty <= 0.0001) {
+                        // Eliminar completamente la asignación
+                        destinationProducts[destIdx] = destinationProducts[destIdx].filter(p => 
+                            !(p.index === productIndex && 
+                              Math.abs(parseFloat(p.assignedQuantity || 0) - assignment.assignedQty) < 0.0001)
+                        );
+                    } else {
+                        // Reducir la cantidad asignada
+                        productInDest.assignedQuantity = newAssignedQty;
+                    }
+                    remainingToRemove -= toRemove;
+                }
+            }
+            
+            // Actualizar la vista del destino
+            updateDestinationProducts(parseInt(destIdx));
+        }
+        
+        // Recalcular asignaciones después de los ajustes
+        recalculateAllAssignments();
+        updateAddDestinationButton();
+        
+        console.log(`Ajustadas asignaciones del producto ${productIndex}: eliminado ${excess.toFixed(4)} unidades del exceso`);
+    }
+}
+
+function attachQuantityListeners(input) {
+    if (!input) return;
+    
+    // Agregar listeners directamente
+    input.addEventListener('input', function() {
+        const productItem = this.closest('.product-item');
+        if (!productItem) return;
+        
+        const select = productItem.querySelector('.product-select');
+        if (select && select.value) {
+            updateProductPrice(select);
+        }
+        
+        // Verificar y ajustar asignaciones si la cantidad cambió
+        const productIndex = parseInt(productItem.getAttribute('data-index') || '0');
+        const newQuantity = parseFloat(this.value || 0);
+        if (productIndex !== undefined && newQuantity >= 0) {
+            checkAndAdjustProductAssignments(productIndex, newQuantity);
+        }
+        
         updateSelectedProducts();
     });
-});
+    
+    input.addEventListener('change', function() {
+        const productItem = this.closest('.product-item');
+        if (!productItem) return;
+        
+        const select = productItem.querySelector('.product-select');
+        if (select && select.value) {
+            updateProductPrice(select);
+        }
+        
+        // Verificar y ajustar asignaciones si la cantidad cambió
+        const productIndex = parseInt(productItem.getAttribute('data-index') || '0');
+        const newQuantity = parseFloat(this.value || 0);
+        if (productIndex !== undefined && newQuantity >= 0) {
+            checkAndAdjustProductAssignments(productIndex, newQuantity);
+        }
+        
+        updateSelectedProducts();
+    });
+}
+
+// Función para inicializar todos los event listeners de productos
+function initializeProductListeners() {
+    // Agregar listeners a todos los selects de productos
+    document.querySelectorAll('.product-select').forEach(select => {
+        // Remover listeners anteriores si existen
+        const newSelect = select.cloneNode(true);
+        select.parentNode.replaceChild(newSelect, select);
+        
+        newSelect.addEventListener('change', function() {
+            updateProductUnit(this);
+            updateProductPrice(this);
+            updateSelectedProducts();
+        });
+    });
+    
+    // Agregar listeners a todos los inputs de cantidad
+    document.querySelectorAll('.product-quantity').forEach(input => {
+        attachQuantityListeners(input);
+    });
+}
 
 // Inicializar productos existentes
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM cargado, inicializando...');
+    
+    // Inicializar todos los event listeners
+    initializeProductListeners();
+    
+    // Calcular totales iniciales
+    calculateTotals();
+    
+    // Actualizar precios de productos ya seleccionados
+    document.querySelectorAll('.product-select').forEach(select => {
+        if (select.value) {
+            updateProductPrice(select);
+        }
+    });
+    
     updateSelectedProducts();
     
+    console.log('Inicialización completa');
+    
     // Cargar destinos existentes
+    const destinationsContainer = document.getElementById('destinationsContainer');
     @foreach($pedido->destinations as $destIndex => $destination)
+    {
         destinationIndex = {{ $destIndex + 1 }};
-        const container = document.getElementById('destinationsContainer');
         const destinationHtml = `
             <div class="destination-item card mb-3" data-index="${destinationIndex}" data-form-index="{{ $destIndex }}">
                 <div class="card-header">
@@ -310,7 +549,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="input-group">
                             <input type="text" class="form-control destination-address" 
                                    name="destinations[{{ $destIndex }}][address]" 
-                                   value="{{ old('destinations.' . $destIndex . '.address', $destination->address) }}" required>
+                                   value="{{ old('destinations.' . $destIndex . '.address', $destination->direccion) }}" required>
                             <div class="input-group-append">
                                 <button type="button" class="btn btn-info" onclick="openMap(${destinationIndex})">
                                     <i class="fas fa-map-marker-alt"></i> Mapa
@@ -321,10 +560,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <input type="hidden" class="destination-latitude" 
                            name="destinations[{{ $destIndex }}][latitude]" 
-                           value="{{ old('destinations.' . $destIndex . '.latitude', $destination->latitude) }}">
+                           value="{{ old('destinations.' . $destIndex . '.latitude', $destination->latitud) }}">
                     <input type="hidden" class="destination-longitude" 
                            name="destinations[{{ $destIndex }}][longitude]" 
-                           value="{{ old('destinations.' . $destIndex . '.longitude', $destination->longitude) }}">
+                           value="{{ old('destinations.' . $destIndex . '.longitude', $destination->longitud) }}">
                     
                     <div class="row">
                         <div class="col-md-6">
@@ -332,7 +571,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <label>Referencia</label>
                                 <input type="text" class="form-control" 
                                        name="destinations[{{ $destIndex }}][reference]" 
-                                       value="{{ old('destinations.' . $destIndex . '.reference', $destination->reference) }}">
+                                       value="{{ old('destinations.' . $destIndex . '.reference', $destination->referencia) }}">
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -340,7 +579,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <label>Contacto</label>
                                 <input type="text" class="form-control" 
                                        name="destinations[{{ $destIndex }}][contact_name]" 
-                                       value="{{ old('destinations.' . $destIndex . '.contact_name', $destination->contact_name) }}">
+                                       value="{{ old('destinations.' . $destIndex . '.contact_name', $destination->nombre_contacto) }}">
                             </div>
                         </div>
                     </div>
@@ -349,14 +588,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label>Teléfono de Contacto</label>
                         <input type="text" class="form-control" 
                                name="destinations[{{ $destIndex }}][contact_phone]" 
-                               value="{{ old('destinations.' . $destIndex . '.contact_phone', $destination->contact_phone) }}">
+                               value="{{ old('destinations.' . $destIndex . '.contact_phone', $destination->telefono_contacto) }}">
                     </div>
                     
                     <div class="form-group">
                         <label>Instrucciones de Entrega</label>
                         <textarea class="form-control" 
                                   name="destinations[{{ $destIndex }}][delivery_instructions]" 
-                                  rows="2">{{ old('destinations.' . $destIndex . '.delivery_instructions', $destination->delivery_instructions) }}</textarea>
+                                  rows="2">{{ old('destinations.' . $destIndex . '.delivery_instructions', $destination->instrucciones_entrega) }}</textarea>
                     </div>
                     
                     <h6>Productos para este destino:</h6>
@@ -369,7 +608,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
-        container.insertAdjacentHTML('beforeend', destinationHtml);
+        destinationsContainer.insertAdjacentHTML('beforeend', destinationHtml);
         destinationProducts[destinationIndex] = [];
         
         // Agregar productos asignados a este destino
@@ -377,16 +616,16 @@ document.addEventListener('DOMContentLoaded', function() {
             @php
                 // Buscar el índice del producto en orderProducts
                 $productIndexInOrder = $pedido->orderProducts->search(function($op) use ($destProduct) {
-                    return $op->order_product_id == $destProduct->order_product_id;
+                    return $op->producto_pedido_id == $destProduct->producto_pedido_id;
                 });
             @endphp
             @if($productIndexInOrder !== false)
                 destinationProducts[{{ $destIndex + 1 }}].push({
                     index: {{ $productIndexInOrder }},
-                    productId: '{{ $destProduct->orderProduct->product_id }}',
-                    productName: '{{ addslashes($destProduct->orderProduct->product->name) }}',
-                    quantity: {{ intval($destProduct->orderProduct->quantity) }},
-                    assignedQuantity: {{ intval($destProduct->quantity) }}
+                    productId: '{{ $destProduct->orderProduct->producto_id }}',
+                    productName: '{{ addslashes($destProduct->orderProduct->product->nombre) }}',
+                    quantity: {{ intval($destProduct->orderProduct->cantidad) }},
+                    assignedQuantity: {{ intval($destProduct->cantidad) }}
                 });
             @endif
         @endforeach
@@ -395,6 +634,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(function() {
             updateDestinationProducts({{ $destIndex + 1 }});
         }, 100);
+    }
     @endforeach
     
     // Actualizar índice de destino
@@ -402,46 +642,65 @@ document.addEventListener('DOMContentLoaded', function() {
         destinationIndex = {{ $pedido->destinations->count() }};
     }
     
-    // Recalcular asignaciones
-    recalculateAllAssignments();
-    updateAddDestinationButton();
+    // Recalcular asignaciones después de un delay para asegurar que todos los destinos se hayan cargado
+    setTimeout(function() {
+        console.log('Recalculando asignaciones después de cargar destinos...');
+        recalculateAllAssignments();
+        console.log('productAssignments después de recalcular:', productAssignments);
+        updateAddDestinationButton();
+    }, 500);
 });
 
 function nextStep() {
-    console.log('nextStep llamado, currentStep:', currentStep);
+    console.log('=== nextStep llamado ===');
+    console.log('currentStep:', currentStep);
     
     if (currentStep === 1) {
         // Validar paso 1 (información básica)
+        console.log('Validando paso 1...');
         if (!validateStep1()) {
-            console.log('Validación paso 1 falló');
+            console.log('❌ Validación paso 1 falló');
             return false;
         }
+        console.log('✅ Paso 1 validado correctamente');
         
-        // Validar paso 2 (productos)
+        // Validar productos (paso 2)
+        console.log('Validando productos...');
         if (!validateStep2()) {
-            console.log('Validación paso 2 falló');
+            console.log('❌ Validación paso 2 (productos) falló');
             return false;
         }
+        console.log('✅ Productos validados correctamente');
         
         // Actualizar productos seleccionados
         updateSelectedProducts();
         console.log('Productos seleccionados:', selectedProducts);
         
-        // Cambiar al paso 2
+        // Cambiar al paso 2 (destinos)
         try {
             const step1 = document.getElementById('step1');
             const step2 = document.getElementById('step2');
             
-            if (!step1 || !step2) {
-                console.error('No se encontraron los elementos step1 o step2');
-                alert('Error: No se pudo cambiar de paso. Por favor recargue la página.');
+            console.log('step1 encontrado:', !!step1);
+            console.log('step2 encontrado:', !!step2);
+            
+            if (!step1) {
+                console.error('❌ No se encontró step1');
+                alert('Error: No se encontró el paso 1. Por favor recargue la página.');
                 return false;
             }
             
+            if (!step2) {
+                console.error('❌ No se encontró step2');
+                alert('Error: No se encontró el paso 2. Por favor recargue la página.');
+                return false;
+            }
+            
+            console.log('Ocultando step1, mostrando step2...');
             step1.style.display = 'none';
             step2.style.display = 'block';
             currentStep = 2;
-            console.log('Cambiado a paso 2');
+            console.log('✅ Cambiado a paso 2 (destinos), currentStep ahora es:', currentStep);
             
             // Recalcular asignaciones cuando se entra al paso 2 (destinos)
             recalculateAllAssignments();
@@ -454,12 +713,14 @@ function nextStep() {
             
             return true;
         } catch (e) {
-            console.error('Error en nextStep:', e);
+            console.error('❌ Error en nextStep:', e);
+            console.error('Stack:', e.stack);
             alert('Error al cambiar de paso: ' + e.message);
             return false;
         }
     }
     
+    console.log('⚠️ nextStep: currentStep no es 1, retornando false');
     return false;
 }
 
@@ -472,8 +733,13 @@ function prevStep() {
 }
 
 function validateStep1() {
-    const name = document.getElementById('name').value;
-    if (!name.trim()) {
+    const nameInput = document.getElementById('nombre');
+    if (!nameInput) {
+        console.error('No se encontró el campo nombre');
+        return false;
+    }
+    const name = nameInput.value;
+    if (!name || !name.trim()) {
         alert('El nombre del pedido es requerido');
         return false;
     }
@@ -526,35 +792,101 @@ function validateStep2() {
 function addProduct() {
     productIndex++;
     const container = document.getElementById('productsContainer');
-    const newProduct = container.querySelector('.product-item').cloneNode(true);
+    const firstProduct = container.querySelector('.product-item');
+    const newProduct = firstProduct.cloneNode(true);
     newProduct.setAttribute('data-index', productIndex);
     
     // Actualizar nombres de campos
     newProduct.querySelectorAll('select, input, textarea').forEach(input => {
         if (input.name) {
-            input.name = input.name.replace(/\[\d+\]/, '[' + productIndex + ']');
+            // Reemplazar cualquier índice numérico entre corchetes
+            input.name = input.name.replace(/\[(\d+)\]/g, '[' + productIndex + ']');
         }
         if (input.id) {
-            input.id = input.id.replace(/\d+/, productIndex);
+            // Reemplazar cualquier número en el ID
+            input.id = input.id.replace(/\d+/g, productIndex);
         }
-        input.value = '';
+        // Limpiar valores excepto para campos readonly
+        if (!input.hasAttribute('readonly')) {
+            input.value = '';
+        }
     });
+    
+    // Limpiar campos de precio y unidad
+    const precioUnitarioInput = newProduct.querySelector('.product-precio-unitario');
+    const precioTotalInput = newProduct.querySelector('.product-precio-total');
+    const unitInput = newProduct.querySelector('.product-unit');
+    
+    if (precioUnitarioInput) precioUnitarioInput.value = 'Bs. 0.00';
+    if (precioTotalInput) precioTotalInput.value = 'Bs. 0.00';
+    if (unitInput) unitInput.value = '';
+    
+    // Limpiar el select de producto
+    const productSelect = newProduct.querySelector('.product-select');
+    if (productSelect) {
+        productSelect.value = '';
+    }
     
     // Mostrar botón eliminar
-    newProduct.querySelector('.remove-product').style.display = 'block';
-    newProduct.querySelector('.remove-product').setAttribute('onclick', 'removeProduct(' + productIndex + ')');
+    const removeBtn = newProduct.querySelector('.remove-product');
+    if (removeBtn) {
+        removeBtn.style.display = 'block';
+        removeBtn.setAttribute('onclick', 'removeProduct(' + productIndex + ')');
+    }
     
-    // Agregar event listener
-    newProduct.querySelector('.product-select').addEventListener('change', function() {
-        updateProductUnit(this);
-        updateSelectedProducts();
-    });
+    // Agregar event listeners
+    const selectElement = newProduct.querySelector('.product-select');
+    const quantityInput = newProduct.querySelector('.product-quantity');
     
-    newProduct.querySelector('.product-quantity').addEventListener('change', function() {
-        updateSelectedProducts();
-    });
+    if (selectElement) {
+        selectElement.addEventListener('change', function() {
+            updateProductUnit(this);
+            updateProductPrice(this);
+            updateSelectedProducts();
+        });
+    }
     
+    if (quantityInput) {
+        quantityInput.addEventListener('input', function() {
+            const productItem = this.closest('.product-item');
+            const select = productItem.querySelector('.product-select');
+            if (select && select.value) {
+                updateProductPrice(select);
+            }
+            
+            // Verificar y ajustar asignaciones si la cantidad cambió
+            const productIndex = parseInt(productItem.getAttribute('data-index') || '0');
+            const newQuantity = parseFloat(this.value || 0);
+            if (productIndex !== undefined && newQuantity >= 0) {
+                checkAndAdjustProductAssignments(productIndex, newQuantity);
+            }
+            
+            updateSelectedProducts();
+        });
+        
+        quantityInput.addEventListener('change', function() {
+            const productItem = this.closest('.product-item');
+            const select = productItem.querySelector('.product-select');
+            if (select && select.value) {
+                updateProductPrice(select);
+            }
+            
+            // Verificar y ajustar asignaciones si la cantidad cambió
+            const productIndex = parseInt(productItem.getAttribute('data-index') || '0');
+            const newQuantity = parseFloat(this.value || 0);
+            if (productIndex !== undefined && newQuantity >= 0) {
+                checkAndAdjustProductAssignments(productIndex, newQuantity);
+            }
+            
+            updateSelectedProducts();
+        });
+    }
+    
+    // Agregar al contenedor
     container.appendChild(newProduct);
+    
+    // Recalcular totales después de agregar producto
+    calculateTotals();
 }
 
 function removeProduct(index) {
@@ -594,6 +926,7 @@ function removeProduct(index) {
         
         product.remove();
         updateSelectedProducts();
+        calculateTotals(); // Recalcular totales después de eliminar
     }
 }
 
@@ -604,6 +937,8 @@ function updateProductUnit(select) {
     if (option.dataset.unit) {
         unitInput.value = option.dataset.unit;
     }
+    // También actualizar precio cuando cambia el producto
+    updateProductPrice(select);
 }
 
 function updateSelectedProducts() {
@@ -790,9 +1125,11 @@ function removeDestination(index) {
 }
 
 function getAvailableProducts() {
+    // Primero recalcular asignaciones para asegurar que estén actualizadas
+    recalculateAllAssignments();
+    
     const available = [];
-    // NO llamar a updateSelectedProducts() aquí para evitar recursión infinita
-    // En su lugar, calcular directamente desde el DOM y usar productAssignments existente
+    // Calcular directamente desde el DOM y usar productAssignments actualizado
     
     // Usar los índices correctos basados en data-index
     document.querySelectorAll('.product-item').forEach(item => {
@@ -803,13 +1140,31 @@ function getAvailableProducts() {
         if (select.value && quantityInput && quantityInput.value) {
             const productId = select.value;
             const productName = select.options[select.selectedIndex].text;
-            const quantity = parseInt(quantityInput.value);
+            const quantity = parseFloat(quantityInput.value) || 0;
             
-            // Usar productAssignments que ya debería estar actualizado
-            const totalAssigned = productAssignments[itemIndex] || 0;
+            // Calcular total asignado desde destinationProducts directamente
+            let totalAssigned = 0;
+            Object.keys(destinationProducts).forEach(destIdx => {
+                if (destinationProducts[destIdx] && Array.isArray(destinationProducts[destIdx])) {
+                    destinationProducts[destIdx].forEach(p => {
+                        if (p.index === itemIndex) {
+                            totalAssigned += parseFloat(p.assignedQuantity || 0);
+                        }
+                    });
+                }
+            });
+            
+            // Usar productAssignments como respaldo si está disponible
+            if (productAssignments[itemIndex] !== undefined) {
+                const assignedFromMap = parseFloat(productAssignments[itemIndex] || 0);
+                // Usar el mayor valor para asegurar que no se subestime
+                totalAssigned = Math.max(totalAssigned, assignedFromMap);
+            }
+            
             const remaining = quantity - totalAssigned;
             
-            if (remaining > 0) {
+            // Permitir pequeñas diferencias de redondeo (0.0001)
+            if (remaining > 0.0001) {
                 available.push({
                     index: itemIndex,
                     productId: productId,
@@ -820,6 +1175,11 @@ function getAvailableProducts() {
             }
         }
     });
+    
+    console.log('getAvailableProducts - Productos disponibles:', available);
+    console.log('getAvailableProducts - productAssignments:', productAssignments);
+    console.log('getAvailableProducts - destinationProducts:', destinationProducts);
+    
     return available;
 }
 
@@ -927,14 +1287,19 @@ function recalculateAllAssignments() {
     
     // Recalcular asignaciones de todos los destinos
     Object.keys(destinationProducts).forEach(destIdx => {
-        destinationProducts[destIdx].forEach(p => {
-            const qty = parseInt(p.assignedQuantity || 0);
-            if (productAssignments[p.index] === undefined) {
-                productAssignments[p.index] = 0;
-            }
-            productAssignments[p.index] += qty;
-        });
+        if (destinationProducts[destIdx] && Array.isArray(destinationProducts[destIdx])) {
+            destinationProducts[destIdx].forEach(p => {
+                const qty = parseFloat(p.assignedQuantity || 0);
+                const productIndex = parseInt(p.index);
+                if (productAssignments[productIndex] === undefined) {
+                    productAssignments[productIndex] = 0;
+                }
+                productAssignments[productIndex] += qty;
+            });
+        }
     });
+    
+    console.log('recalculateAllAssignments - productAssignments actualizado:', productAssignments);
 }
 
 function validateQuantityInput(input, maxQuantity) {
@@ -1160,11 +1525,18 @@ function openMap(destIndex) {
             });
         }
         
-        // Cargar coordenadas existentes si las hay
+        // Cargar coordenadas y dirección existentes si las hay
         const destination = document.querySelector(`.destination-item[data-index="${destIndex}"]`);
         if (destination) {
             const lat = destination.querySelector('.destination-latitude').value;
             const lng = destination.querySelector('.destination-longitude').value;
+            const address = destination.querySelector('.destination-address').value;
+            
+            // Cargar dirección en el modal
+            if (address) {
+                document.getElementById('mapAddress').value = address;
+            }
+            
             if (lat && lng) {
                 map.setView([lat, lng], 15);
                 if (marker) {
@@ -1173,7 +1545,16 @@ function openMap(destIndex) {
                 marker = L.marker([lat, lng]).addTo(map);
                 document.getElementById('mapLatitude').value = lat;
                 document.getElementById('mapLongitude').value = lng;
+            } else if (address) {
+                // Si hay dirección pero no coordenadas, centrar el mapa en una ubicación por defecto
+                // y permitir que el usuario seleccione el punto
+                map.setView([-17.8146, -63.1561], 13);
             }
+        } else {
+            // Limpiar campos del modal si no hay destino
+            document.getElementById('mapAddress').value = '';
+            document.getElementById('mapLatitude').value = '';
+            document.getElementById('mapLongitude').value = '';
         }
     }, 300);
 }

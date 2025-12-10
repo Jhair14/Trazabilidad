@@ -200,26 +200,26 @@
                                 $eval = $lote->latestFinalEvaluation;
                                 $esCertificado = $eval && !str_contains(strtolower($eval->reason ?? ''), 'falló');
                                 // Usar cantidad producida, si es 0 o NULL usar cantidad objetivo del lote
-                                $cantidadMostrar = $lote->produced_quantity ?? 0;
+                                $cantidadMostrar = $lote->cantidad_producida ?? 0;
                                 $esCantidadObjetivo = false;
                                 if ($cantidadMostrar == 0 || $cantidadMostrar == null) {
-                                    $cantidadMostrar = $lote->target_quantity ?? 0;
+                                    $cantidadMostrar = $lote->cantidad_objetivo ?? 0;
                                     $esCantidadObjetivo = ($cantidadMostrar > 0);
                                 }
                                 // Para el botón, usar la cantidad que se mostrará
                                 $cantidadParaAlmacenar = $cantidadMostrar;
                             @endphp
                             <tr>
-                                <td>#{{ $lote->batch_code ?? $lote->batch_id }}</td>
-                                <td>{{ $lote->name ?? 'Sin nombre' }}</td>
-                                <td>{{ $lote->order->customer->business_name ?? 'N/A' }}</td>
+                                <td>#{{ $lote->codigo_lote ?? $lote->lote_id }}</td>
+                                <td>{{ $lote->nombre ?? 'Sin nombre' }}</td>
+                                <td>{{ $lote->order->customer->razon_social ?? 'N/A' }}</td>
                                 <td>
                                     {{ number_format($cantidadMostrar, 2) }}
-                                    @if(($lote->produced_quantity ?? 0) == 0 && ($lote->target_quantity ?? 0) > 0)
+                                    @if(($lote->cantidad_producida ?? 0) == 0 && ($lote->cantidad_objetivo ?? 0) > 0)
                                         <small class="text-muted d-block">(Objetivo)</small>
                                     @endif
                                 </td>
-                                <td>{{ \Carbon\Carbon::parse($lote->creation_date)->format('d/m/Y') }}</td>
+                                <td>{{ \Carbon\Carbon::parse($lote->fecha_creacion)->format('d/m/Y') }}</td>
                                 <td>
                                     @if($lote->storage->isNotEmpty())
                                         @php
@@ -230,8 +230,8 @@
                                         </span>
                                         <br>
                                         <small class="text-muted">
-                                            Ubicación: {{ $almacenaje->location ?? 'N/A' }}<br>
-                                            Fecha: {{ \Carbon\Carbon::parse($almacenaje->storage_date)->format('d/m/Y') }}
+                                            Ubicación: {{ $almacenaje->ubicacion ?? 'N/A' }}<br>
+                                            Fecha: {{ \Carbon\Carbon::parse($almacenaje->fecha_almacenaje)->format('d/m/Y') }}
                                         </small>
                                     @else
                                         <span class="badge badge-warning">
@@ -249,11 +249,11 @@
                                 <td class="text-right">
                                     @if($esCertificado)
                                         @if($lote->storage->isEmpty())
-                                            <button class="btn btn-primary btn-sm" title="Almacenar" onclick="almacenarLote({{ $lote->batch_id }}, '{{ $lote->batch_code ?? $lote->batch_id }}', '{{ $lote->name ?? 'Sin nombre' }}', {{ $cantidadParaAlmacenar }}, {{ $esCantidadObjetivo ? 'true' : 'false' }}, {{ $lote->order_id }})">
+                                            <button class="btn btn-primary btn-sm" title="Almacenar" onclick="almacenarLote({{ $lote->lote_id }}, '{{ $lote->codigo_lote ?? $lote->lote_id }}', '{{ $lote->nombre ?? 'Sin nombre' }}', {{ $cantidadParaAlmacenar }}, {{ $esCantidadObjetivo ? 'true' : 'false' }}, {{ $lote->pedido_id }})">
                                                 <i class="fas fa-warehouse"></i> Almacenar
                                             </button>
                                         @else
-                                            <button class="btn btn-info btn-sm" title="Ver Detalles" onclick="verAlmacenaje({{ $lote->batch_id }})">
+                                            <button class="btn btn-info btn-sm" title="Ver Detalles" onclick="verAlmacenaje({{ $lote->lote_id }})">
                                                 <i class="fas fa-eye"></i> Ver
                                             </button>
                                         @endif
@@ -298,7 +298,7 @@
                 @endif
                 <form method="POST" action="{{ route('almacenaje.store') }}" id="registrarAlmacenajeForm">
                     @csrf
-                    <input type="hidden" id="batch_id" name="batch_id">
+                    <input type="hidden" id="lote_id" name="lote_id">
                     
                     <div class="row mb-3">
                         <div class="col-md-12">
@@ -317,7 +317,7 @@
                                     <strong>Cantidad a Almacenar:</strong>
                                     <span id="modal_quantity" class="ml-2"></span>
                                 </div>
-                                <div class="col-md-6">
+                        <div class="col-md-6">
                                     <strong>Pedido:</strong>
                                     <span id="modal_order_number" class="ml-2"></span>
                                 </div>
@@ -345,21 +345,21 @@
                         </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="condition">Condición <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control @error('condition') is-invalid @enderror" 
-                               id="condition" name="condition" value="{{ old('condition') }}" 
-                               placeholder="Ej: Buen estado, Seco y ventilado" required>
-                        @error('condition')
+                            <div class="form-group">
+                                <label for="condicion">Condición <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('condicion') is-invalid @enderror" 
+                                       id="condicion" name="condicion" value="{{ old('condicion') }}" 
+                                       placeholder="Ej: Buen estado, Seco y ventilado" required>
+                        @error('condicion')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
-                        <small class="form-text text-muted">Estado físico del producto</small>
+                                <small class="form-text text-muted">Estado físico del producto</small>
                     </div>
                     
                     <div class="form-group">
-                        <label for="observations">Observaciones</label>
-                        <textarea class="form-control" id="observations" name="observations" 
-                                  rows="3" placeholder="Observaciones sobre el almacenaje...">{{ old('observations') }}</textarea>
+                        <label for="observaciones">Observaciones</label>
+                        <textarea class="form-control" id="observaciones" name="observaciones" 
+                                  rows="3" placeholder="Observaciones sobre el almacenaje...">{{ old('observaciones') }}</textarea>
                     </div>
 
                     <hr class="my-4">
@@ -429,26 +429,26 @@ let marker = null;
 // Datos de pedidos cargados desde el backend
 const ordersData = @json($ordersData ?? []);
 
-function almacenarLote(batchId, batchCode, batchName, quantity, isTargetQuantity, orderId) {
-    currentBatchId = batchId;
-    $('#batch_id').val(batchId);
-    $('#modal_batch_code').text(batchCode);
-    $('#modal_batch_name').text(batchName);
-    $('#condition').val('');
+function almacenarLote(loteId, codigoLote, nombreLote, quantity, isTargetQuantity, pedidoId) {
+    currentBatchId = loteId;
+    $('#lote_id').val(loteId);
+    $('#modal_batch_code').text(codigoLote);
+    $('#modal_batch_name').text(nombreLote);
+    $('#condicion').val('');
     
     // Establecer la cantidad automáticamente y mostrar referencia
     const qty = parseFloat(quantity) || 0;
     $('#modal_quantity').text(qty.toFixed(2) + ' ' + (isTargetQuantity ? '(Objetivo)' : '(Producida)'));
     
-    $('#observations').val('');
+    $('#observaciones').val('');
     $('#pickup_address').val('');
     $('#pickup_reference').val('');
     $('#pickup_latitude').val('');
     $('#pickup_longitude').val('');
     
     // Cargar información del pedido
-    if (orderId) {
-        loadOrderInfo(orderId);
+    if (pedidoId) {
+        loadOrderInfo(pedidoId);
     } else {
         $('#modal_order_number').text('N/A');
         $('#destinations_table_container').hide();
@@ -457,12 +457,12 @@ function almacenarLote(batchId, batchCode, batchName, quantity, isTargetQuantity
     $('#registrarAlmacenajeModal').modal('show');
 }
 
-function loadOrderInfo(orderId) {
+function loadOrderInfo(pedidoId) {
     // Obtener información del pedido desde los datos cargados
-    const orderData = ordersData[orderId];
+    const orderData = ordersData[pedidoId];
     
     if (orderData) {
-        $('#modal_order_number').text(orderData.order_number || 'N/A');
+        $('#modal_order_number').text(orderData.numero_pedido || 'N/A');
         
         // Mostrar destinos si existen
         if (orderData.destinations && orderData.destinations.length > 0) {

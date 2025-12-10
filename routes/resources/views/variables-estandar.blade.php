@@ -47,7 +47,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>{{ $variables->where('active', true)->count() }}</h3>
+                                <h3>{{ $variables->where('activo', true)->count() }}</h3>
                                 <p>Activas</p>
                             </div>
                             <div class="icon">
@@ -69,7 +69,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-danger">
                             <div class="inner">
-                                <h3>{{ $variables->where('active', false)->count() }}</h3>
+                                <h3>{{ $variables->where('activo', false)->count() }}</h3>
                                 <p>Inactivas</p>
                             </div>
                             <div class="icon">
@@ -125,11 +125,11 @@
                             @forelse($variables as $variable)
                             <tr>
                                 <td>#{{ $variable->variable_id }}</td>
-                                <td>{{ $variable->name }}</td>
-                                <td>{{ $variable->unit ?? 'N/A' }}</td>
-                                <td>{{ $variable->description ?? 'Sin descripción' }}</td>
+                                <td>{{ $variable->nombre }}</td>
+                                <td>{{ $variable->unidad ?? 'N/A' }}</td>
+                                <td>{{ $variable->descripcion ?? 'Sin descripción' }}</td>
                                 <td>
-                                    @if($variable->active)
+                                    @if($variable->activo)
                                         <span class="badge badge-success">Activa</span>
                                     @else
                                         <span class="badge badge-danger">Inactiva</span>
@@ -142,15 +142,10 @@
                                     <button class="btn btn-sm btn-warning" title="Editar" onclick="editarVariable({{ $variable->variable_id }})">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <form method="POST" action="{{ route('variables-estandar.destroy', $variable->variable_id) }}" 
-                                          style="display: inline;" 
-                                          onsubmit="return confirm('¿Está seguro de eliminar esta variable?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
+                                    <button type="button" class="btn btn-sm btn-danger" title="Eliminar" 
+                                            onclick="confirmarEliminar({{ $variable->variable_id }}, '{{ $variable->nombre }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </td>
                             </tr>
                             @empty
@@ -205,41 +200,41 @@
                     @csrf
                     
                             <div class="form-group">
-                        <label for="name">
+                        <label for="nombre">
                             <i class="fas fa-tag mr-1"></i>
                             Nombre de la Variable <span class="text-danger">*</span>
                         </label>
-                                <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                                       id="name" name="name" value="{{ old('name') }}" 
+                                <input type="text" class="form-control @error('nombre') is-invalid @enderror" 
+                                       id="nombre" name="nombre" value="{{ old('nombre') }}" 
                                        placeholder="Ej: Temperatura de Cocción" required>
-                                @error('name')
+                                @error('nombre')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                     </div>
                     
                     <div class="form-group">
-                        <label for="unit">
+                        <label for="unidad">
                             <i class="fas fa-ruler mr-1"></i>
                             Unidad de Medida
                         </label>
-                        <input type="text" class="form-control @error('unit') is-invalid @enderror" 
-                               id="unit" name="unit" value="{{ old('unit') }}" 
+                        <input type="text" class="form-control @error('unidad') is-invalid @enderror" 
+                               id="unidad" name="unidad" value="{{ old('unidad') }}" 
                                placeholder="Ej: °C, %, min, kg, etc.">
-                        @error('unit')
+                        @error('unidad')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                         <small class="form-text text-muted">Unidad en la que se mide esta variable (opcional)</small>
                     </div>
                     
                     <div class="form-group">
-                        <label for="description">
+                        <label for="descripcion">
                             <i class="fas fa-align-left mr-1"></i>
                             Descripción
                         </label>
-                        <textarea class="form-control @error('description') is-invalid @enderror" 
-                                  id="description" name="description" rows="3" 
-                                  placeholder="Descripción detallada de la variable estándar...">{{ old('description') }}</textarea>
-                        @error('description')
+                        <textarea class="form-control @error('descripcion') is-invalid @enderror" 
+                                  id="descripcion" name="descripcion" rows="3" 
+                                  placeholder="Descripción detallada de la variable estándar...">{{ old('descripcion') }}</textarea>
+                        @error('descripcion')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
@@ -292,6 +287,42 @@
                         </div>
 </div>
 
+<!-- Modal Confirmar Eliminación -->
+<div class="modal fade" id="confirmarEliminarModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h4 class="modal-title">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Confirmar Eliminación
+                </h4>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de eliminar esta variable estándar?</p>
+                <p class="font-weight-bold" id="variableNombreEliminar"></p>
+                <p class="text-danger"><small>Esta acción no se puede deshacer.</small></p>
+                <form method="POST" id="eliminarVariableForm" style="display: none;">
+                    @csrf
+                    @method('DELETE')
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-danger" onclick="eliminarVariable()">
+                    <i class="fas fa-trash mr-1"></i>
+                    Sí, Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Editar Variable -->
 <div class="modal fade" id="editarVariableModal" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg" role="document">
@@ -320,13 +351,13 @@
                     @method('PUT')
                     
                     <div class="form-group">
-                        <label for="edit_name">
+                        <label for="edit_nombre">
                             <i class="fas fa-tag mr-1"></i>
                             Nombre de la Variable <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                               id="edit_name" name="name" value="{{ old('name') }}" required>
-                        @error('name')
+                        <input type="text" class="form-control @error('nombre') is-invalid @enderror" 
+                               id="edit_nombre" name="nombre" value="{{ old('nombre') }}" required>
+                        @error('nombre')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
@@ -334,14 +365,14 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="edit_unit">
+                                <label for="edit_unidad">
                                     <i class="fas fa-ruler mr-1"></i>
                                     Unidad
                                 </label>
-                                <input type="text" class="form-control @error('unit') is-invalid @enderror" 
-                                       id="edit_unit" name="unit" value="{{ old('unit') }}" 
+                                <input type="text" class="form-control @error('unidad') is-invalid @enderror" 
+                                       id="edit_unidad" name="unidad" value="{{ old('unidad') }}" 
                                        placeholder="Ej: °C, %, min">
-                                @error('unit')
+                                @error('unidad')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -349,20 +380,20 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="edit_description">
+                        <label for="edit_descripcion">
                             <i class="fas fa-align-left mr-1"></i>
                             Descripción
                         </label>
-                        <textarea class="form-control @error('description') is-invalid @enderror" 
-                                  id="edit_description" name="description" rows="3">{{ old('description') }}</textarea>
-                        @error('description')
+                        <textarea class="form-control @error('descripcion') is-invalid @enderror" 
+                                  id="edit_descripcion" name="descripcion" rows="3">{{ old('descripcion') }}</textarea>
+                        @error('descripcion')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
                     
                     <div class="form-group">
                         <label>
-                            <input type="checkbox" name="active" id="edit_active" value="1">
+                            <input type="checkbox" name="activo" id="edit_activo" value="1">
                             Variable Activa
                         </label>
                     </div>
@@ -399,20 +430,20 @@ function verVariable(id) {
                             </tr>
                             <tr>
                                 <th>Nombre</th>
-                                <td>${data.name}</td>
+                                <td>${data.nombre}</td>
                             </tr>
                             <tr>
                                 <th>Unidad</th>
-                                <td>${data.unit || 'N/A'}</td>
+                                <td>${data.unidad || 'N/A'}</td>
                             </tr>
                             <tr>
                                 <th>Descripción</th>
-                                <td>${data.description || 'Sin descripción'}</td>
+                                <td>${data.descripcion || 'Sin descripción'}</td>
                             </tr>
                             <tr>
                                 <th>Estado</th>
                                 <td>
-                                    ${data.active 
+                                    ${data.activo 
                                         ? '<span class="badge badge-success">Activa</span>' 
                                         : '<span class="badge badge-danger">Inactiva</span>'}
                                 </td>
@@ -435,10 +466,10 @@ function editarVariable(id) {
         .then(response => response.json())
         .then(data => {
             document.getElementById('editarVariableForm').action = `{{ url('variables-estandar') }}/${id}`;
-            document.getElementById('edit_name').value = data.name || '';
-            document.getElementById('edit_unit').value = data.unit || '';
-            document.getElementById('edit_description').value = data.description || '';
-            document.getElementById('edit_active').checked = data.active || false;
+            document.getElementById('edit_nombre').value = data.nombre || '';
+            document.getElementById('edit_unidad').value = data.unidad || '';
+            document.getElementById('edit_descripcion').value = data.descripcion || '';
+            document.getElementById('edit_activo').checked = data.activo || false;
             $('#editarVariableModal').modal('show');
         })
         .catch(error => {
@@ -457,6 +488,22 @@ function aplicarFiltros() {
     if (estado) url.searchParams.set('estado', estado);
     if (buscar) url.searchParams.set('buscar', buscar);
     window.location = url;
+}
+
+// Variables para el modal de eliminación
+let variableIdAEliminar = null;
+
+function confirmarEliminar(id, nombre) {
+    variableIdAEliminar = id;
+    document.getElementById('variableNombreEliminar').textContent = nombre;
+    document.getElementById('eliminarVariableForm').action = '{{ url("variables-estandar") }}/' + id;
+    $('#confirmarEliminarModal').modal('show');
+}
+
+function eliminarVariable() {
+    if (variableIdAEliminar) {
+        document.getElementById('eliminarVariableForm').submit();
+    }
 }
 </script>
 @endpush

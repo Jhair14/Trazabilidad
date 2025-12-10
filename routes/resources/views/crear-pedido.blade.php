@@ -61,16 +61,6 @@
                                            name="delivery_date" value="{{ old('delivery_date') }}" min="{{ date('Y-m-d', strtotime('+1 day')) }}">
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="priority">Prioridad</label>
-                                    <select class="form-control" id="priority" name="priority">
-                                        <option value="1" {{ old('priority', 1) == 1 ? 'selected' : '' }}>Normal</option>
-                                        <option value="5" {{ old('priority') == 5 ? 'selected' : '' }}>Alta</option>
-                                        <option value="10" {{ old('priority') == 10 ? 'selected' : '' }}>Urgente</option>
-                                    </select>
-                                </div>
-                            </div>
                         </div>
                         
                         <div class="form-group mb-4">
@@ -93,11 +83,12 @@
                                                 <select class="form-control product-select" name="products[0][product_id]" required>
                                                     <option value="">Seleccione un producto</option>
                                                     @foreach($products as $product)
-                                                        <option value="{{ $product->product_id }}" 
-                                                                data-type="{{ $product->type }}"
-                                                                data-weight="{{ $product->weight }}"
-                                                                data-unit="{{ $product->unit->name ?? '' }}">
-                                                            {{ $product->name }}
+                                                        <option value="{{ $product->producto_id }}" 
+                                                                data-type="{{ $product->tipo }}"
+                                                                data-weight="{{ $product->peso }}"
+                                                                data-unit="{{ $product->unit->nombre ?? '' }}"
+                                                                data-precio="{{ $product->precio_unitario ?? 0 }}">
+                                                            {{ $product->nombre }} @if($product->precio_unitario) - Bs. {{ number_format($product->precio_unitario, 2) }} @endif
                                                         </option>
                                                     @endforeach
                                                 </select>
@@ -110,10 +101,24 @@
                                                        name="products[0][quantity]" step="1" min="1" required>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-2">
                                             <div class="form-group">
                                                 <label>Unidad</label>
                                                 <input type="text" class="form-control product-unit" readonly>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label>Precio Unitario</label>
+                                                <input type="text" class="form-control product-precio-unitario" readonly 
+                                                       value="Bs. 0.00" style="font-weight: bold; color: #28a745;">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label>Precio Total</label>
+                                                <input type="text" class="form-control product-precio-total" readonly 
+                                                       value="Bs. 0.00" style="font-weight: bold; color: #007bff;">
                                             </div>
                                         </div>
                                         <div class="col-md-1">
@@ -125,9 +130,13 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="form-group">
-                                        <label>Observaciones</label>
-                                        <textarea class="form-control" name="products[0][observations]" rows="2"></textarea>
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label>Observaciones</label>
+                                                <textarea class="form-control" name="products[0][observations]" rows="2"></textarea>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -136,6 +145,36 @@
                         <button type="button" class="btn btn-success mb-3" onclick="addProduct()">
                             <i class="fas fa-plus"></i> Agregar Producto
                         </button>
+                        
+                        <!-- Resumen de Precios -->
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5><i class="fas fa-calculator"></i> Resumen del Pedido</h5>
+                                        <table class="table table-sm">
+                                            <tbody>
+                                                <tr>
+                                                    <td><strong>Total de Productos:</strong></td>
+                                                    <td><span id="totalProductos">0</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Cantidad Total:</strong></td>
+                                                    <td><span id="cantidadTotal">0</span></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5><i class="fas fa-money-bill-wave"></i> Total del Pedido</h5>
+                                        <div class="alert alert-info mb-0">
+                                            <h3 class="mb-0" id="precioTotalPedido">Bs. 0.00</h3>
+                                            <small>Precio total calculado automáticamente</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         
                         <div class="float-right">
                             <button type="button" class="btn btn-primary" onclick="nextStep()">
@@ -305,16 +344,84 @@ function updateDestinationFromAlmacen(destIndex, selectElement) {
     }
 }
 
+// Función para actualizar precio unitario y total de un producto
+function updateProductPrice(selectElement) {
+    const productItem = selectElement.closest('.product-item');
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const precioUnitario = parseFloat(selectedOption.dataset.precio || 0);
+    const cantidadInput = productItem.querySelector('.product-quantity');
+    const cantidad = parseFloat(cantidadInput.value || 0);
+    
+    const precioUnitarioInput = productItem.querySelector('.product-precio-unitario');
+    const precioTotalInput = productItem.querySelector('.product-precio-total');
+    
+    if (precioUnitarioInput) {
+        precioUnitarioInput.value = `Bs. ${precioUnitario.toFixed(2)}`;
+    }
+    
+    if (precioTotalInput) {
+        const precioTotal = precioUnitario * cantidad;
+        precioTotalInput.value = `Bs. ${precioTotal.toFixed(2)}`;
+    }
+    
+    // Recalcular totales
+    calculateTotals();
+}
+
+// Función para calcular totales del pedido
+function calculateTotals() {
+    let totalProductos = 0;
+    let cantidadTotal = 0;
+    let precioTotalPedido = 0;
+    
+    document.querySelectorAll('.product-item').forEach(item => {
+        const select = item.querySelector('.product-select');
+        const cantidadInput = item.querySelector('.product-quantity');
+        
+        if (select && select.value && cantidadInput && cantidadInput.value) {
+            const selectedOption = select.options[select.selectedIndex];
+            const precioUnitario = parseFloat(selectedOption.dataset.precio || 0);
+            const cantidad = parseFloat(cantidadInput.value || 0);
+            
+            if (cantidad > 0) {
+                totalProductos++;
+                cantidadTotal += cantidad;
+                precioTotalPedido += precioUnitario * cantidad;
+            }
+        }
+    });
+    
+    // Actualizar resumen
+    document.getElementById('totalProductos').textContent = totalProductos;
+    document.getElementById('cantidadTotal').textContent = cantidadTotal.toFixed(2);
+    document.getElementById('precioTotalPedido').textContent = `Bs. ${precioTotalPedido.toFixed(2)}`;
+}
+
 // Inicializar productos seleccionados
 document.querySelectorAll('.product-select').forEach(select => {
     select.addEventListener('change', function() {
         updateProductUnit(this);
+        updateProductPrice(this);
         updateSelectedProducts();
     });
 });
 
 document.querySelectorAll('.product-quantity').forEach(input => {
+    input.addEventListener('input', function() {
+        const productItem = this.closest('.product-item');
+        const select = productItem.querySelector('.product-select');
+        if (select && select.value) {
+            updateProductPrice(select);
+        }
+        updateSelectedProducts();
+    });
+    
     input.addEventListener('change', function() {
+        const productItem = this.closest('.product-item');
+        const select = productItem.querySelector('.product-select');
+        if (select && select.value) {
+            updateProductPrice(select);
+        }
         updateSelectedProducts();
     });
 });
@@ -471,12 +578,31 @@ function addProduct() {
     // Agregar event listener
     newProduct.querySelector('.product-select').addEventListener('change', function() {
         updateProductUnit(this);
+        updateProductPrice(this);
+        updateSelectedProducts();
+    });
+    
+    newProduct.querySelector('.product-quantity').addEventListener('input', function() {
+        const productItem = this.closest('.product-item');
+        const select = productItem.querySelector('.product-select');
+        if (select && select.value) {
+            updateProductPrice(select);
+        }
         updateSelectedProducts();
     });
     
     newProduct.querySelector('.product-quantity').addEventListener('change', function() {
+        const productItem = this.closest('.product-item');
+        const select = productItem.querySelector('.product-select');
+        if (select && select.value) {
+            updateProductPrice(select);
+        }
         updateSelectedProducts();
     });
+    
+    // Limpiar campos de precio
+    newProduct.querySelector('.product-precio-unitario').value = 'Bs. 0.00';
+    newProduct.querySelector('.product-precio-total').value = 'Bs. 0.00';
     
     container.appendChild(newProduct);
 }
@@ -518,6 +644,7 @@ function removeProduct(index) {
         
         product.remove();
         updateSelectedProducts();
+        calculateTotals(); // Recalcular totales después de eliminar
     }
 }
 
@@ -528,6 +655,8 @@ function updateProductUnit(select) {
     if (option.dataset.unit) {
         unitInput.value = option.dataset.unit;
     }
+    // También actualizar precio cuando cambia el producto
+    updateProductPrice(select);
 }
 
 function updateSelectedProducts() {
@@ -1195,6 +1324,19 @@ function handleFormSubmit(event) {
     }
     return false;
 }
+
+// Inicializar precios al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    // Calcular totales iniciales
+    calculateTotals();
+    
+    // Actualizar precios de productos ya seleccionados
+    document.querySelectorAll('.product-select').forEach(select => {
+        if (select.value) {
+            updateProductPrice(select);
+        }
+    });
+});
 
 // Asegurar que el paso 2 esté visible si hay errores
 document.addEventListener('DOMContentLoaded', function() {

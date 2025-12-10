@@ -19,7 +19,7 @@ class AlmacenajeController extends Controller
     {
         // Mostrar TODOS los lotes certificados (incluyendo los ya almacenados)
         $lotes = ProductionBatch::whereHas('latestFinalEvaluation', function($query) {
-                $query->whereRaw("LOWER(reason) NOT LIKE '%falló%'");
+                $query->whereRaw("LOWER(razon) NOT LIKE '%falló%'");
             })
             ->with([
                 'order.customer', 
@@ -28,22 +28,22 @@ class AlmacenajeController extends Controller
                 'latestFinalEvaluation', 
                 'storage'
             ])
-            ->orderBy('creation_date', 'desc')
+            ->orderBy('fecha_creacion', 'desc')
             ->get();
         
         // Preparar datos de pedidos para JavaScript
         $ordersData = [];
         foreach ($lotes as $lote) {
             if ($lote->order) {
-                $ordersData[$lote->order_id] = [
-                    'order_number' => $lote->order->order_number ?? 'N/A',
+                $ordersData[$lote->pedido_id] = [
+                    'numero_pedido' => $lote->order->numero_pedido ?? 'N/A',
                     'destinations' => $lote->order->destinations->map(function($dest) {
                         return [
-                            'address' => $dest->address ?? 'N/A',
-                            'reference' => $dest->reference ?? '-',
-                            'contact_name' => $dest->contact_name ?? '-',
-                            'contact_phone' => $dest->contact_phone ?? '-',
-                            'delivery_instructions' => $dest->delivery_instructions ?? '-',
+                            'address' => $dest->direccion ?? 'N/A',
+                            'reference' => $dest->referencia ?? '-',
+                            'contact_name' => $dest->nombre_contacto ?? '-',
+                            'contact_phone' => $dest->telefono_contacto ?? '-',
+                            'delivery_instructions' => $dest->instrucciones_entrega ?? '-',
                         ];
                     })->toArray()
                 ];
@@ -56,20 +56,20 @@ class AlmacenajeController extends Controller
         // Lotes disponibles para almacenar (certificados sin almacenar)
         $lotesDisponibles = $allLotes->filter(function($lote) {
             $eval = $lote->latestFinalEvaluation;
-            $esCertificado = $eval && !str_contains(strtolower($eval->reason ?? ''), 'falló');
+            $esCertificado = $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló');
             return $esCertificado && $lote->storage->isEmpty();
         });
         
         // Lotes certificados (todos los que tienen evaluación exitosa)
         $lotesCertificados = $allLotes->filter(function($lote) {
             $eval = $lote->latestFinalEvaluation;
-            return $eval && !str_contains(strtolower($eval->reason ?? ''), 'falló');
+            return $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló');
         });
         
         // Lotes sin certificar (sin evaluación o evaluación fallida)
         $lotesSinCertificar = $allLotes->filter(function($lote) {
             $eval = $lote->latestFinalEvaluation;
-            return !$eval || str_contains(strtolower($eval->reason ?? ''), 'falló');
+            return !$eval || str_contains(strtolower($eval->razon ?? ''), 'falló');
         });
         
         // Lotes ya almacenados
@@ -89,8 +89,8 @@ class AlmacenajeController extends Controller
 
     public function obtenerAlmacenajesPorLote($batchId)
     {
-        $almacenajes = Storage::where('batch_id', $batchId)
-            ->orderBy('storage_date', 'desc')
+        $almacenajes = Storage::where('lote_id', $batchId)
+            ->orderBy('fecha_almacenaje', 'desc')
             ->get();
 
         return response()->json($almacenajes);
@@ -99,9 +99,9 @@ class AlmacenajeController extends Controller
     public function almacenar(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'batch_id' => 'required|integer|exists:production_batch,batch_id',
-            'condition' => 'required|string|max:100',
-            'observations' => 'nullable|string|max:500',
+            'lote_id' => 'required|integer|exists:lote_produccion,lote_id',
+            'condicion' => 'required|string|max:100',
+            'observaciones' => 'nullable|string|max:500',
             'pickup_latitude' => 'required|numeric|between:-90,90',
             'pickup_longitude' => 'required|numeric|between:-180,180',
             'pickup_address' => 'required|string|max:500',
@@ -116,7 +116,7 @@ class AlmacenajeController extends Controller
 
         DB::beginTransaction();
         try {
-            $batch = ProductionBatch::with('storage')->findOrFail($request->batch_id);
+            $batch = ProductionBatch::with('storage')->findOrFail($request->lote_id);
 
             // Verificar que el lote no tenga almacenajes previos
             if ($batch->storage->isNotEmpty()) {
@@ -126,63 +126,89 @@ class AlmacenajeController extends Controller
             }
 
             // La cantidad se toma del lote (producida o objetivo)
-            $producedQuantity = $batch->produced_quantity ?? 0;
-            $targetQuantity = $batch->target_quantity ?? 0;
+            $producedQuantity = $batch->cantidad_producida ?? 0;
+            $targetQuantity = $batch->cantidad_objetivo ?? 0;
             $quantityToStore = ($producedQuantity > 0) ? $producedQuantity : $targetQuantity;
 
             // Sincronizar la secuencia con el máximo ID existente
-            $maxStorageId = DB::table('storage')->max('storage_id');
+            $maxStorageId = DB::table('almacenaje')->max('almacenaje_id');
             
             // Solo sincronizar la secuencia si hay registros existentes
             // Si no hay registros, PostgreSQL manejará automáticamente el siguiente valor
             if ($maxStorageId !== null && $maxStorageId > 0) {
-                DB::statement("SELECT setval('storage_seq', {$maxStorageId}, true)");
+                DB::statement("SELECT setval('almacenaje_seq', {$maxStorageId}, true)");
             }
 
             // Obtener el siguiente ID de la secuencia
-            $nextId = DB::selectOne("SELECT nextval('storage_seq') as id")->id;
+            $nextId = DB::selectOne("SELECT nextval('almacenaje_seq') as id")->id;
 
             $storage = Storage::create([
-                'storage_id' => $nextId,
-                'batch_id' => $request->batch_id,
-                'location' => 'Almacén Principal', // Valor por defecto ya que no se usa
-                'condition' => $request->condition,
-                'quantity' => $quantityToStore,
-                'observations' => $request->observations,
-                'pickup_latitude' => $request->pickup_latitude,
-                'pickup_longitude' => $request->pickup_longitude,
-                'pickup_address' => $request->pickup_address,
-                'pickup_reference' => $request->pickup_reference,
-                'storage_date' => now(),
+                'almacenaje_id' => $nextId,
+                'lote_id' => $request->lote_id,
+                'ubicacion' => 'Almacén Principal', // Valor por defecto ya que no se usa
+                'condicion' => $request->condicion,
+                'cantidad' => $quantityToStore,
+                'observaciones' => $request->observaciones,
+                'latitud_recojo' => $request->pickup_latitude,
+                'longitud_recojo' => $request->pickup_longitude,
+                'direccion_recojo' => $request->pickup_address,
+                'referencia_recojo' => $request->pickup_reference,
+                'fecha_almacenaje' => now(),
             ]);
 
             DB::commit();
 
             // Enviar pedido a plantaCruds para crear envío con ubicación de recojo
             try {
-                $order = $batch->order;
-                if ($order) {
+                $order = ProductionBatch::with([
+                    'order.customer',
+                    'order.orderProducts.product.unit',
+                    'order.destinations.destinationProducts.orderProduct.product'
+                ])->findOrFail($request->lote_id)->order;
+                
+                if ($order && $order->destinations && $order->destinations->count() > 0) {
+                    Log::info('Enviando pedido a PlantaCruds para crear envíos', [
+                        'pedido_id' => $order->pedido_id,
+                        'numero_pedido' => $order->numero_pedido,
+                        'destinos_count' => $order->destinations->count(),
+                        'storage_id' => $storage->almacenaje_id,
+                    ]);
+                    
                     $integration = new PlantaCrudsIntegrationService();
                     $results = $integration->sendOrderToShipping($order, $storage);
 
                     // Guardar tracking por cada resultado
                     foreach ($results as $res) {
                         OrderEnvioTracking::create([
-                            'order_id' => $order->order_id,
-                            'destination_id' => $res['destination_id'] ?? null,
+                            'pedido_id' => $order->pedido_id,
+                            'destino_id' => $res['destination_id'] ?? null,
                             'envio_id' => $res['envio_id'] ?? null,
-                            'envio_codigo' => $res['envio_codigo'] ?? null,
-                            'status' => $res['success'] ? 'success' : 'failed',
-                            'error_message' => $res['success'] ? null : ($res['error'] ?? 'Unknown error'),
-                            'request_data' => $res['response']['request'] ?? null,
-                            'response_data' => $res['response'] ?? null,
+                            'codigo_envio' => $res['envio_codigo'] ?? null,
+                            'estado' => $res['success'] ? 'success' : 'failed',
+                            'mensaje_error' => $res['success'] ? null : ($res['error'] ?? 'Unknown error'),
+                            'datos_solicitud' => $res['response']['request'] ?? null,
+                            'datos_respuesta' => $res['response'] ?? null,
                         ]);
                     }
+                    
+                    Log::info('Integración con PlantaCruds completada', [
+                        'pedido_id' => $order->pedido_id,
+                        'results_count' => count($results),
+                        'successful' => collect($results)->where('success', true)->count(),
+                    ]);
+                } else {
+                    Log::warning('No se pudo enviar pedido a PlantaCruds: pedido sin destinos', [
+                        'lote_id' => $request->lote_id,
+                        'pedido_id' => $order->pedido_id ?? null,
+                        'has_order' => $order !== null,
+                        'has_destinations' => $order && $order->destinations ? $order->destinations->count() : 0,
+                    ]);
                 }
             } catch (\Exception $e) {
                 Log::error('Error integrando con plantaCruds al almacenar lote: ' . $e->getMessage(), [
-                    'batch_id' => $request->batch_id,
-                    'storage_id' => $nextId
+                    'lote_id' => $request->lote_id,
+                    'almacenaje_id' => $nextId,
+                    'trace' => $e->getTraceAsString(),
                 ]);
                 // No fallar el almacenamiento si falla la integración
             }

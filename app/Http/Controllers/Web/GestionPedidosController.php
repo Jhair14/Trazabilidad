@@ -15,25 +15,46 @@ use Illuminate\Support\Facades\DB;
 
 class GestionPedidosController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $pedidos = CustomerOrder::with(['customer', 'orderProducts.product'])
-            ->where('status', 'pendiente')
-            ->orderBy('creation_date', 'desc')
-            ->paginate(15);
+        $query = CustomerOrder::with(['customer', 'orderProducts.product']);
+        
+        // Filtro por estado - por defecto mostrar pendientes y aprobados
+        $estadoFiltro = $request->get('estado', 'pendientes_aprobados');
+        
+        if ($estadoFiltro === 'pendientes_aprobados') {
+            $query->whereIn('estado', ['pendiente', 'aprobado']);
+        } elseif ($estadoFiltro && $estadoFiltro !== '') {
+            $query->where('estado', $estadoFiltro);
+        }
+        
+        // Filtro por cliente
+        if ($request->has('cliente') && $request->cliente) {
+            $query->whereHas('customer', function($q) use ($request) {
+                $q->where('razon_social', 'like', '%' . $request->cliente . '%')
+                  ->orWhere('nombre_comercial', 'like', '%' . $request->cliente . '%');
+            });
+        }
+        
+        // Filtro por fecha
+        if ($request->has('fecha') && $request->fecha) {
+            $query->whereDate('fecha_creacion', $request->fecha);
+        }
+        
+        $pedidos = $query->orderBy('fecha_creacion', 'desc')->paginate(15);
 
-        $clientes = Customer::where('active', true)->get();
+        $clientes = Customer::where('activo', true)->get();
 
         // Estadísticas
         $stats = [
             'total' => CustomerOrder::count(),
-            'pendientes' => CustomerOrder::where('status', 'pendiente')->count(),
-            'aprobados' => CustomerOrder::where('status', 'aprobado')->count(),
-            'rechazados' => CustomerOrder::where('status', 'rechazado')->count(),
-            'en_produccion' => CustomerOrder::where('status', 'en_produccion')->count(),
+            'pendientes' => CustomerOrder::where('estado', 'pendiente')->count(),
+            'aprobados' => CustomerOrder::where('estado', 'aprobado')->count(),
+            'rechazados' => CustomerOrder::where('estado', 'rechazado')->count(),
+            'en_produccion' => CustomerOrder::where('estado', 'en_produccion')->count(),
         ];
 
-        return view('gestion-pedidos', compact('pedidos', 'clientes', 'stats'));
+        return view('gestion-pedidos', compact('pedidos', 'clientes', 'stats', 'estadoFiltro'));
     }
 
     public function show($id)
@@ -45,10 +66,10 @@ class GestionPedidosController extends Controller
             'approver'
         ])->findOrFail($id);
 
-        $trackings = OrderEnvioTracking::where('order_id', $pedido->order_id)->orderBy('created_at', 'desc')->get();
+        $trackings = OrderEnvioTracking::where('pedido_id', $pedido->pedido_id)->orderBy('created_at', 'desc')->get();
 
         // Base web URL of PlantaCruds (try to derive from API URL)
-        $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost/plantaCruds/public/api');
+        $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
         $plantaBase = rtrim(str_replace('/api', '', $apiUrl), '/');
 
         return view('gestion-pedidos-detalle', compact('pedido', 'trackings', 'plantaBase'));
@@ -57,10 +78,9 @@ class GestionPedidosController extends Controller
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'delivery_date' => 'nullable|date',
-            'priority' => 'nullable|integer|min:1|max:10',
-            'description' => 'nullable|string',
-            'observations' => 'nullable|string',
+            'fecha_entrega' => 'nullable|date',
+            'descripcion' => 'nullable|string',
+            'observaciones' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -71,9 +91,11 @@ class GestionPedidosController extends Controller
 
         try {
             $pedido = CustomerOrder::findOrFail($id);
-            $pedido->update($request->only([
-                'delivery_date', 'priority', 'description', 'observations'
-            ]));
+            $pedido->update([
+                'fecha_entrega' => $request->fecha_entrega,
+                'descripcion' => $request->descripcion,
+                'observaciones' => $request->observaciones,
+            ]);
 
             return redirect()->route('gestion-pedidos')
                 ->with('success', 'Pedido actualizado exitosamente');
@@ -100,27 +122,27 @@ class GestionPedidosController extends Controller
 
             $order = CustomerOrder::findOrFail($orderId);
             
-            if ($order->status !== 'pendiente') {
+            if ($order->estado !== 'pendiente') {
                 return redirect()->back()
                     ->with('error', 'Solo se pueden aprobar pedidos pendientes');
             }
 
             // Aprobar todos los productos del pedido
-            OrderProduct::where('order_id', $orderId)
-                ->where('status', 'pendiente')
+            OrderProduct::where('pedido_id', $orderId)
+                ->where('estado', 'pendiente')
                 ->update([
-                    'status' => 'aprobado',
-                    'approved_by' => Auth::id(),
-                    'approved_at' => now(),
-                    'observations' => $request->observations,
+                    'estado' => 'aprobado',
+                    'aprobado_por' => Auth::id(),
+                    'aprobado_en' => now(),
+                    'observaciones' => $request->observations,
                 ]);
 
             // Aprobar el pedido completo
             $order->update([
-                'status' => 'aprobado',
-                'approved_by' => Auth::id(),
-                'approved_at' => now(),
-                'observations' => $request->observations,
+                'estado' => 'aprobado',
+                'aprobado_por' => Auth::id(),
+                'aprobado_en' => now(),
+                'observaciones' => $request->observations,
             ]);
 
             DB::commit();
@@ -153,27 +175,27 @@ class GestionPedidosController extends Controller
 
             $order = CustomerOrder::findOrFail($orderId);
             
-            if ($order->status !== 'pendiente') {
+            if ($order->estado !== 'pendiente') {
                 return redirect()->back()
                     ->with('error', 'Solo se pueden rechazar pedidos pendientes');
             }
 
             // Rechazar todos los productos del pedido
-            OrderProduct::where('order_id', $orderId)
-                ->where('status', 'pendiente')
+            OrderProduct::where('pedido_id', $orderId)
+                ->where('estado', 'pendiente')
                 ->update([
-                    'status' => 'rechazado',
-                    'approved_by' => Auth::id(),
-                    'approved_at' => now(),
-                    'rejection_reason' => $request->rejection_reason,
+                    'estado' => 'rechazado',
+                    'aprobado_por' => Auth::id(),
+                    'aprobado_en' => now(),
+                    'razon_rechazo' => $request->rejection_reason,
                 ]);
 
             // Rechazar el pedido completo
             $order->update([
-                'status' => 'rechazado',
-                'approved_by' => Auth::id(),
-                'approved_at' => now(),
-                'rejection_reason' => $request->rejection_reason,
+                'estado' => 'rechazado',
+                'aprobado_por' => Auth::id(),
+                'aprobado_en' => now(),
+                'razon_rechazo' => $request->rejection_reason,
             ]);
 
             DB::commit();

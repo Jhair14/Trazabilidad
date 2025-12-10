@@ -4,35 +4,47 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Operator;
-use App\Models\OperatorRole;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\App;
 
 class UsuariosController extends Controller
 {
     public function index()
     {
-        $usuarios = Operator::with('role')
-            ->orderBy('first_name', 'asc')
+        $usuarios = Operator::with('roles')
+            ->orderBy('nombre', 'asc')
             ->paginate(15);
 
-        $roles = OperatorRole::where('active', true)->get();
+        // Ya no usamos OperatorRole, Spatie maneja los roles
+        $roles = \Spatie\Permission\Models\Role::all();
 
         return view('usuarios', compact('usuarios', 'roles'));
     }
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'username' => 'required|string|max:60|unique:operator,username',
+        // Forzar idioma español
+        App::setLocale('es');
+        
+        $rules = [
+            'nombre' => 'required|string|max:100',
+            'apellido' => 'required|string|max:100',
+            'usuario' => 'required|string|max:60|unique:operador,usuario',
             'password' => 'required|string|min:6',
-            'email' => 'nullable|email|max:100',
-            'role_id' => 'required|integer|exists:operator_role,role_id',
-        ]);
+            'rol' => 'required|string|in:admin,operador,cliente',
+        ];
+
+        // Validar email solo si se proporciona y no está vacío
+        if ($request->filled('email') && trim($request->email) !== '') {
+            $rules['email'] = 'email|max:100|unique:operador,email';
+        } else {
+            $rules['email'] = 'nullable|email|max:100';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return redirect()->back()
@@ -42,53 +54,45 @@ class UsuariosController extends Controller
 
         try {
             // Sincronizar la secuencia con el máximo ID existente
-            $maxId = Operator::max('operator_id') ?? 0;
+            $maxId = Operator::max('operador_id') ?? 0;
             if ($maxId > 0) {
-                try {
-                    DB::statement("SELECT setval('operator_seq', $maxId, true)");
-                } catch (\Exception $e) {
+            try {
+                    DB::statement("SELECT setval('operador_seq', $maxId, true)");
+            } catch (\Exception $e) {
                     // Si la secuencia no existe, crearla
-                    DB::statement("CREATE SEQUENCE IF NOT EXISTS operator_seq START WITH " . ($maxId + 1));
+                    DB::statement("CREATE SEQUENCE IF NOT EXISTS operador_seq START WITH " . ($maxId + 1));
                 }
             }
             
             // Insertar usando SQL directo con nextval para evitar conflictos
             $passwordHash = Hash::make($request->password);
-            $email = $request->email ?? null;
+            $email = $request->filled('email') && trim($request->email) !== '' ? trim($request->email) : null;
             
             $operatorId = DB::selectOne("
-                INSERT INTO operator (operator_id, first_name, last_name, username, password_hash, email, role_id, active)
-                VALUES (nextval('operator_seq'), ?, ?, ?, ?, ?, ?, ?)
-                RETURNING operator_id
+                INSERT INTO operador (operador_id, nombre, apellido, usuario, password_hash, email, activo)
+                VALUES (nextval('operador_seq'), ?, ?, ?, ?, ?, ?)
+                RETURNING operador_id
             ", [
-                $request->first_name,
-                $request->last_name,
-                $request->username,
+                $request->nombre,
+                $request->apellido,
+                $request->usuario,
                 $passwordHash,
                 $email,
-                $request->role_id,
                 true
-            ])->operator_id;
+            ])->operador_id;
             
             // Obtener el operador creado
             $operator = Operator::find($operatorId);
             
-            // Asignar el rol de Spatie basado en el role_id
-            $spatieRole = null;
-            if ($request->role_id == 1) {
-                $spatieRole = \Spatie\Permission\Models\Role::where('name', 'admin')->first();
-            } elseif ($request->role_id == 2) {
-                $spatieRole = \Spatie\Permission\Models\Role::where('name', 'operador')->first();
-            } elseif ($request->role_id == 3) {
-                $spatieRole = \Spatie\Permission\Models\Role::where('name', 'cliente')->first();
-            }
-            
-            if ($spatieRole) {
-                $operator->assignRole($spatieRole);
+            // Asignar el rol de Spatie
+            $spatieRole = \Spatie\Permission\Models\Role::where('name', $request->rol)->first();
+            if ($spatieRole && $operator) {
+                $operator->syncRoles([$spatieRole]);
             }
 
             return redirect()->route('usuarios')
-                ->with('success', 'Usuario creado exitosamente');
+                ->with('success', 'Usuario creado exitosamente')
+                ->withInput([]); // Limpiar los valores old() después de éxito
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Error al crear usuario: ' . $e->getMessage())
@@ -96,16 +100,38 @@ class UsuariosController extends Controller
         }
     }
 
+    public function edit($id)
+    {
+        $usuario = Operator::with('roles')->findOrFail($id);
+        $usuarios = Operator::with('roles')
+            ->orderBy('nombre', 'asc')
+            ->paginate(15);
+        $roles = \Spatie\Permission\Models\Role::all();
+        
+        return view('usuarios', compact('usuarios', 'usuario', 'roles'))->with('editing', true);
+    }
+
     public function update(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'username' => 'required|string|max:60|unique:operator,username,' . $id . ',operator_id',
-            'email' => 'nullable|email|max:100',
-            'role_id' => 'required|integer|exists:operator_role,role_id',
-            'active' => 'nullable|boolean',
-        ]);
+        // Forzar idioma español
+        App::setLocale('es');
+        
+        $rules = [
+            'nombre' => 'required|string|max:100',
+            'apellido' => 'required|string|max:100',
+            'usuario' => 'required|string|max:60|unique:operador,usuario,' . $id . ',operador_id',
+            'rol' => 'required|string|in:admin,operador,cliente',
+            'activo' => 'nullable|boolean',
+        ];
+
+        // Validar email solo si se proporciona y no está vacío
+        if ($request->filled('email') && trim($request->email) !== '') {
+            $rules['email'] = 'email|max:100|unique:operador,email,' . $id . ',operador_id';
+        } else {
+            $rules['email'] = 'nullable|email|max:100';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return redirect()->back()
@@ -115,21 +141,59 @@ class UsuariosController extends Controller
 
         try {
             $usuario = Operator::findOrFail($id);
-            $data = $request->only([
-                'first_name', 'last_name', 'username', 'email', 'role_id', 'active'
-            ]);
+            $data = [
+                'nombre' => $request->nombre,
+                'apellido' => $request->apellido,
+                'usuario' => $request->usuario,
+                'email' => $request->filled('email') && trim($request->email) !== '' ? trim($request->email) : null,
+                'activo' => $request->has('activo') && $request->activo == '1'
+            ];
 
             if ($request->filled('password')) {
                 $data['password_hash'] = Hash::make($request->password);
             }
 
             $usuario->update($data);
+            
+            // Actualizar rol de Spatie
+            $spatieRole = \Spatie\Permission\Models\Role::where('name', $request->rol)->first();
+            if ($spatieRole) {
+                $usuario->syncRoles([$spatieRole]);
+            }
 
             return redirect()->route('usuarios')
                 ->with('success', 'Usuario actualizado exitosamente');
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Error al actualizar usuario: ' . $e->getMessage());
+        }
+    }
+
+    public function destroy($id)
+    {
+        // Forzar idioma español
+        App::setLocale('es');
+        
+        try {
+            $usuario = Operator::findOrFail($id);
+            
+            // No permitir eliminar el usuario actual
+            if (auth()->check() && auth()->user()->operador_id == $id) {
+                return redirect()->route('usuarios')
+                    ->with('error', 'No puedes eliminar tu propio usuario.');
+            }
+            
+            // Eliminar roles asignados
+            $usuario->syncRoles([]);
+            
+            // Eliminar el usuario
+            $usuario->delete();
+            
+            return redirect()->route('usuarios')
+                ->with('success', 'Usuario eliminado exitosamente');
+        } catch (\Exception $e) {
+            return redirect()->route('usuarios')
+                ->with('error', 'Error al eliminar usuario: ' . $e->getMessage());
         }
     }
 }

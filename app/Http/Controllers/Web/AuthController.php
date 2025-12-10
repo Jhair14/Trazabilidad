@@ -32,7 +32,7 @@ class AuthController extends Controller
                 ->withInput();
         }
 
-        $operator = Operator::where('username', $request->username)->first();
+        $operator = Operator::where('usuario', $request->username)->first();
 
         if (!$operator || !Hash::check($request->password, $operator->password_hash)) {
             return redirect()->back()
@@ -40,7 +40,7 @@ class AuthController extends Controller
                 ->withInput();
         }
 
-        if (!$operator->active) {
+        if (!$operator->activo) {
             return redirect()->back()
                 ->with('error', 'Usuario inactivo')
                 ->withInput();
@@ -49,9 +49,8 @@ class AuthController extends Controller
         // Autenticar usando el guard 'web' para sesión
         Auth::guard('web')->login($operator);
 
-        // Redirigir según el rol
-        $role = $operator->role;
-        if ($role && (strtolower($role->code ?? '') === 'cliente' || strtolower($role->name ?? '') === 'cliente')) {
+        // Redirigir según el rol de Spatie
+        if ($operator->hasRole('cliente')) {
             return redirect()->route('dashboard-cliente');
         }
 

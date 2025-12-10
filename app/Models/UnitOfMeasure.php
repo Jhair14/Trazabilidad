@@ -7,23 +7,23 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class UnitOfMeasure extends Model
 {
-    protected $table = 'unit_of_measure';
-    protected $primaryKey = 'unit_id';
+    protected $table = 'unidad_medida';
+    protected $primaryKey = 'unidad_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'code',
-        'name',
-        'description',
-        'active'
+        'codigo',
+        'nombre',
+        'descripcion',
+        'activo'
     ];
 
     protected $casts = [
-        'active' => 'boolean',
+        'activo' => 'boolean',
     ];
 
     public function rawMaterialBases(): HasMany
     {
-        return $this->hasMany(RawMaterialBase::class, 'unit_id', 'unit_id');
+        return $this->hasMany(RawMaterialBase::class, 'unidad_id', 'unidad_id');
     }
 }

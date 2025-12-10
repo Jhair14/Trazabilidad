@@ -116,10 +116,12 @@
                                 <td>#{{ $pedido->order_number ?? $pedido->order_id }}</td>
                                 <td>{{ $pedido->customer->business_name ?? 'N/A' }}</td>
                                 <td>
-                                    @if($pedido->priority > 0)
+                                    @if($pedido->estado == 'pendiente')
                                         <span class="badge badge-warning">Pendiente</span>
-                                    @else
+                                    @elseif($pedido->estado == 'completado')
                                         <span class="badge badge-success">Completado</span>
+                                    @else
+                                        <span class="badge badge-info">{{ ucfirst($pedido->estado) }}</span>
                                     @endif
                                 </td>
                                 <td>{{ \Carbon\Carbon::parse($pedido->creation_date)->format('Y-m-d') }}</td>

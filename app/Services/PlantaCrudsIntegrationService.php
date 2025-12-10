@@ -13,7 +13,7 @@ class PlantaCrudsIntegrationService
 
     public function __construct()
     {
-        $this->apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost/plantaCruds/public/api');
+        $this->apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
     }
 
     /**
@@ -41,7 +41,7 @@ class PlantaCrudsIntegrationService
                 $response = $this->createEnvio($envioData);
 
                 $results[] = [
-                    'destination_id' => $destination->destination_id,
+                    'destination_id' => $destination->destino_id,
                     'success' => true,
                     'envio_id' => $response['data']['id'] ?? null,
                     'envio_codigo' => $response['data']['codigo'] ?? null,
@@ -50,24 +50,24 @@ class PlantaCrudsIntegrationService
                 ];
 
                 Log::info('Envio created successfully in plantaCruds', [
-                    'order_id' => $order->order_id,
-                    'order_number' => $order->order_number,
-                    'destination_id' => $destination->destination_id,
+                    'order_id' => $order->pedido_id,
+                    'order_number' => $order->numero_pedido,
+                    'destination_id' => $destination->destino_id,
                     'envio_id' => $response['data']['id'] ?? null,
                     'envio_codigo' => $response['data']['codigo'] ?? null,
                 ]);
 
             } catch (\Exception $e) {
                 $results[] = [
-                    'destination_id' => $destination->destination_id,
+                    'destination_id' => $destination->destino_id,
                     'success' => false,
                     'error' => $e->getMessage(),
                 ];
 
                 Log::error('Failed to create Envio in plantaCruds', [
-                    'order_id' => $order->order_id,
-                    'order_number' => $order->order_number,
-                    'destination_id' => $destination->destination_id,
+                    'order_id' => $order->pedido_id,
+                    'order_number' => $order->numero_pedido,
+                    'destination_id' => $destination->destino_id,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
@@ -97,14 +97,14 @@ class PlantaCrudsIntegrationService
         } else {
             // Fallback: buscar o crear almacén basado en la ubicación
             // Si hay storage con ubicación de recojo, usar esa ubicación
-            if ($storage && $storage->pickup_latitude && $storage->pickup_longitude) {
+            if ($storage && $storage->latitud_recojo && $storage->longitud_recojo) {
                 $almacenId = $this->findOrCreateAlmacenByCoordinates(
-                    $storage->pickup_latitude,
-                    $storage->pickup_longitude,
-                    $storage->pickup_address
+                    $storage->latitud_recojo,
+                    $storage->longitud_recojo,
+                    $storage->direccion_recojo
                 );
             } else {
-                $almacenId = $this->findOrCreateAlmacen($destination);
+            $almacenId = $this->findOrCreateAlmacen($destination);
             }
         }
 
@@ -116,9 +116,9 @@ class PlantaCrudsIntegrationService
 
             $productos[] = [
                 'producto_id' => null, // Not used, will rely on producto_nombre
-                'producto_nombre' => $product->name,
-                'cantidad' => (float) $destProduct->quantity,
-                'peso_kg' => (float) ($product->weight ?? 0),
+                'producto_nombre' => $product->nombre,
+                'cantidad' => (float) $destProduct->cantidad,
+                'peso_kg' => (float) ($product->peso ?? 0),
                 'precio' => 0.00, // Default price, can be adjusted
             ];
         }
@@ -126,7 +126,7 @@ class PlantaCrudsIntegrationService
         return [
             'almacen_destino_id' => $almacenId,
             'categoria' => 'general',
-            'fecha_estimada_entrega' => $order->delivery_date ?? now()->addDays(3)->format('Y-m-d'),
+            'fecha_estimada_entrega' => $order->fecha_entrega ?? now()->addDays(3)->format('Y-m-d'),
             'hora_estimada' => '14:00', // Default time
             'observaciones' => $this->buildObservations($order, $destination, $storage),
             'productos' => $productos,
@@ -143,41 +143,41 @@ class PlantaCrudsIntegrationService
      */
     private function buildObservations(CustomerOrder $order, OrderDestination $destination, ?\App\Models\Storage $storage = null): string
     {
-        $obs = "Pedido: {$order->order_number}\n";
-        $obs .= "Cliente: {$order->customer->business_name}\n";
+        $obs = "Pedido: {$order->numero_pedido}\n";
+        $obs .= "Cliente: {$order->customer->razon_social}\n";
 
-        if ($order->observations) {
-            $obs .= "Notas: {$order->observations}\n";
+        if ($order->observaciones) {
+            $obs .= "Notas: {$order->observaciones}\n";
         }
 
         // Agregar información de ubicación de recojo si está disponible
-        if ($storage && $storage->pickup_address) {
+        if ($storage && $storage->direccion_recojo) {
             $obs .= "\n📍 UBICACIÓN DE RECOJO:\n";
-            $obs .= "Dirección: {$storage->pickup_address}\n";
-            if ($storage->pickup_reference) {
-                $obs .= "Referencia: {$storage->pickup_reference}\n";
+            $obs .= "Dirección: {$storage->direccion_recojo}\n";
+            if ($storage->referencia_recojo) {
+                $obs .= "Referencia: {$storage->referencia_recojo}\n";
             }
-            if ($storage->pickup_latitude && $storage->pickup_longitude) {
-                $obs .= "Coordenadas: {$storage->pickup_latitude}, {$storage->pickup_longitude}\n";
+            if ($storage->latitud_recojo && $storage->longitud_recojo) {
+                $obs .= "Coordenadas: {$storage->latitud_recojo}, {$storage->longitud_recojo}\n";
             }
         }
 
-        if ($destination->delivery_instructions) {
-            $obs .= "\nInstrucciones de entrega: {$destination->delivery_instructions}\n";
+        if ($destination->instrucciones_entrega) {
+            $obs .= "\nInstrucciones de entrega: {$destination->instrucciones_entrega}\n";
         }
 
-        if ($destination->contact_name) {
-            $obs .= "Contacto: {$destination->contact_name}";
-            if ($destination->contact_phone) {
-                $obs .= " - Tel: {$destination->contact_phone}";
+        if ($destination->nombre_contacto) {
+            $obs .= "Contacto: {$destination->nombre_contacto}";
+            if ($destination->telefono_contacto) {
+                $obs .= " - Tel: {$destination->telefono_contacto}";
             }
             $obs .= "\n";
         }
 
-        if ($destination->address) {
-            $obs .= "Dirección de entrega: {$destination->address}";
-            if ($destination->reference) {
-                $obs .= " ({$destination->reference})";
+        if ($destination->direccion) {
+            $obs .= "Dirección de entrega: {$destination->direccion}";
+            if ($destination->referencia) {
+                $obs .= " ({$destination->referencia})";
             }
         }
 
@@ -272,15 +272,15 @@ class PlantaCrudsIntegrationService
                 $almacenes = $response->json('data', []);
 
                 // Try to find by coordinates if available
-                if ($destination->latitude && $destination->longitude) {
+                if ($destination->latitud && $destination->longitud) {
                     foreach ($almacenes as $almacen) {
                         if (
                             isset($almacen['latitud']) && isset($almacen['longitud']) &&
                             $this->coordinatesMatch(
                                 $almacen['latitud'],
                                 $almacen['longitud'],
-                                $destination->latitude,
-                                $destination->longitude
+                                $destination->latitud,
+                                $destination->longitud
                             )
                         ) {
                             Log::info('Found almacen by coordinates', [
@@ -296,8 +296,8 @@ class PlantaCrudsIntegrationService
                 foreach ($almacenes as $almacen) {
                     $almacenAddress = $almacen['direccion_completa'] ?? $almacen['nombre'] ?? '';
                     if (
-                        stripos($almacenAddress, $destination->address) !== false ||
-                        stripos($destination->address, $almacenAddress) !== false
+                        stripos($almacenAddress, $destination->direccion) !== false ||
+                        stripos($destination->direccion, $almacenAddress) !== false
                     ) {
                         Log::info('Found almacen by address match', [
                             'almacen_id' => $almacen['id'],
@@ -314,7 +314,7 @@ class PlantaCrudsIntegrationService
                         Log::warning('No matching almacen found, using default (non-plant)', [
                             'almacen_id' => $almacen['id'],
                             'almacen_nombre' => $almacen['nombre'],
-                            'destination_address' => $destination->address,
+                            'destination_address' => $destination->direccion,
                         ]);
                         return $almacen['id'];
                     }
@@ -325,7 +325,7 @@ class PlantaCrudsIntegrationService
                     if (!($almacen['es_planta'] ?? false)) {
                         Log::warning('No active non-plant almacen found, using first non-plant', [
                             'almacen_id' => $almacen['id'],
-                            'destination_address' => $destination->address,
+                            'destination_address' => $destination->direccion,
                         ]);
                         return $almacen['id'];
                     }
@@ -336,7 +336,7 @@ class PlantaCrudsIntegrationService
         }
 
         // If no almacen found at all, throw exception
-        throw new \Exception("No hay almacenes disponibles en plantaCruds para el destino: {$destination->address}");
+        throw new \Exception("No hay almacenes disponibles en plantaCruds para el destino: {$destination->direccion}");
     }
 
     /**

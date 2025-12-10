@@ -82,19 +82,19 @@
                         <tbody>
                             @forelse($lotes as $lote)
                             <tr>
-                                <td>#{{ $lote->batch_id }}</td>
-                                <td>{{ $lote->name ?? 'Sin nombre' }}</td>
+                                <td>#{{ $lote->lote_id }}</td>
+                                <td>{{ $lote->nombre ?? 'Sin nombre' }}</td>
                                 <td>
                                     @php
                                         $evaluation = $lote->finalEvaluation->first();
                                     @endphp
                                     @if($evaluation)
-                                        @if(str_contains(strtolower($evaluation->reason ?? ''), 'falló'))
+                                        @if(str_contains(strtolower($evaluation->razon ?? ''), 'falló'))
                                             <span class="badge badge-danger">No Certificado</span>
                                         @else
                                             <span class="badge badge-success">Certificado</span>
                                         @endif
-                                    @elseif($lote->start_time && !$lote->end_time)
+                                    @elseif($lote->hora_inicio && !$lote->hora_fin)
                                         <span class="badge badge-warning">En Proceso</span>
                                     @else
                                         <span class="badge badge-info">Pendiente</span>
@@ -102,17 +102,17 @@
                                 </td>
                                 <td>
                                     @if($lote->order)
-                                        {{ $lote->order->name ?? 'Sin nombre' }} - {{ $lote->order->customer->business_name ?? 'N/A' }}
+                                        {{ $lote->order->nombre ?? 'Sin nombre' }} - {{ $lote->order->customer->razon_social ?? 'N/A' }}
                                     @else
                                         <span class="text-muted">Sin pedido</span>
                                     @endif
                                 </td>
-                                <td>{{ \Carbon\Carbon::parse($lote->creation_date)->format('Y-m-d') }}</td>
+                                <td>{{ $lote->fecha_creacion ? \Carbon\Carbon::parse($lote->fecha_creacion)->format('Y-m-d') : 'N/A' }}</td>
                                 <td class="text-right">
-                                    <button class="btn btn-sm btn-info" title="Ver" onclick="verLote({{ $lote->batch_id }})">
+                                    <button class="btn btn-sm btn-info" title="Ver" onclick="verLote({{ $lote->lote_id }})">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-warning" title="Editar" onclick="editarLote({{ $lote->batch_id }})">
+                                    <button class="btn btn-sm btn-warning" title="Editar" onclick="editarLote({{ $lote->lote_id }})">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                 </td>
@@ -187,11 +187,11 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="order_id">Pedido Asociado</label>
-                                <select class="form-control" id="order_id" name="order_id">
+                                <select class="form-control" id="pedido_id" name="pedido_id">
                                     <option value="">Sin pedido asociado</option>
                                     @foreach($pedidos as $pedido)
-                                        <option value="{{ $pedido->order_id }}" {{ old('order_id') == $pedido->order_id ? 'selected' : '' }}>
-                                            {{ $pedido->name ?? 'Sin nombre' }} - {{ $pedido->customer->business_name ?? 'N/A' }}
+                                        <option value="{{ $pedido->pedido_id }}" {{ old('pedido_id') == $pedido->pedido_id ? 'selected' : '' }}>
+                                            {{ $pedido->nombre ?? 'Sin nombre' }} - {{ $pedido->customer->razon_social ?? 'N/A' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -347,11 +347,11 @@
                                     <i class="fas fa-shopping-cart mr-1"></i>
                                     Pedido Asociado
                                 </label>
-                                <select class="form-control" id="edit_order_id" name="order_id">
+                                <select class="form-control" id="edit_pedido_id" name="pedido_id">
                                     <option value="">Sin pedido asociado</option>
                                     @foreach($pedidos as $pedido)
-                                        <option value="{{ $pedido->order_id }}">
-                                            {{ $pedido->name ?? 'Sin nombre' }} - {{ $pedido->customer->business_name ?? 'N/A' }}
+                                        <option value="{{ $pedido->pedido_id }}">
+                                            {{ $pedido->nombre ?? 'Sin nombre' }} - {{ $pedido->customer->razon_social ?? 'N/A' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -644,7 +644,7 @@ function editarLote(id) {
         .then(data => {
             document.getElementById('editarLoteForm').action = `{{ url('gestion-lotes') }}/${id}`;
             document.getElementById('edit_name').value = data.name || '';
-            document.getElementById('edit_order_id').value = data.order_id || '';
+            document.getElementById('edit_pedido_id').value = data.order_id || '';
             document.getElementById('edit_target_quantity').value = data.target_quantity || '';
             document.getElementById('edit_observations').value = data.observations || '';
             $('#editarLoteModal').modal('show');

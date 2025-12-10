@@ -21,55 +21,50 @@ class PedidosController extends Controller
     {
         $user = Auth::user();
 
-        // Cargar la relación role si no está cargada
-        if (!$user->relationLoaded('role')) {
-            $user->load('role');
-        }
-
         // Buscar customer relacionado con el operador
-        $customerId = $user->customer_id ?? null;
+        $customerId = $user->cliente_id ?? null;
         $customer = null;
 
         if (!$customerId) {
             // Buscar por email
             $customer = Customer::where('email', $user->email)->first();
-            $customerId = $customer ? $customer->customer_id : null;
+            $customerId = $customer ? $customer->cliente_id : null;
         }
 
         // Si no se encontró un cliente, crear uno automáticamente para este usuario
         if (!$customerId) {
             try {
                 // Sincronizar secuencia de customer si es necesario
-                $maxCustomerId = Customer::max('customer_id') ?? 0;
+                $maxCustomerId = Customer::max('cliente_id') ?? 0;
                 try {
-                    $seqResult = DB::selectOne("SELECT last_value FROM customer_seq");
+                    $seqResult = DB::selectOne("SELECT last_value FROM cliente_seq");
                     $seqValue = $seqResult->last_value ?? 0;
                 } catch (\Exception $e) {
                     $seqValue = 0;
                 }
 
                 if ($seqValue < $maxCustomerId) {
-                    DB::statement("SELECT setval('customer_seq', $maxCustomerId, true)");
+                    DB::statement("SELECT setval('cliente_seq', $maxCustomerId, true)");
                 }
 
                 // Obtener el siguiente ID de la secuencia
-                $nextId = DB::selectOne("SELECT nextval('customer_seq') as id")->id;
+                $nextId = DB::selectOne("SELECT nextval('cliente_seq') as id")->id;
 
                 // Crear un Customer automáticamente para este operador
                 $customer = Customer::create([
-                    'customer_id' => $nextId,
-                    'business_name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: 'Cliente ' . $user->username,
-                    'trading_name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: 'Cliente ' . $user->username,
+                    'cliente_id' => $nextId,
+                    'razon_social' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
+                    'nombre_comercial' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
                     'email' => $user->email ?? null,
-                    'contact_person' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: $user->username,
-                    'active' => true,
+                    'contacto' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: $user->usuario,
+                    'activo' => true,
                 ]);
 
-                $customerId = $customer->customer_id;
+                $customerId = $customer->cliente_id;
             } catch (\Exception $e) {
                 // Si falla, usar el primer cliente activo como fallback
-                $customer = Customer::where('active', true)->first();
-                $customerId = $customer ? $customer->customer_id : null;
+                $customer = Customer::where('activo', true)->first();
+                $customerId = $customer ? $customer->cliente_id : null;
             }
         }
 
@@ -77,18 +72,18 @@ class PedidosController extends Controller
         if (!$customerId) {
             $pedidos = CustomerOrder::whereRaw('1 = 0')->paginate(15);
         } else {
-            $pedidos = CustomerOrder::where('customer_id', $customerId)
+            $pedidos = CustomerOrder::where('cliente_id', $customerId)
                 ->with(['customer', 'orderProducts.product', 'batches'])
-                ->orderBy('creation_date', 'desc')
+                ->orderBy('fecha_creacion', 'desc')
                 ->paginate(15);
         }
 
         // Estadísticas
         $stats = [
             'total' => $pedidos->total(),
-            'pendientes' => $pedidos->where('priority', '>', 0)->count(),
-            'en_proceso' => $pedidos->where('priority', '>', 0)->where('priority', '<=', 5)->count(),
-            'completados' => $pedidos->where('priority', 0)->count(),
+            'pendientes' => $pedidos->where('estado', 'pendiente')->count(),
+            'en_proceso' => $pedidos->where('estado', 'en_produccion')->count(),
+            'completados' => $pedidos->where('estado', 'completado')->count(),
         ];
 
         return view('mis-pedidos', compact('pedidos', 'stats'));
@@ -96,16 +91,16 @@ class PedidosController extends Controller
 
     public function crearPedidoForm()
     {
-        $products = Product::where('active', true)
+        $products = Product::where('activo', true)
             ->with('unit')
-            ->orderBy('name')
+            ->orderBy('nombre')
             ->get();
 
         // Obtener almacenes destino desde plantaCruds
         $almacenesDestino = [];
 
         try {
-            $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost/plantaCruds/public/api');
+            $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
             $resp = Http::timeout(5)->get("{$apiUrl}/almacenes");
             if ($resp->successful()) {
                 $almacenes = $resp->json('data', []);
@@ -139,10 +134,9 @@ class PedidosController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:200',
             'delivery_date' => 'nullable|date|after:today',
-            'priority' => 'nullable|integer|min:1|max:10',
             'description' => 'nullable|string',
             'products' => 'required|array|min:1',
-            'products.*.product_id' => 'required|integer|exists:product,product_id',
+            'products.*.product_id' => 'required|integer|exists:producto,producto_id',
             'products.*.quantity' => 'required|integer|min:1',
             'products.*.observations' => 'nullable|string',
             'destinations' => 'required|array|min:1',
@@ -187,7 +181,7 @@ class PedidosController extends Controller
             DB::beginTransaction();
 
             // Obtener el siguiente ID
-            $maxId = CustomerOrder::max('order_id') ?? 0;
+            $maxId = CustomerOrder::max('pedido_id') ?? 0;
             $nextId = $maxId + 1;
 
             // Generar número de pedido
@@ -197,32 +191,38 @@ class PedidosController extends Controller
             $editableUntil = now()->addHours(24);
 
             $order = CustomerOrder::create([
-                'order_id' => $nextId,
-                'customer_id' => $customerId,
-                'order_number' => $orderNumber,
-                'name' => $request->name,
-                'status' => 'pendiente',
-                'creation_date' => now()->toDateString(),
-                'delivery_date' => $request->delivery_date,
-                'priority' => $request->priority ?? 1,
-                'description' => $request->description,
-                'editable_until' => $editableUntil,
+                'pedido_id' => $nextId,
+                'cliente_id' => $customerId,
+                'numero_pedido' => $orderNumber,
+                'nombre' => $request->name,
+                'estado' => 'pendiente',
+                'fecha_creacion' => now()->toDateString(),
+                'fecha_entrega' => $request->delivery_date,
+                'descripcion' => $request->description,
+                'editable_hasta' => $editableUntil,
             ]);
 
             // Crear productos del pedido
             $orderProducts = [];
-            $maxOrderProductId = OrderProduct::max('order_product_id') ?? 0;
+            $maxOrderProductId = OrderProduct::max('producto_pedido_id') ?? 0;
 
             foreach ($request->products as $index => $productData) {
                 $orderProductId = $maxOrderProductId + $index + 1;
 
+                // Obtener el producto para calcular el precio
+                $product = Product::find($productData['product_id']);
+                $precioUnitario = $product->precio_unitario ?? 0;
+                $cantidad = $productData['quantity'];
+                $precioTotal = $precioUnitario * $cantidad;
+
                 $orderProduct = OrderProduct::create([
-                    'order_product_id' => $orderProductId,
-                    'order_id' => $order->order_id,
-                    'product_id' => $productData['product_id'],
-                    'quantity' => $productData['quantity'],
-                    'status' => 'pendiente',
-                    'observations' => $productData['observations'] ?? null,
+                    'producto_pedido_id' => $orderProductId,
+                    'pedido_id' => $order->pedido_id,
+                    'producto_id' => $productData['product_id'],
+                    'cantidad' => $cantidad,
+                    'precio' => $precioTotal,
+                    'estado' => 'pendiente',
+                    'observaciones' => $productData['observations'] ?? null,
                 ]);
 
                 $orderProducts[] = $orderProduct;
@@ -230,14 +230,14 @@ class PedidosController extends Controller
             }
 
             // Crear destinos y asignar productos
-            $maxDestinationId = OrderDestination::max('destination_id') ?? 0;
+            $maxDestinationId = OrderDestination::max('destino_id') ?? 0;
 
             // Si el usuario seleccionó un almacen para el pedido, intentar resolver su nombre
             $almacenName = null;
             $selectedAlmacenId = $request->input('almacen_id');
             if (!empty($selectedAlmacenId)) {
                 try {
-                    $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost/plantaCruds/public/api');
+                    $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
                     $resp = Http::timeout(5)->get("{$apiUrl}/almacenes");
                     if ($resp->successful()) {
                         $almacenes = $resp->json('data', []);
@@ -260,7 +260,7 @@ class PedidosController extends Controller
                 $almacenDestinoId = $destData['almacen_destino_id'] ?? null;
                 if (!empty($almacenDestinoId)) {
                     try {
-                        $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost/plantaCruds/public/api');
+                        $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
                         $resp = Http::timeout(5)->get("{$apiUrl}/almacenes");
                         if ($resp->successful()) {
                             foreach ($resp->json('data', []) as $alm) {
@@ -276,21 +276,21 @@ class PedidosController extends Controller
                 }
 
                 $destination = OrderDestination::create([
-                    'destination_id' => $destinationId,
-                    'order_id' => $order->order_id,
-                    'address' => $destData['address'] ?? $almacenDestinoNombre ?? 'Sin dirección',
-                    'latitude' => $destData['latitude'] ?? null,
-                    'longitude' => $destData['longitude'] ?? null,
-                    'reference' => $destData['reference'] ?? null,
-                    'contact_name' => $destData['contact_name'] ?? null,
-                    'contact_phone' => $destData['contact_phone'] ?? null,
-                    'delivery_instructions' => $destData['delivery_instructions'] ?? null,
+                    'destino_id' => $destinationId,
+                    'pedido_id' => $order->pedido_id,
+                    'direccion' => $destData['address'] ?? $almacenDestinoNombre ?? 'Sin dirección',
+                    'latitud' => $destData['latitude'] ?? null,
+                    'longitud' => $destData['longitude'] ?? null,
+                    'referencia' => $destData['reference'] ?? null,
+                    'nombre_contacto' => $destData['contact_name'] ?? null,
+                    'telefono_contacto' => $destData['contact_phone'] ?? null,
+                    'instrucciones_entrega' => $destData['delivery_instructions'] ?? null,
                     'almacen_destino_id' => $almacenDestinoId,
                     'almacen_destino_nombre' => $almacenDestinoNombre,
                 ]);
 
                 // Asignar productos a este destino
-                $maxDestProdId = OrderDestinationProduct::max('destination_product_id') ?? 0;
+                $maxDestProdId = OrderDestinationProduct::max('producto_destino_id') ?? 0;
                 foreach ($destData['products'] as $destProdIndex => $destProdData) {
                     $orderProductIndex = $destProdData['order_product_index'];
                     if (isset($orderProducts[$orderProductIndex])) {
@@ -298,11 +298,11 @@ class PedidosController extends Controller
                         $maxDestProdId = $destProdId; // Actualizar para el siguiente
 
                         OrderDestinationProduct::create([
-                            'destination_product_id' => $destProdId,
-                            'destination_id' => $destination->destination_id,
-                            'order_product_id' => $orderProducts[$orderProductIndex]->order_product_id,
-                            'quantity' => $destProdData['quantity'],
-                            'observations' => $destProdData['observations'] ?? null,
+                            'producto_destino_id' => $destProdId,
+                            'destino_id' => $destination->destino_id,
+                            'producto_pedido_id' => $orderProducts[$orderProductIndex]->producto_pedido_id,
+                            'cantidad' => $destProdData['quantity'],
+                            'observaciones' => $destProdData['observations'] ?? null,
                         ]);
                     }
                 }
@@ -326,32 +326,32 @@ class PedidosController extends Controller
 
     private function getOrCreateCustomerId($user)
     {
-        $customerId = $user->customer_id ?? null;
+        $customerId = $user->cliente_id ?? null;
         $customer = null;
 
         if (!$customerId) {
             $customer = Customer::where('email', $user->email)->first();
-            $customerId = $customer ? $customer->customer_id : null;
+            $customerId = $customer ? $customer->cliente_id : null;
         }
 
         if (!$customerId) {
             try {
-                $maxCustomerId = Customer::max('customer_id') ?? 0;
+                $maxCustomerId = Customer::max('cliente_id') ?? 0;
                 $nextId = $maxCustomerId + 1;
 
                 $customer = Customer::create([
-                    'customer_id' => $nextId,
-                    'business_name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: 'Cliente ' . $user->username,
-                    'trading_name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: 'Cliente ' . $user->username,
+                    'cliente_id' => $nextId,
+                    'razon_social' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
+                    'nombre_comercial' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
                     'email' => $user->email ?? null,
-                    'contact_person' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: $user->username,
-                    'active' => true,
+                    'contacto' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: $user->usuario,
+                    'activo' => true,
                 ]);
 
-                $customerId = $customer->customer_id;
+                $customerId = $customer->cliente_id;
             } catch (\Exception $e) {
-                $customer = Customer::where('active', true)->first();
-                $customerId = $customer ? $customer->customer_id : null;
+                $customer = Customer::where('activo', true)->first();
+                $customerId = $customer ? $customer->cliente_id : null;
             }
         }
 
@@ -372,51 +372,50 @@ class PedidosController extends Controller
         ])->findOrFail($id);
 
         // Verificar que el pedido pertenece al cliente del usuario
-        if ($pedido->customer_id != $customerId) {
+        if ($pedido->cliente_id != $customerId) {
             abort(403, 'No tienes permiso para ver este pedido');
         }
 
         // Si es una petición AJAX, devolver JSON
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json([
-                'order_id' => $pedido->order_id,
-                'order_number' => $pedido->order_number,
-                'name' => $pedido->name,
-                'description' => $pedido->description,
-                'status' => $pedido->status,
-                'creation_date' => $pedido->creation_date->format('Y-m-d'),
-                'delivery_date' => $pedido->delivery_date ? $pedido->delivery_date->format('Y-m-d') : null,
-                'priority' => $pedido->priority,
-                'observations' => $pedido->observations,
-                'editable_until' => $pedido->editable_until ? $pedido->editable_until->format('Y-m-d H:i:s') : null,
-                'approved_at' => $pedido->approved_at ? $pedido->approved_at->format('Y-m-d H:i:s') : null,
+                'order_id' => $pedido->pedido_id,
+                'order_number' => $pedido->numero_pedido,
+                'name' => $pedido->nombre,
+                'description' => $pedido->descripcion,
+                'status' => $pedido->estado,
+                'creation_date' => $pedido->fecha_creacion->format('Y-m-d'),
+                'delivery_date' => $pedido->fecha_entrega ? $pedido->fecha_entrega->format('Y-m-d') : null,
+                'observations' => $pedido->observaciones,
+                'editable_until' => $pedido->editable_hasta ? $pedido->editable_hasta->format('Y-m-d H:i:s') : null,
+                'approved_at' => $pedido->aprobado_en ? $pedido->aprobado_en->format('Y-m-d H:i:s') : null,
                 'can_be_edited' => $pedido->canBeEdited(),
                 'orderProducts' => $pedido->orderProducts->map(function ($op) {
                     return [
-                        'order_product_id' => $op->order_product_id,
-                        'product_id' => $op->product_id,
-                        'quantity' => $op->quantity,
-                        'status' => $op->status,
-                        'observations' => $op->observations,
-                        'rejection_reason' => $op->rejection_reason,
+                        'order_product_id' => $op->producto_pedido_id,
+                        'product_id' => $op->producto_id,
+                        'quantity' => $op->cantidad,
+                        'status' => $op->estado,
+                        'observations' => $op->observaciones,
+                        'rejection_reason' => $op->razon_rechazo,
                         'product' => [
-                            'product_id' => $op->product->product_id,
-                            'name' => $op->product->name ?? 'N/A',
-                            'code' => $op->product->code ?? 'N/A',
+                            'product_id' => $op->product->producto_id,
+                            'name' => $op->product->nombre ?? 'N/A',
+                            'code' => $op->product->codigo ?? 'N/A',
                             'unit' => [
-                                'name' => $op->product->unit->name ?? 'N/A',
-                                'abbreviation' => $op->product->unit->code ?? 'N/A',
+                                'name' => $op->product->unit->nombre ?? 'N/A',
+                                'abbreviation' => $op->product->unit->codigo ?? 'N/A',
                             ]
                         ]
                     ];
                 }),
                 'destinations' => $pedido->destinations->map(function ($dest) {
                     return [
-                        'address' => $dest->address,
-                        'reference' => $dest->reference,
-                        'contact_name' => $dest->contact_name,
-                        'contact_phone' => $dest->contact_phone,
-                        'delivery_instructions' => $dest->delivery_instructions,
+                        'address' => $dest->direccion,
+                        'reference' => $dest->referencia,
+                        'contact_name' => $dest->nombre_contacto,
+                        'contact_phone' => $dest->telefono_contacto,
+                        'delivery_instructions' => $dest->instrucciones_entrega,
                     ];
                 }),
             ]);
@@ -436,7 +435,7 @@ class PedidosController extends Controller
         ])->findOrFail($id);
 
         // Verificar que el pedido pertenece al cliente del usuario
-        if ($pedido->customer_id != $customerId) {
+        if ($pedido->cliente_id != $customerId) {
             abort(403, 'No tienes permiso para editar este pedido');
         }
 
@@ -446,15 +445,15 @@ class PedidosController extends Controller
                 ->with('error', 'El pedido no puede ser editado. Ya fue aprobado o expiró el tiempo de edición.');
         }
 
-        $products = Product::where('active', true)
+        $products = Product::where('activo', true)
             ->with('unit')
-            ->orderBy('name')
+            ->orderBy('nombre')
             ->get();
 
         // Obtener almacenes destino
         $almacenesDestino = [];
         try {
-            $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost/plantaCruds/public/api');
+            $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
             $resp = Http::timeout(5)->get("{$apiUrl}/almacenes");
             if ($resp->successful()) {
                 foreach ($resp->json('data', []) as $alm) {
@@ -479,7 +478,7 @@ class PedidosController extends Controller
         $pedido = CustomerOrder::findOrFail($id);
 
         // Verificar que el pedido pertenece al cliente del usuario
-        if ($pedido->customer_id != $customerId) {
+        if ($pedido->cliente_id != $customerId) {
             abort(403, 'No tienes permiso para editar este pedido');
         }
 
@@ -497,12 +496,11 @@ class PedidosController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:200',
-            'delivery_date' => 'nullable|date|after:today',
-            'priority' => 'nullable|integer|min:1|max:10',
-            'description' => 'nullable|string',
+            'nombre' => 'required|string|max:200',
+            'fecha_entrega' => 'nullable|date|after:today',
+            'descripcion' => 'nullable|string',
             'products' => 'required|array|min:1',
-            'products.*.product_id' => 'required|integer|exists:product,product_id',
+            'products.*.product_id' => 'required|integer|exists:producto,producto_id',
             'products.*.quantity' => 'required|numeric|min:0.0001',
             'products.*.observations' => 'nullable|string',
             'destinations' => 'required|array|min:1',
@@ -518,7 +516,7 @@ class PedidosController extends Controller
             'destinations.*.products.*.order_product_index' => 'required|integer|min:0',
             'destinations.*.products.*.quantity' => 'required|numeric|min:0.0001',
         ], [
-            'name.required' => 'El nombre del pedido es obligatorio.',
+            'nombre.required' => 'El nombre del pedido es obligatorio.',
             'products.required' => 'Debe agregar al menos un producto al pedido.',
             'products.min' => 'Debe agregar al menos un producto al pedido.',
             'products.*.product_id.required' => 'Debe seleccionar un producto.',
@@ -554,10 +552,9 @@ class PedidosController extends Controller
 
             // Actualizar información básica del pedido
             $pedido->update([
-                'name' => $request->name,
-                'delivery_date' => $request->delivery_date,
-                'priority' => $request->priority ?? $pedido->priority,
-                'description' => $request->description,
+                'nombre' => $request->nombre,
+                'fecha_entrega' => $request->fecha_entrega,
+                'descripcion' => $request->descripcion,
             ]);
 
             // Eliminar productos y destinos existentes
@@ -566,18 +563,25 @@ class PedidosController extends Controller
 
             // Crear nuevos productos del pedido
             $orderProducts = [];
-            $maxOrderProductId = OrderProduct::max('order_product_id') ?? 0;
+            $maxOrderProductId = OrderProduct::max('producto_pedido_id') ?? 0;
 
             foreach ($request->products as $index => $productData) {
                 $orderProductId = $maxOrderProductId + $index + 1;
 
+                // Obtener el producto para calcular el precio
+                $product = Product::find($productData['product_id']);
+                $precioUnitario = $product->precio_unitario ?? 0;
+                $cantidad = $productData['quantity'];
+                $precioTotal = $precioUnitario * $cantidad;
+
                 $orderProduct = OrderProduct::create([
-                    'order_product_id' => $orderProductId,
-                    'order_id' => $pedido->order_id,
-                    'product_id' => $productData['product_id'],
-                    'quantity' => $productData['quantity'],
-                    'status' => 'pendiente',
-                    'observations' => $productData['observations'] ?? null,
+                    'producto_pedido_id' => $orderProductId,
+                    'pedido_id' => $pedido->pedido_id,
+                    'producto_id' => $productData['product_id'],
+                    'cantidad' => $cantidad,
+                    'precio' => $precioTotal,
+                    'estado' => 'pendiente',
+                    'observaciones' => $productData['observations'] ?? null,
                 ]);
 
                 $orderProducts[] = $orderProduct;
@@ -585,14 +589,14 @@ class PedidosController extends Controller
             }
 
             // Crear destinos y asignar productos
-            $maxDestinationId = OrderDestination::max('destination_id') ?? 0;
+            $maxDestinationId = OrderDestination::max('destino_id') ?? 0;
 
             // Resolver nombre de almacen si se proporcionó en la petición
             $almacenName = null;
             $selectedAlmacenId = $request->input('almacen_id');
             if (!empty($selectedAlmacenId)) {
                 try {
-                    $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost/plantaCruds/public/api');
+                    $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
                     $resp = Http::timeout(5)->get("{$apiUrl}/almacenes");
                     if ($resp->successful()) {
                         $almacenes = $resp->json('data', []);
@@ -615,7 +619,7 @@ class PedidosController extends Controller
                 $almacenDestinoId = $destData['almacen_destino_id'] ?? null;
                 if (!empty($almacenDestinoId)) {
                     try {
-                        $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost/plantaCruds/public/api');
+                        $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
                         $resp = Http::timeout(5)->get("{$apiUrl}/almacenes");
                         if ($resp->successful()) {
                             foreach ($resp->json('data', []) as $alm) {
@@ -631,21 +635,21 @@ class PedidosController extends Controller
                 }
 
                 $destination = OrderDestination::create([
-                    'destination_id' => $destinationId,
-                    'order_id' => $pedido->order_id,
-                    'address' => $destData['address'] ?? $almacenDestinoNombre ?? 'Sin dirección',
-                    'latitude' => $destData['latitude'] ?? null,
-                    'longitude' => $destData['longitude'] ?? null,
-                    'reference' => $destData['reference'] ?? null,
-                    'contact_name' => $destData['contact_name'] ?? null,
-                    'contact_phone' => $destData['contact_phone'] ?? null,
-                    'delivery_instructions' => $destData['delivery_instructions'] ?? null,
+                    'destino_id' => $destinationId,
+                    'pedido_id' => $pedido->pedido_id,
+                    'direccion' => $destData['address'] ?? $almacenDestinoNombre ?? 'Sin dirección',
+                    'latitud' => $destData['latitude'] ?? null,
+                    'longitud' => $destData['longitude'] ?? null,
+                    'referencia' => $destData['reference'] ?? null,
+                    'nombre_contacto' => $destData['contact_name'] ?? null,
+                    'telefono_contacto' => $destData['contact_phone'] ?? null,
+                    'instrucciones_entrega' => $destData['delivery_instructions'] ?? null,
                     'almacen_destino_id' => $almacenDestinoId,
                     'almacen_destino_nombre' => $almacenDestinoNombre,
                 ]);
 
                 // Asignar productos a este destino
-                $maxDestProdId = OrderDestinationProduct::max('destination_product_id') ?? 0;
+                $maxDestProdId = OrderDestinationProduct::max('producto_destino_id') ?? 0;
                 foreach ($destData['products'] as $destProdIndex => $destProdData) {
                     $orderProductIndex = $destProdData['order_product_index'];
                     if (isset($orderProducts[$orderProductIndex])) {
@@ -653,11 +657,11 @@ class PedidosController extends Controller
                         $maxDestProdId = $destProdId;
 
                         OrderDestinationProduct::create([
-                            'destination_product_id' => $destProdId,
-                            'destination_id' => $destination->destination_id,
-                            'order_product_id' => $orderProducts[$orderProductIndex]->order_product_id,
-                            'quantity' => $destProdData['quantity'],
-                            'observations' => $destProdData['observations'] ?? null,
+                            'producto_destino_id' => $destProdId,
+                            'destino_id' => $destination->destino_id,
+                            'producto_pedido_id' => $orderProducts[$orderProductIndex]->producto_pedido_id,
+                            'cantidad' => $destProdData['quantity'],
+                            'observaciones' => $destProdData['observations'] ?? null,
                         ]);
                     }
                 }
@@ -703,7 +707,7 @@ class PedidosController extends Controller
             $order = CustomerOrder::findOrFail($id);
 
             // Verificar que el pedido pertenece al cliente del usuario
-            if ($order->customer_id != $customerId) {
+            if ($order->cliente_id != $customerId) {
                 abort(403, 'No tienes permiso para cancelar este pedido');
             }
 

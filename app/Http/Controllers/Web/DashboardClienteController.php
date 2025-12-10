@@ -13,55 +13,50 @@ class DashboardClienteController extends Controller
     {
         $user = Auth::user();
         
-        // Cargar la relación role si no está cargada
-        if (!$user->relationLoaded('role')) {
-            $user->load('role');
-        }
-        
         // Obtener pedidos del cliente actual (buscando por customer relacionado con el operador)
-        $customerId = $user->customer_id ?? null;
+        $customerId = null;
         $customer = null;
         
-        if (!$customerId) {
-            // Buscar por email
+        // Buscar por email
+        if ($user->email) {
             $customer = \App\Models\Customer::where('email', $user->email)->first();
-            $customerId = $customer ? $customer->customer_id : null;
+            $customerId = $customer ? $customer->cliente_id : null;
         }
         
         // Si no se encontró un cliente, crear uno automáticamente para este usuario
         if (!$customerId) {
             try {
                 // Sincronizar secuencia de customer si es necesario
-                $maxCustomerId = \App\Models\Customer::max('customer_id') ?? 0;
+                $maxCustomerId = \App\Models\Customer::max('cliente_id') ?? 0;
                 try {
-                    $seqResult = \Illuminate\Support\Facades\DB::selectOne("SELECT last_value FROM customer_seq");
+                    $seqResult = \Illuminate\Support\Facades\DB::selectOne("SELECT last_value FROM cliente_seq");
                     $seqValue = $seqResult->last_value ?? 0;
                 } catch (\Exception $e) {
                     $seqValue = 0;
                 }
                 
                 if ($seqValue < $maxCustomerId) {
-                    \Illuminate\Support\Facades\DB::statement("SELECT setval('customer_seq', $maxCustomerId, true)");
+                    \Illuminate\Support\Facades\DB::statement("SELECT setval('cliente_seq', $maxCustomerId, true)");
                 }
                 
                 // Obtener el siguiente ID de la secuencia
-                $nextId = \Illuminate\Support\Facades\DB::selectOne("SELECT nextval('customer_seq') as id")->id;
+                $nextId = \Illuminate\Support\Facades\DB::selectOne("SELECT nextval('cliente_seq') as id")->id;
                 
                 // Crear un Customer automáticamente para este operador
                 $customer = \App\Models\Customer::create([
-                    'customer_id' => $nextId,
-                    'business_name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: 'Cliente ' . $user->username,
-                    'trading_name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: 'Cliente ' . $user->username,
+                    'cliente_id' => $nextId,
+                    'razon_social' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
+                    'nombre_comercial' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
                     'email' => $user->email ?? null,
-                    'contact_person' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: $user->username,
-                    'active' => true,
+                    'contacto' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: $user->usuario,
+                    'activo' => true,
                 ]);
                 
-                $customerId = $customer->customer_id;
+                $customerId = $customer->cliente_id;
             } catch (\Exception $e) {
                 // Si falla, usar el primer cliente activo como fallback
-                $customer = \App\Models\Customer::where('active', true)->first();
-                $customerId = $customer ? $customer->customer_id : null;
+                $customer = \App\Models\Customer::where('activo', true)->first();
+                $customerId = $customer ? $customer->cliente_id : null;
             }
         }
         
@@ -70,14 +65,14 @@ class DashboardClienteController extends Controller
             $pedidos = collect([]);
             $ultimoPedido = null;
         } else {
-            $pedidos = CustomerOrder::where('customer_id', $customerId)
+            $pedidos = CustomerOrder::where('cliente_id', $customerId)
                 ->with([
                     'batches.latestFinalEvaluation',
                     'batches.processMachineRecords.processMachine',
                     'batches.storage',
                     'materialRequests'
                 ])
-                ->orderBy('creation_date', 'desc')
+                ->orderBy('fecha_creacion', 'desc')
                 ->get();
             
             // Obtener el último pedido para seguimiento
@@ -139,15 +134,15 @@ class DashboardClienteController extends Controller
         $user = Auth::user();
         
         // Buscar customer del usuario
-        $customerId = $user->customer_id ?? null;
-        if (!$customerId) {
+        $customerId = null;
+        if ($user->email) {
             $customer = \App\Models\Customer::where('email', $user->email)->first();
-            $customerId = $customer ? $customer->customer_id : null;
+            $customerId = $customer ? $customer->cliente_id : null;
         }
         
         // Obtener el pedido solo si pertenece al cliente
-        $pedido = CustomerOrder::where('order_id', $orderId)
-            ->where('customer_id', $customerId)
+        $pedido = CustomerOrder::where('pedido_id', $orderId)
+            ->where('cliente_id', $customerId)
             ->with([
                 'batches.latestFinalEvaluation.inspector',
                 'batches.processMachineRecords.processMachine.machine',
@@ -165,62 +160,61 @@ class DashboardClienteController extends Controller
         
         return response()->json([
             'pedido' => [
-                'order_id' => $pedido->order_id,
-                'order_number' => $pedido->order_number,
-                'description' => $pedido->description,
-                'creation_date' => $pedido->creation_date->format('d/m/Y'),
-                'delivery_date' => $pedido->delivery_date ? $pedido->delivery_date->format('d/m/Y') : null,
-                'priority' => $pedido->priority,
-                'observations' => $pedido->observations,
+                'order_id' => $pedido->pedido_id,
+                'order_number' => $pedido->numero_pedido,
+                'description' => $pedido->descripcion,
+                'creation_date' => $pedido->fecha_creacion->format('d/m/Y'),
+                'delivery_date' => $pedido->fecha_entrega ? $pedido->fecha_entrega->format('d/m/Y') : null,
+                'observations' => $pedido->observaciones,
             ],
             'lotes' => $pedido->batches->map(function($batch) {
                 $eval = $batch->latestFinalEvaluation;
                 return [
-                    'batch_id' => $batch->batch_id,
-                    'batch_code' => $batch->batch_code,
-                    'name' => $batch->name,
-                    'creation_date' => $batch->creation_date->format('d/m/Y'),
-                    'start_time' => $batch->start_time ? $batch->start_time->format('d/m/Y H:i') : null,
-                    'end_time' => $batch->end_time ? $batch->end_time->format('d/m/Y H:i') : null,
-                    'target_quantity' => $batch->target_quantity,
-                    'produced_quantity' => $batch->produced_quantity,
+                    'batch_id' => $batch->lote_id,
+                    'batch_code' => $batch->codigo_lote,
+                    'name' => $batch->nombre,
+                    'creation_date' => $batch->fecha_creacion->format('d/m/Y'),
+                    'start_time' => $batch->hora_inicio ? $batch->hora_inicio->format('d/m/Y H:i') : null,
+                    'end_time' => $batch->hora_fin ? $batch->hora_fin->format('d/m/Y H:i') : null,
+                    'target_quantity' => $batch->cantidad_objetivo,
+                    'produced_quantity' => $batch->cantidad_producida,
                     'estado' => $eval 
-                        ? (str_contains(strtolower($eval->reason ?? ''), 'falló') ? 'No Certificado' : 'Certificado')
+                        ? (str_contains(strtolower($eval->razon ?? ''), 'falló') ? 'No Certificado' : 'Certificado')
                         : ($batch->processMachineRecords->isNotEmpty() ? 'En Proceso' : 'Pendiente'),
                     'certificacion' => $eval ? [
-                        'evaluation_date' => $eval->evaluation_date->format('d/m/Y H:i'),
-                        'reason' => $eval->reason,
-                        'inspector' => $eval->inspector ? $eval->inspector->first_name . ' ' . $eval->inspector->last_name : 'N/A',
+                        'evaluation_date' => $eval->fecha_evaluacion->format('d/m/Y H:i'),
+                        'reason' => $eval->razon,
+                        'inspector' => $eval->inspector ? $eval->inspector->nombre . ' ' . $eval->inspector->apellido : 'N/A',
                     ] : null,
                     'maquinas' => $batch->processMachineRecords->map(function($record) {
                         return [
-                            'nombre' => $record->processMachine->name ?? 'N/A',
-                            'maquina' => $record->processMachine->machine->name ?? 'N/A',
-                            'cumple_estandar' => $record->meets_standard,
-                            'fecha' => $record->record_date ? $record->record_date->format('d/m/Y H:i') : null,
+                            'nombre' => $record->processMachine->nombre ?? 'N/A',
+                            'maquina' => $record->processMachine->machine->nombre ?? 'N/A',
+                            'cumple_estandar' => $record->cumple_estandar,
+                            'fecha' => $record->fecha_registro ? $record->fecha_registro->format('d/m/Y H:i') : null,
                         ];
                     }),
                     'almacenamiento' => $batch->storage->map(function($st) {
                         return [
-                            'location' => $st->location,
-                            'condition' => $st->condition,
-                            'quantity' => $st->quantity,
-                            'storage_date' => $st->storage_date->format('d/m/Y H:i'),
+                            'location' => $st->ubicacion,
+                            'condition' => $st->condicion,
+                            'quantity' => $st->cantidad,
+                            'storage_date' => $st->fecha_almacenaje->format('d/m/Y H:i'),
                         ];
                     }),
                 ];
             }),
             'solicitudes_materia_prima' => $pedido->materialRequests->map(function($req) {
                 return [
-                    'request_number' => $req->request_number,
-                    'request_date' => $req->request_date->format('d/m/Y'),
-                    'required_date' => $req->required_date->format('d/m/Y'),
-                    'estado' => $req->priority == 0 ? 'Completada' : 'Pendiente',
+                    'request_number' => $req->numero_solicitud,
+                    'request_date' => $req->fecha_solicitud->format('d/m/Y'),
+                    'required_date' => $req->fecha_requerida->format('d/m/Y'),
+                    'estado' => 'Pendiente', // Las solicitudes siempre están pendientes hasta que se completen
                     'materiales' => $req->details->map(function($det) {
                         return [
-                            'material' => $det->material->name,
-                            'cantidad_solicitada' => $det->requested_quantity,
-                            'cantidad_aprobada' => $det->approved_quantity ?? 0,
+                            'material' => $det->material->nombre,
+                            'cantidad_solicitada' => $det->cantidad_solicitada,
+                            'cantidad_aprobada' => $det->cantidad_aprobada ?? 0,
                         ];
                     }),
                 ];

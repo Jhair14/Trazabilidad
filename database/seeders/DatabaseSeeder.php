@@ -2,41 +2,44 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
     /**
      * Seed the application's database.
+     * 
+     * ORDEN DE EJECUCIÓN:
+     * 1. Spatie (roles y permisos)
+     * 2. Tablas paramétricas básicas
+     * 3. Operadores (usuarios)
+     * 4. Productos
      */
     public function run(): void
     {
-        // Primero crear roles y permisos de Spatie
-        // $this->call([
-        //     RolesAndPermissionsSeeder::class,
-        // ]);
-
-        // Seeders de tablas de parametrización (en orden de dependencias)
+        // 1. Primero crear roles y permisos de Spatie
         $this->call([
-            UnitOfMeasureSeeder::class,
-            StatusSeeder::class,
-            MovementTypeSeeder::class,
-            OperatorRoleSeeder::class,
-            OperatorSeeder::class,
-            // AssignRolesToUsersSeeder::class, // Asignar roles de Spatie a operadores
-            RawMaterialCategorySeeder::class,
-            StandardVariableSeeder::class,
-            MachineSeeder::class,
-            ProcessSeeder::class,
-            UpdateProductsAndRolesSeeder::class, // Crear productos
+            RolesAndPermissionsSeeder::class,
         ]);
 
-        // Usuario de prueba (opcional)
-        // User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
+        // 2. Seeders de tablas paramétricas (en orden de dependencias)
+        $this->call([
+            UnidadMedidaSeeder::class,
+            TipoMovimientoSeeder::class,
+            CategoriaMateriaPrimaSeeder::class,
+            VariableEstandarSeeder::class,
+            MaquinaSeeder::class,
+            ProcesoSeeder::class,
+        ]);
+
+        // 3. Operadores (después de roles de Spatie)
+        $this->call([
+            OperadorSeeder::class,
+        ]);
+
+        // 4. Productos (después de unidades de medida)
+        $this->call([
+            ProductoSeeder::class,
+        ]);
     }
 }

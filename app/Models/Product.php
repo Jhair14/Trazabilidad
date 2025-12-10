@@ -8,35 +8,39 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
-    protected $table = 'product';
-    protected $primaryKey = 'product_id';
+    protected $table = 'producto';
+    protected $primaryKey = 'producto_id';
     public $timestamps = true;
     
     protected $fillable = [
-        'code',
-        'name',
-        'type',
-        'weight',
-        'unit_id',
-        'description',
-        'active'
+        'codigo',
+        'nombre',
+        'tipo',
+        'peso',
+        'precio_unitario',
+        'unidad_id',
+        'descripcion',
+        'activo'
     ];
 
     protected $casts = [
-        'weight' => 'decimal:2',
-        'active' => 'boolean',
+        'peso' => 'decimal:2',
+        'precio_unitario' => 'decimal:2',
+        'activo' => 'boolean',
     ];
 
     public function unit(): BelongsTo
     {
-        return $this->belongsTo(UnitOfMeasure::class, 'unit_id', 'unit_id');
+        return $this->belongsTo(UnitOfMeasure::class, 'unidad_id', 'unidad_id');
     }
 
     public function orderProducts(): HasMany
     {
-        return $this->hasMany(OrderProduct::class, 'product_id', 'product_id');
+        return $this->hasMany(OrderProduct::class, 'producto_id', 'producto_id');
     }
 }
+
+
 
 
 

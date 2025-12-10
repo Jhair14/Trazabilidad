@@ -7,35 +7,35 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Storage extends Model
 {
-    protected $table = 'storage';
-    protected $primaryKey = 'storage_id';
+    protected $table = 'almacenaje';
+    protected $primaryKey = 'almacenaje_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'storage_id',
-        'batch_id',
-        'location',
-        'condition',
-        'quantity',
-        'observations',
-        'pickup_latitude',
-        'pickup_longitude',
-        'pickup_address',
-        'pickup_reference',
-        'storage_date',
-        'retrieval_date'
+        'almacenaje_id',
+        'lote_id',
+        'ubicacion',
+        'condicion',
+        'cantidad',
+        'observaciones',
+        'latitud_recojo',
+        'longitud_recojo',
+        'direccion_recojo',
+        'referencia_recojo',
+        'fecha_almacenaje',
+        'fecha_retiro'
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:4',
-        'pickup_latitude' => 'decimal:8',
-        'pickup_longitude' => 'decimal:8',
-        'storage_date' => 'datetime',
-        'retrieval_date' => 'datetime',
+        'cantidad' => 'decimal:4',
+        'latitud_recojo' => 'decimal:8',
+        'longitud_recojo' => 'decimal:8',
+        'fecha_almacenaje' => 'datetime',
+        'fecha_retiro' => 'datetime',
     ];
 
     public function batch(): BelongsTo
     {
-        return $this->belongsTo(ProductionBatch::class, 'batch_id', 'batch_id');
+        return $this->belongsTo(ProductionBatch::class, 'lote_id', 'lote_id');
     }
 }

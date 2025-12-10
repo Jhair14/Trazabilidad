@@ -48,9 +48,10 @@ class ImageUploadController extends Controller
         try {
             // Paso 1: Verificar que Cloudinary esté configurado
             \Log::info('Paso 1: Verificando variables de entorno');
-            $cloudName = env('CLOUDINARY_CLOUD_NAME');
-            $apiKey = env('CLOUDINARY_API_KEY');
-            $apiSecret = env('CLOUDINARY_API_SECRET');
+            // Usar config() en lugar de env() para que funcione con caché de configuración
+            $cloudName = config('cloudinary.cloud_name') ?: env('CLOUDINARY_CLOUD_NAME');
+            $apiKey = config('cloudinary.api_key') ?: env('CLOUDINARY_API_KEY');
+            $apiSecret = config('cloudinary.api_secret') ?: env('CLOUDINARY_API_SECRET');
 
             \Log::info('Variables de entorno', [
                 'cloud_name_exists' => !empty($cloudName),
@@ -68,7 +69,7 @@ class ImageUploadController extends Controller
                 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cloudinary no está configurado. Por favor, configure las variables de entorno CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY y CLOUDINARY_API_SECRET en el archivo .env'
+                    'message' => 'Cloudinary no está configurado. Por favor, configure las variables de entorno CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY y CLOUDINARY_API_SECRET en el archivo .env y ejecute: php artisan config:cache'
                 ], 500);
             }
 
@@ -198,14 +199,15 @@ class ImageUploadController extends Controller
 
         try {
             // Verificar que Cloudinary esté configurado
-            $cloudName = env('CLOUDINARY_CLOUD_NAME');
-            $apiKey = env('CLOUDINARY_API_KEY');
-            $apiSecret = env('CLOUDINARY_API_SECRET');
+            // Usar config() en lugar de env() para que funcione con caché de configuración
+            $cloudName = config('cloudinary.cloud_name') ?: env('CLOUDINARY_CLOUD_NAME');
+            $apiKey = config('cloudinary.api_key') ?: env('CLOUDINARY_API_KEY');
+            $apiSecret = config('cloudinary.api_secret') ?: env('CLOUDINARY_API_SECRET');
 
             if (!$cloudName || !$apiKey || !$apiSecret) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cloudinary no está configurado. Por favor, configure las variables de entorno.'
+                    'message' => 'Cloudinary no está configurado. Por favor, configure las variables de entorno CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY y CLOUDINARY_API_SECRET en el archivo .env y ejecute: php artisan config:cache'
                 ], 500);
             }
 

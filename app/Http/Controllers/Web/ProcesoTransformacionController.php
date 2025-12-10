@@ -30,11 +30,11 @@ class ProcesoTransformacionController extends Controller
         $processMachines = collect();
         $formulariosCompletados = [];
         
-        // Si hay registros, obtener el process_id del primer registro
+        // Si hay registros, obtener el proceso_id del primer registro
         if ($batch->processMachineRecords->isNotEmpty()) {
             $firstRecord = $batch->processMachineRecords->first();
             if ($firstRecord->processMachine) {
-                $processId = $firstRecord->processMachine->process_id;
+                $processId = $firstRecord->processMachine->proceso_id;
             }
         }
         
@@ -46,19 +46,19 @@ class ProcesoTransformacionController extends Controller
         // Si hay un proceso identificado, obtener todas sus máquinas
         if ($processId) {
             $processMachines = ProcessMachine::with(['machine', 'variables.standardVariable', 'process'])
-                ->where('process_id', $processId)
-                ->orderBy('step_order')
+                ->where('proceso_id', $processId)
+                ->orderBy('orden_paso')
                 ->get();
             
             // Verificar qué máquinas tienen formularios completados
             foreach ($processMachines as $pm) {
-                $record = $batch->processMachineRecords->firstWhere('process_machine_id', $pm->process_machine_id);
-                $formulariosCompletados[$pm->process_machine_id] = $record ? true : false;
+                $record = $batch->processMachineRecords->firstWhere('proceso_maquina_id', $pm->proceso_maquina_id);
+                $formulariosCompletados[$pm->proceso_maquina_id] = $record ? true : false;
             }
         }
 
         // Obtener todos los procesos disponibles para asignar
-        $procesos = Process::where('active', true)->get();
+        $procesos = Process::where('activo', true)->get();
 
         // Calcular progreso
         $totalCompletados = count(array_filter($formulariosCompletados));
@@ -80,7 +80,7 @@ class ProcesoTransformacionController extends Controller
     public function asignarProceso(Request $request, $batchId)
     {
         $validator = Validator::make($request->all(), [
-            'process_id' => 'required|integer|exists:process,process_id',
+            'proceso_id' => 'required|integer|exists:proceso,proceso_id',
         ]);
 
         if ($validator->fails()) {
@@ -93,28 +93,28 @@ class ProcesoTransformacionController extends Controller
             $batch = ProductionBatch::findOrFail($batchId);
             
             // Verificar que no haya registros de otro proceso
-            $existingRecords = ProcessMachineRecord::where('batch_id', $batchId)
+            $existingRecords = ProcessMachineRecord::where('lote_id', $batchId)
                 ->with('processMachine')
                 ->get();
             
             if ($existingRecords->isNotEmpty()) {
-                $existingProcessIds = $existingRecords->pluck('processMachine.process_id')->unique()->filter();
-                if ($existingProcessIds->isNotEmpty() && !$existingProcessIds->contains($request->process_id)) {
+                $existingProcessIds = $existingRecords->pluck('processMachine.proceso_id')->unique()->filter();
+                if ($existingProcessIds->isNotEmpty() && !$existingProcessIds->contains($request->proceso_id)) {
                     return redirect()->back()
                         ->with('error', 'Este lote ya tiene registros de otro proceso. No se puede cambiar.');
                 }
             }
             
             // Verificar que el proceso tenga máquinas
-            $processMachines = ProcessMachine::where('process_id', $request->process_id)->count();
+            $processMachines = ProcessMachine::where('proceso_id', $request->proceso_id)->count();
             if ($processMachines === 0) {
                 return redirect()->back()
                     ->with('error', 'El proceso seleccionado no tiene máquinas configuradas.');
             }
             
             // El proceso se "asigna" implícitamente cuando se registra el primer formulario
-            // Guardamos el process_id en la sesión para que esté disponible en la vista
-            session(['selected_process_' . $batchId => $request->process_id]);
+            // Guardamos el proceso_id en la sesión para que esté disponible en la vista
+            session(['selected_process_' . $batchId => $request->proceso_id]);
             
             return redirect()->route('proceso-transformacion', $batchId)
                 ->with('success', 'Proceso seleccionado. Puede comenzar a registrar formularios.');
@@ -144,13 +144,13 @@ class ProcesoTransformacionController extends Controller
                 ->findOrFail($processMachineId);
 
             // Validar que si hay otros registros, sean del mismo proceso
-            $existingRecords = ProcessMachineRecord::where('batch_id', $batchId)
+            $existingRecords = ProcessMachineRecord::where('lote_id', $batchId)
                 ->with('processMachine')
                 ->get();
             
             if ($existingRecords->isNotEmpty()) {
-                $existingProcessIds = $existingRecords->pluck('processMachine.process_id')->unique()->filter();
-                if ($existingProcessIds->isNotEmpty() && !$existingProcessIds->contains($processMachine->process_id)) {
+                $existingProcessIds = $existingRecords->pluck('processMachine.proceso_id')->unique()->filter();
+                if ($existingProcessIds->isNotEmpty() && !$existingProcessIds->contains($processMachine->proceso_id)) {
                     DB::rollBack();
                     return redirect()->back()
                         ->with('error', 'Esta máquina pertenece a un proceso diferente al ya registrado en este lote.')
@@ -158,23 +158,23 @@ class ProcesoTransformacionController extends Controller
                 }
             } else {
                 // Si es el primer registro, guardar el proceso en sesión
-                session(['selected_process_' . $batchId => $processMachine->process_id]);
+                session(['selected_process_' . $batchId => $processMachine->proceso_id]);
             }
 
             // Validar orden secuencial: verificar que las máquinas anteriores estén completadas
-            $allProcessMachines = ProcessMachine::where('process_id', $processMachine->process_id)
-                ->orderBy('step_order')
+            $allProcessMachines = ProcessMachine::where('proceso_id', $processMachine->proceso_id)
+                ->orderBy('orden_paso')
                 ->get();
             
-            $currentStep = $processMachine->step_order;
-            $previousMachines = $allProcessMachines->where('step_order', '<', $currentStep);
+            $currentStep = $processMachine->orden_paso;
+            $previousMachines = $allProcessMachines->where('orden_paso', '<', $currentStep);
             
             foreach ($previousMachines as $prevMachine) {
-                $prevRecord = $existingRecords->firstWhere('process_machine_id', $prevMachine->process_machine_id);
+                $prevRecord = $existingRecords->firstWhere('proceso_maquina_id', $prevMachine->proceso_maquina_id);
                 if (!$prevRecord) {
                     DB::rollBack();
                     return redirect()->back()
-                        ->with('error', "Debe completar la máquina '{$prevMachine->name}' (paso {$prevMachine->step_order}) antes de continuar.")
+                        ->with('error', "Debe completar la máquina '{$prevMachine->nombre}' (paso {$prevMachine->orden_paso}) antes de continuar.")
                         ->withInput();
                 }
             }
@@ -184,16 +184,16 @@ class ProcesoTransformacionController extends Controller
             $meetsStandard = true;
 
             foreach ($processMachine->variables as $variable) {
-                $varName = $variable->standardVariable->code ?? $variable->standardVariable->name;
+                $varName = $variable->standardVariable->codigo ?? $variable->standardVariable->nombre;
                 $enteredValue = $enteredVariables[$varName] ?? null;
 
-                if ($variable->mandatory && $enteredValue === null) {
+                if ($variable->obligatorio && $enteredValue === null) {
                     $meetsStandard = false;
                     break;
                 }
 
                 if ($enteredValue !== null) {
-                    if ($enteredValue < $variable->min_value || $enteredValue > $variable->max_value) {
+                    if ($enteredValue < $variable->valor_minimo || $enteredValue > $variable->valor_maximo) {
                         $meetsStandard = false;
                         break;
                     }
@@ -201,36 +201,40 @@ class ProcesoTransformacionController extends Controller
             }
 
             // Buscar si ya existe un registro para esta combinación
-            $existingRecord = ProcessMachineRecord::where('batch_id', $batchId)
-                ->where('process_machine_id', $processMachineId)
+            $existingRecord = ProcessMachineRecord::where('lote_id', $batchId)
+                ->where('proceso_maquina_id', $processMachineId)
                 ->first();
 
             if ($existingRecord) {
                 // Actualizar registro existente
                 $existingRecord->update([
-                    'operator_id' => $operator->operator_id,
-                    'entered_variables' => $enteredVariables, // El cast 'array' maneja la conversión
-                    'meets_standard' => $meetsStandard,
-                    'observations' => $request->observations,
-                    'start_time' => now(),
-                    'end_time' => now(),
-                    'record_date' => now(),
+                    'operador_id' => $operator->operador_id,
+                    'variables_ingresadas' => $enteredVariables, // El cast 'array' maneja la conversión
+                    'cumple_estandar' => $meetsStandard,
+                    'observaciones' => $request->observations,
+                    'hora_inicio' => now(),
+                    'hora_fin' => now(),
+                    'fecha_registro' => now(),
                 ]);
             } else {
                 // Crear nuevo registro
-                $nextId = DB::selectOne("SELECT nextval('process_machine_record_seq') as id")->id;
+                $maxId = DB::table('registro_proceso_maquina')->max('registro_id') ?? 0;
+                if ($maxId > 0) {
+                    DB::statement("SELECT setval('registro_proceso_maquina_seq', {$maxId}, true)");
+                }
+                $nextId = DB::selectOne("SELECT nextval('registro_proceso_maquina_seq') as id")->id;
                 
                 ProcessMachineRecord::create([
-                    'record_id' => $nextId,
-                    'batch_id' => $batchId,
-                    'process_machine_id' => $processMachineId,
-                    'operator_id' => $operator->operator_id,
-                    'entered_variables' => $enteredVariables, // El cast 'array' maneja la conversión
-                    'meets_standard' => $meetsStandard,
-                    'observations' => $request->observations,
-                    'start_time' => now(),
-                    'end_time' => now(),
-                    'record_date' => now(),
+                    'registro_id' => $nextId,
+                    'lote_id' => $batchId,
+                    'proceso_maquina_id' => $processMachineId,
+                    'operador_id' => $operator->operador_id,
+                    'variables_ingresadas' => $enteredVariables, // El cast 'array' maneja la conversión
+                    'cumple_estandar' => $meetsStandard,
+                    'observaciones' => $request->observations,
+                    'hora_inicio' => now(),
+                    'hora_fin' => now(),
+                    'fecha_registro' => now(),
                 ]);
             }
 
@@ -260,17 +264,17 @@ class ProcesoTransformacionController extends Controller
             ])->findOrFail($processMachineId);
 
             // Obtener registro existente si existe
-            $record = ProcessMachineRecord::where('batch_id', $batchId)
-                ->where('process_machine_id', $processMachineId)
+            $record = ProcessMachineRecord::where('lote_id', $batchId)
+                ->where('proceso_maquina_id', $processMachineId)
                 ->first();
 
             // Validar orden secuencial
-            $allProcessMachines = ProcessMachine::where('process_id', $processMachine->process_id)
-                ->orderBy('step_order')
+            $allProcessMachines = ProcessMachine::where('proceso_id', $processMachine->proceso_id)
+                ->orderBy('orden_paso')
                 ->get();
 
             $currentMachineIndex = $allProcessMachines->search(function ($item) use ($processMachineId) {
-                return $item->process_machine_id === $processMachineId;
+                return $item->proceso_maquina_id === $processMachineId;
             });
 
             $canAccess = true;
@@ -278,13 +282,13 @@ class ProcesoTransformacionController extends Controller
 
             if ($currentMachineIndex > 0) {
                 $previousMachine = $allProcessMachines[$currentMachineIndex - 1];
-                $previousRecordExists = ProcessMachineRecord::where('batch_id', $batchId)
-                    ->where('process_machine_id', $previousMachine->process_machine_id)
+                $previousRecordExists = ProcessMachineRecord::where('lote_id', $batchId)
+                    ->where('proceso_maquina_id', $previousMachine->proceso_maquina_id)
                     ->exists();
 
                 if (!$previousRecordExists) {
                     $canAccess = false;
-                    $errorMessage = 'Debe completar el formulario de la máquina anterior (' . $previousMachine->name . ') primero.';
+                    $errorMessage = 'Debe completar el formulario de la máquina anterior (' . $previousMachine->nombre . ') primero.';
                 }
             }
 
@@ -311,8 +315,8 @@ class ProcesoTransformacionController extends Controller
             $processMachine = ProcessMachine::with(['machine', 'variables.standardVariable', 'process'])
                 ->findOrFail($processMachineId);
 
-            $record = ProcessMachineRecord::where('batch_id', $batchId)
-                ->where('process_machine_id', $processMachineId)
+            $record = ProcessMachineRecord::where('lote_id', $batchId)
+                ->where('proceso_maquina_id', $processMachineId)
                 ->first();
 
             return response()->json([
@@ -334,8 +338,8 @@ class ProcesoTransformacionController extends Controller
     {
         try {
             $processMachines = ProcessMachine::with(['machine', 'variables.standardVariable', 'process'])
-                ->where('process_id', $processId)
-                ->orderBy('step_order')
+                ->where('proceso_id', $processId)
+                ->orderBy('orden_paso')
                 ->get();
 
             return response()->json($processMachines);

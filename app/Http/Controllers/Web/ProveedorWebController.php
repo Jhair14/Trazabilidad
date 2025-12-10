@@ -11,7 +11,7 @@ class ProveedorWebController extends Controller
 {
     public function index()
     {
-        $proveedores = Supplier::orderBy('supplier_id','desc')
+        $proveedores = Supplier::orderBy('proveedor_id','desc')
             ->paginate(15);
         return view('proveedores', compact('proveedores'));
     }
@@ -24,21 +24,33 @@ class ProveedorWebController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'business_name' => 'required|string|max:200',
-            'trading_name' => 'nullable|string|max:200',
-            'tax_id' => 'nullable|string|max:20|unique:supplier,tax_id',
-            'contact_person' => 'nullable|string|max:100',
-            'phone' => 'nullable|string|max:20',
+            'razon_social' => 'required|string|max:200',
+            'nombre_comercial' => 'nullable|string|max:200',
+            'nit' => 'nullable|string|max:20|unique:proveedor,nit',
+            'contacto' => 'nullable|string|max:100',
+            'telefono' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:100',
-            'address' => 'nullable|string|max:255',
+            'direccion' => 'nullable|string|max:255',
         ]);
         
         try {
-            // Obtener el siguiente ID de la secuencia
-            $nextId = \DB::selectOne("SELECT nextval('supplier_seq') as id")->id;
+            // Sincronizar secuencia y obtener el siguiente ID
+            $maxId = DB::table('proveedor')->max('proveedor_id');
+            if ($maxId !== null && $maxId > 0) {
+                DB::statement("SELECT setval('proveedor_seq', {$maxId}, true)");
+            }
             
-            $data['supplier_id'] = $nextId;
-            $data['active'] = true;
+            // Obtener el siguiente ID de la secuencia
+            $nextId = DB::selectOne("SELECT nextval('proveedor_seq') as id")->id;
+            
+            $data['proveedor_id'] = $nextId;
+            $data['activo'] = true;
+            
+            // Si nit está vacío, establecerlo como null
+            if (empty($data['nit']) || trim($data['nit']) === '') {
+                $data['nit'] = null;
+            }
+            
             Supplier::create($data);
             return redirect()->route('proveedores.web.index')->with('success', 'Proveedor creado exitosamente');
         } catch (\Exception $e) {
@@ -55,15 +67,15 @@ class ProveedorWebController extends Controller
         // Si es una petición AJAX, devolver JSON
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json([
-                'supplier_id' => $proveedor->supplier_id,
-                'business_name' => $proveedor->business_name,
-                'trading_name' => $proveedor->trading_name,
-                'tax_id' => $proveedor->tax_id,
-                'contact_person' => $proveedor->contact_person,
-                'phone' => $proveedor->phone,
+                'proveedor_id' => $proveedor->proveedor_id,
+                'razon_social' => $proveedor->razon_social,
+                'nombre_comercial' => $proveedor->nombre_comercial,
+                'nit' => $proveedor->nit,
+                'contacto' => $proveedor->contacto,
+                'telefono' => $proveedor->telefono,
                 'email' => $proveedor->email,
-                'address' => $proveedor->address,
-                'active' => $proveedor->active,
+                'direccion' => $proveedor->direccion,
+                'activo' => $proveedor->activo,
                 'raw_materials_count' => $proveedor->rawMaterials->count(),
             ]);
         }
@@ -78,15 +90,15 @@ class ProveedorWebController extends Controller
         // Si es una petición AJAX, devolver JSON
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json([
-                'supplier_id' => $proveedor->supplier_id,
-                'business_name' => $proveedor->business_name,
-                'trading_name' => $proveedor->trading_name,
-                'tax_id' => $proveedor->tax_id,
-                'contact_person' => $proveedor->contact_person,
-                'phone' => $proveedor->phone,
+                'proveedor_id' => $proveedor->proveedor_id,
+                'razon_social' => $proveedor->razon_social,
+                'nombre_comercial' => $proveedor->nombre_comercial,
+                'nit' => $proveedor->nit,
+                'contacto' => $proveedor->contacto,
+                'telefono' => $proveedor->telefono,
                 'email' => $proveedor->email,
-                'address' => $proveedor->address,
-                'active' => $proveedor->active,
+                'direccion' => $proveedor->direccion,
+                'activo' => $proveedor->activo,
             ]);
         }
         
@@ -98,36 +110,36 @@ class ProveedorWebController extends Controller
         $proveedor = Supplier::findOrFail($id);
         
         $rules = [
-            'business_name' => 'required|string|max:200',
-            'trading_name' => 'nullable|string|max:200',
-            'contact_person' => 'nullable|string|max:100',
-            'phone' => 'nullable|string|max:20',
+            'razon_social' => 'required|string|max:200',
+            'nombre_comercial' => 'nullable|string|max:200',
+            'contacto' => 'nullable|string|max:100',
+            'telefono' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:100',
-            'address' => 'nullable|string|max:255',
-            'active' => 'nullable|boolean',
+            'direccion' => 'nullable|string|max:255',
+            'activo' => 'nullable|boolean',
         ];
         
-        // Validar tax_id con unicidad solo si tiene valor
-        $taxId = $request->input('tax_id');
-        if (!empty($taxId) && trim($taxId) !== '') {
-            $rules['tax_id'] = [
+        // Validar nit con unicidad solo si tiene valor
+        $nit = $request->input('nit');
+        if (!empty($nit) && trim($nit) !== '') {
+            $rules['nit'] = [
                 'nullable',
                 'string',
                 'max:20',
-                Rule::unique('supplier', 'tax_id')->ignore($id, 'supplier_id')
+                Rule::unique('proveedor', 'nit')->ignore($id, 'proveedor_id')
             ];
         } else {
-            $rules['tax_id'] = 'nullable|string|max:20';
+            $rules['nit'] = 'nullable|string|max:20';
         }
         
         $data = $request->validate($rules);
         
-        // Manejar el campo active (si no viene en el request o es "0", es false)
-        $data['active'] = $request->has('active') && ($request->active == '1' || $request->active === true || $request->active === 1);
+        // Manejar el campo activo (si no viene en el request o es "0", es false)
+        $data['activo'] = $request->has('activo') && ($request->activo == '1' || $request->activo === true || $request->activo === 1);
         
-        // Si tax_id está vacío, establecerlo como null
-        if (empty($data['tax_id']) || trim($data['tax_id']) === '') {
-            $data['tax_id'] = null;
+        // Si nit está vacío, establecerlo como null
+        if (empty($data['nit']) || trim($data['nit']) === '') {
+            $data['nit'] = null;
         }
         
         $proveedor->update($data);
@@ -137,7 +149,7 @@ class ProveedorWebController extends Controller
     public function destroy($id)
     {
         $proveedor = Supplier::findOrFail($id);
-        $proveedor->update(['active' => false]);
+        $proveedor->update(['activo' => false]);
         return redirect()->route('proveedores.web.index')->with('success', 'Proveedor eliminado exitosamente');
     }
 }

@@ -38,41 +38,41 @@
                         <table class="table table-sm">
                             <tr>
                                 <th>Nombre:</th>
-                                <td>{{ $pedido->name ?? 'N/A' }}</td>
+                                <td>{{ $pedido->nombre ?? 'N/A' }}</td>
                             </tr>
                             <tr>
                                 <th>Cliente:</th>
-                                <td>{{ $pedido->customer->business_name ?? 'N/A' }}</td>
+                                <td>{{ $pedido->customer->razon_social ?? 'N/A' }}</td>
                             </tr>
                             <tr>
                                 <th>Estado:</th>
                                 <td>
-                                    @if($pedido->status == 'pendiente')
+                                    @if($pedido->estado == 'pendiente')
                                         <span class="badge badge-warning">Pendiente</span>
-                                    @elseif($pedido->status == 'aprobado')
+                                    @elseif($pedido->estado == 'aprobado')
                                         <span class="badge badge-success">Aprobado</span>
-                                    @elseif($pedido->status == 'rechazado')
+                                    @elseif($pedido->estado == 'rechazado')
                                         <span class="badge badge-danger">Rechazado</span>
-                                    @elseif($pedido->status == 'en_produccion')
+                                    @elseif($pedido->estado == 'en_produccion')
                                         <span class="badge badge-info">En Producción</span>
                                     @else
-                                        <span class="badge badge-secondary">{{ ucfirst($pedido->status) }}</span>
+                                        <span class="badge badge-secondary">{{ ucfirst($pedido->estado) }}</span>
                                     @endif
                                 </td>
                             </tr>
                             <tr>
                                 <th>Fecha Creación:</th>
-                                <td>{{ \Carbon\Carbon::parse($pedido->creation_date)->format('d/m/Y') }}</td>
+                                <td>{{ \Carbon\Carbon::parse($pedido->fecha_creacion)->format('d/m/Y') }}</td>
                             </tr>
                             <tr>
                                 <th>Fecha Entrega:</th>
-                                <td>{{ $pedido->delivery_date ? \Carbon\Carbon::parse($pedido->delivery_date)->format('d/m/Y') : 'N/A' }}</td>
+                                <td>{{ $pedido->fecha_entrega ? \Carbon\Carbon::parse($pedido->fecha_entrega)->format('d/m/Y') : 'N/A' }}</td>
                             </tr>
                         </table>
                     </div>
                     <div class="col-md-6">
                         <h5>Descripción</h5>
-                        <p>{{ $pedido->description ?? 'Sin descripción' }}</p>
+                        <p>{{ $pedido->descripcion ?? 'Sin descripción' }}</p>
                     </div>
                 </div>
 
@@ -93,19 +93,19 @@
                             @forelse($pedido->orderProducts as $orderProduct)
                             <tr>
                                 <td>
-                                    <strong>{{ $orderProduct->product->name }}</strong>
+                                    <strong>{{ $orderProduct->product->nombre }}</strong>
                                 </td>
                                 <td>
-                                    <span class="badge badge-info">{{ ucfirst($orderProduct->product->type) }}</span>
+                                    <span class="badge badge-info">{{ ucfirst($orderProduct->product->tipo) }}</span>
                                 </td>
-                                <td>{{ number_format($orderProduct->quantity, 4) }}</td>
-                                <td>{{ $orderProduct->product->unit->name ?? 'N/A' }}</td>
+                                <td>{{ number_format($orderProduct->cantidad, 4) }}</td>
+                                <td>{{ $orderProduct->product->unit->nombre ?? 'N/A' }}</td>
                                 <td>
-                                    @if($orderProduct->status == 'pendiente')
+                                    @if($orderProduct->estado == 'pendiente')
                                         <span class="badge badge-warning">Pendiente</span>
-                                    @elseif($orderProduct->status == 'aprobado')
+                                    @elseif($orderProduct->estado == 'aprobado')
                                         <span class="badge badge-success">Aprobado</span>
-                                    @elseif($orderProduct->status == 'rechazado')
+                                    @elseif($orderProduct->estado == 'rechazado')
                                         <span class="badge badge-danger">Rechazado</span>
                                     @endif
                                 </td>
@@ -120,7 +120,7 @@
                 </div>
 
                 <!-- Acciones de Aprobación/Rechazo -->
-                @if($pedido->status == 'pendiente')
+                @if($pedido->estado == 'pendiente')
                 <div class="row mt-4">
                     <div class="col-md-12">
                         <div class="card">
@@ -156,7 +156,7 @@
                 <div class="modal fade" id="approveOrderModal" tabindex="-1">
                     <div class="modal-dialog">
                         <div class="modal-content">
-                            <form method="POST" action="{{ route('gestion-pedidos.approve-order', ['orderId' => $pedido->order_id]) }}">
+                            <form method="POST" action="{{ route('gestion-pedidos.approve-order', ['orderId' => $pedido->pedido_id]) }}">
                                 @csrf
                                 <div class="modal-header">
                                     <h5 class="modal-title">Aprobar Pedido Completo</h5>
@@ -165,11 +165,11 @@
                                     </button>
                                 </div>
                                 <div class="modal-body">
-                                    <p>¿Está seguro de aprobar todo el pedido <strong>{{ $pedido->name }}</strong>?</p>
+                                    <p>¿Está seguro de aprobar todo el pedido <strong>{{ $pedido->nombre }}</strong>?</p>
                                     <p class="text-muted">Esta acción aprobará todos los productos del pedido de una vez.</p>
                                     <div class="form-group">
                                         <label>Observaciones (opcional)</label>
-                                        <textarea class="form-control" name="observations" rows="3"></textarea>
+                                        <textarea class="form-control" name="observaciones" rows="3"></textarea>
                                     </div>
                                 </div>
                                 <div class="modal-footer">
@@ -185,7 +185,7 @@
                 <div class="modal fade" id="rejectOrderModal" tabindex="-1">
                     <div class="modal-dialog">
                         <div class="modal-content">
-                            <form method="POST" action="{{ route('gestion-pedidos.reject-order', ['orderId' => $pedido->order_id]) }}">
+                            <form method="POST" action="{{ route('gestion-pedidos.reject-order', ['orderId' => $pedido->pedido_id]) }}">
                                 @csrf
                                 <div class="modal-header">
                                     <h5 class="modal-title">Rechazar Pedido Completo</h5>
@@ -194,11 +194,11 @@
                                     </button>
                                 </div>
                                 <div class="modal-body">
-                                    <p>¿Está seguro de rechazar todo el pedido <strong>{{ $pedido->name }}</strong>?</p>
+                                    <p>¿Está seguro de rechazar todo el pedido <strong>{{ $pedido->nombre }}</strong>?</p>
                                     <p class="text-muted">Esta acción rechazará todos los productos del pedido de una vez.</p>
                                     <div class="form-group">
                                         <label>Razón del Rechazo <span class="text-danger">*</span></label>
-                                        <textarea class="form-control" name="rejection_reason" rows="3" required></textarea>
+                                        <textarea class="form-control" name="razon_rechazo" rows="3" required></textarea>
                                     </div>
                                 </div>
                                 <div class="modal-footer">
@@ -209,24 +209,24 @@
                         </div>
                     </div>
                 </div>
-                @elseif($pedido->status == 'aprobado')
+                @elseif($pedido->estado == 'aprobado')
                 <div class="alert alert-info mt-3">
                     <i class="fas fa-info-circle"></i>
                     <strong>Pedido Aprobado</strong><br>
-                    Aprobado por: {{ $pedido->approver->first_name ?? 'N/A' }}<br>
-                    Fecha: {{ $pedido->approved_at ? \Carbon\Carbon::parse($pedido->approved_at)->format('d/m/Y H:i') : 'N/A' }}
-                    @if($pedido->observations)
-                    <br>Observaciones: {{ $pedido->observations }}
+                    Aprobado por: {{ $pedido->approver->nombre ?? 'N/A' }}<br>
+                    Fecha: {{ $pedido->aprobado_en ? \Carbon\Carbon::parse($pedido->aprobado_en)->format('d/m/Y H:i') : 'N/A' }}
+                    @if($pedido->observaciones)
+                    <br>Observaciones: {{ $pedido->observaciones }}
                     @endif
                 </div>
-                @elseif($pedido->status == 'rechazado')
+                @elseif($pedido->estado == 'rechazado')
                 <div class="alert alert-danger mt-3">
                     <i class="fas fa-times-circle"></i>
                     <strong>Pedido Rechazado</strong><br>
-                    Rechazado por: {{ $pedido->approver->first_name ?? 'N/A' }}<br>
-                    Fecha: {{ $pedido->approved_at ? \Carbon\Carbon::parse($pedido->approved_at)->format('d/m/Y H:i') : 'N/A' }}
-                    @if($pedido->rejection_reason)
-                    <br>Razón: {{ $pedido->rejection_reason }}
+                    Rechazado por: {{ $pedido->approver->nombre ?? 'N/A' }}<br>
+                    Fecha: {{ $pedido->aprobado_en ? \Carbon\Carbon::parse($pedido->aprobado_en)->format('d/m/Y H:i') : 'N/A' }}
+                    @if($pedido->razon_rechazo)
+                    <br>Razón: {{ $pedido->razon_rechazo }}
                     @endif
                 </div>
                 @endif
@@ -242,20 +242,20 @@
                                 <h6 class="mb-0">Destino {{ $loop->iteration }}</h6>
                             </div>
                             <div class="card-body">
-                                <p><strong>Dirección:</strong> {{ $destination->address }}</p>
-                                @if($destination->reference)
-                                <p><strong>Referencia:</strong> {{ $destination->reference }}</p>
+                                <p><strong>Dirección:</strong> {{ $destination->direccion }}</p>
+                                @if($destination->referencia)
+                                <p><strong>Referencia:</strong> {{ $destination->referencia }}</p>
                                 @endif
-                                @if($destination->contact_name)
-                                <p><strong>Contacto:</strong> {{ $destination->contact_name }}</p>
+                                @if($destination->nombre_contacto)
+                                <p><strong>Contacto:</strong> {{ $destination->nombre_contacto }}</p>
                                 @endif
-                                @if($destination->contact_phone)
-                                <p><strong>Teléfono:</strong> {{ $destination->contact_phone }}</p>
+                                @if($destination->telefono_contacto)
+                                <p><strong>Teléfono:</strong> {{ $destination->telefono_contacto }}</p>
                                 @endif
-                                @if($destination->latitude && $destination->longitude)
+                                @if($destination->latitud && $destination->longitud)
                                 <p>
                                     <strong>Coordenadas:</strong><br>
-                                    Lat: {{ $destination->latitude }}, Lng: {{ $destination->longitude }}
+                                    Lat: {{ $destination->latitud }}, Lng: {{ $destination->longitud }}
                                 </p>
                                 @endif
                                 
@@ -263,8 +263,8 @@
                                 <ul>
                                     @foreach($destination->destinationProducts as $destProduct)
                                     <li>
-                                        {{ $destProduct->orderProduct->product->name }} - 
-                                        Cantidad: {{ number_format($destProduct->quantity, 4) }}
+                                        {{ $destProduct->orderProduct->product->nombre }} - 
+                                        Cantidad: {{ number_format($destProduct->cantidad, 4) }}
                                     </li>
                                     @endforeach
                                 </ul>
@@ -294,23 +294,23 @@
                             @foreach($trackings as $t)
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
-                                <td>{{ $t->destination_id ?? 'N/A' }}</td>
+                                <td>{{ $t->destino_id ?? 'N/A' }}</td>
                                 <td>{{ $t->envio_id ?? 'N/A' }}</td>
-                                <td>{{ $t->envio_codigo ?? 'N/A' }}</td>
+                                <td>{{ $t->codigo_envio ?? 'N/A' }}</td>
                                 <td>
-                                    @if($t->status == 'success')
+                                    @if($t->estado == 'success')
                                         <span class="badge badge-success">Creado</span>
-                                    @elseif($t->status == 'failed')
+                                    @elseif($t->estado == 'failed')
                                         <span class="badge badge-danger">Error</span>
                                     @else
-                                        <span class="badge badge-secondary">{{ ucfirst($t->status) }}</span>
+                                        <span class="badge badge-secondary">{{ ucfirst($t->estado) }}</span>
                                     @endif
                                 </td>
                                 <td>
                                     @if($t->envio_id)
                                         <a href="{{ $plantaBase }}/envios/{{ $t->envio_id }}" target="_blank" class="btn btn-sm btn-primary">Ver en PlantaCruds</a>
                                     @endif
-                                    @if($t->status == 'failed' && $t->error_message)
+                                    @if($t->estado == 'failed' && $t->mensaje_error)
                                         <button class="btn btn-sm btn-outline-danger" data-toggle="modal" data-target="#trackErrorModal{{ $t->id }}">Ver error</button>
                                         <!-- Modal -->
                                         <div class="modal fade" id="trackErrorModal{{ $t->id }}" tabindex="-1">
@@ -321,7 +321,7 @@
                                                         <button type="button" class="close" data-dismiss="modal">&times;</button>
                                                     </div>
                                                     <div class="modal-body">
-                                                        <pre style="white-space: pre-wrap;">{{ $t->error_message }}</pre>
+                                                        <pre style="white-space: pre-wrap;">{{ $t->mensaje_error }}</pre>
                                                     </div>
                                                     <div class="modal-footer">
                                                         <button class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
