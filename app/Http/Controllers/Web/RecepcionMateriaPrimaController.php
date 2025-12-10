@@ -16,30 +16,65 @@ class RecepcionMateriaPrimaController extends Controller
     public function index()
     {
         // Obtener solicitudes pendientes (con detalles de materiales)
+        // Solo mostrar solicitudes que NO están completamente recepcionadas
         $solicitudes = MaterialRequest::with(['order.customer', 'details.material.unit'])
-            ->where('priority', '>', 0)
-            ->orderBy('required_date', 'asc')
+            ->whereHas('details', function($query) {
+                // Filtrar solicitudes que tienen al menos un detalle sin recepcionar completamente
+                $query->whereRaw('COALESCE(cantidad_aprobada, 0) < cantidad_solicitada');
+            })
+            ->orderBy('fecha_requerida', 'asc')
             ->paginate(15);
 
         // Obtener materias primas recibidas
         $materias_primas = RawMaterial::with(['materialBase.unit', 'supplier'])
-            ->orderBy('receipt_date', 'desc')
+            ->orderBy('fecha_recepcion', 'desc')
             ->limit(10)
             ->get();
 
-        $materias_base = RawMaterialBase::where('active', true)
+        $materias_base = RawMaterialBase::where('activo', true)
             ->with('unit')
-            ->orderBy('name', 'asc')
+            ->orderBy('nombre', 'asc')
             ->get();
-        $proveedores = Supplier::where('active', true)
-            ->orderBy('business_name', 'asc')
+        $proveedores = Supplier::where('activo', true)
+            ->orderBy('razon_social', 'asc')
             ->get();
 
+        // Calcular estadísticas correctas
+        $totalRecepciones = RawMaterial::count();
+        
+        // Solicitudes completadas: todas las cantidades aprobadas >= solicitadas
+        $allSolicitudes = MaterialRequest::with('details')->get();
+        $solicitudesCompletadas = 0;
+        $solicitudesPendientes = 0;
+        
+        foreach ($allSolicitudes as $solicitud) {
+            $todosCompletos = true;
+            if ($solicitud->details->isEmpty()) {
+                $solicitudesPendientes++;
+                continue;
+            }
+            
+            foreach ($solicitud->details as $detail) {
+                $cantidadAprobada = $detail->cantidad_aprobada ?? 0;
+                $cantidadSolicitada = $detail->cantidad_solicitada ?? 0;
+                if ($cantidadAprobada < $cantidadSolicitada) {
+                    $todosCompletos = false;
+                    break;
+                }
+            }
+            
+            if ($todosCompletos) {
+                $solicitudesCompletadas++;
+            } else {
+                $solicitudesPendientes++;
+            }
+        }
+        
         // Estadísticas
         $stats = [
-            'total_recepciones' => RawMaterial::count(),
-            'completadas' => RawMaterial::whereNotNull('receipt_date')->count(),
-            'pendientes' => MaterialRequest::where('priority', '>', 0)->count(),
+            'total_recepciones' => $totalRecepciones,
+            'completadas' => $solicitudesCompletadas,
+            'pendientes' => $solicitudesPendientes,
         ];
 
         // Preparar datos de solicitudes para JavaScript
@@ -47,14 +82,14 @@ class RecepcionMateriaPrimaController extends Controller
             $details = $s->details->map(function($d) {
                 return [
                     'material_id' => $d->material_id,
-                    'requested_quantity' => (float)$d->requested_quantity,
-                    'approved_quantity' => (float)($d->approved_quantity ?? 0),
+                    'requested_quantity' => (float)$d->cantidad_solicitada,
+                    'approved_quantity' => (float)($d->cantidad_aprobada ?? 0),
                 ];
             })->values()->toArray();
             
             return [
-                'request_id' => $s->request_id,
-                'request_number' => $s->request_number,
+                'request_id' => $s->solicitud_id,
+                'request_number' => $s->numero_solicitud,
                 'details' => $details,
             ];
         })->values()->toArray();
@@ -62,18 +97,18 @@ class RecepcionMateriaPrimaController extends Controller
         // Preparar datos de recepciones para JavaScript
         $recepcionesJson = $materias_primas->map(function($mp) {
             return [
-                'raw_material_id' => $mp->raw_material_id,
-                'material_name' => $mp->materialBase->name ?? 'N/A',
-                'supplier_name' => $mp->supplier->business_name ?? 'N/A',
-                'quantity' => (float)$mp->quantity,
-                'available_quantity' => (float)$mp->available_quantity,
-                'unit' => $mp->materialBase->unit->code ?? '',
-                'receipt_date' => $mp->receipt_date ? $mp->receipt_date->format('Y-m-d') : null,
-                'expiration_date' => $mp->expiration_date ? $mp->expiration_date->format('Y-m-d') : null,
-                'invoice_number' => $mp->invoice_number ?? 'N/A',
-                'supplier_batch' => $mp->supplier_batch ?? 'N/A',
-                'receipt_conformity' => $mp->receipt_conformity ?? false,
-                'observations' => $mp->observations ?? '',
+                'materia_prima_id' => $mp->materia_prima_id,
+                'material_name' => $mp->materialBase->nombre ?? 'N/A',
+                'supplier_name' => $mp->supplier->razon_social ?? 'N/A',
+                'quantity' => (float)$mp->cantidad,
+                'available_quantity' => (float)$mp->cantidad_disponible,
+                'unit' => $mp->materialBase->unit->codigo ?? '',
+                'receipt_date' => $mp->fecha_recepcion ? $mp->fecha_recepcion->format('Y-m-d') : null,
+                'expiration_date' => $mp->fecha_vencimiento ? $mp->fecha_vencimiento->format('Y-m-d') : null,
+                'invoice_number' => $mp->numero_factura ?? 'N/A',
+                'supplier_batch' => $mp->lote_proveedor ?? 'N/A',
+                'receipt_conformity' => $mp->conformidad_recepcion ?? false,
+                'observations' => $mp->observaciones ?? '',
             ];
         })->values()->toArray();
 
@@ -83,18 +118,18 @@ class RecepcionMateriaPrimaController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'material_id' => 'required|integer|exists:raw_material_base,material_id',
-            'supplier_id' => 'required|integer|exists:supplier,supplier_id',
-            'supplier_batch' => 'nullable|string|max:100',
-            'invoice_number' => 'required|string|max:100',
-            'receipt_date' => ['required', 'date', 'after_or_equal:today'],
-            'expiration_date' => 'nullable|date|after:receipt_date',
-            'quantity' => 'required|numeric|min:0',
-            'receipt_conformity' => 'nullable|boolean',
-            'observations' => 'nullable|string|max:500',
-            'request_id' => 'nullable|integer|exists:material_request,request_id',
+            'material_id' => 'required|integer|exists:materia_prima_base,material_id',
+            'proveedor_id' => 'required|integer|exists:proveedor,proveedor_id',
+            'lote_proveedor' => 'nullable|string|max:100',
+            'numero_factura' => 'required|string|max:100',
+            'fecha_recepcion' => ['required', 'date', 'after_or_equal:today'],
+            'fecha_vencimiento' => 'nullable|date|after:fecha_recepcion',
+            'cantidad' => 'required|numeric|min:0',
+            'conformidad_recepcion' => 'nullable|boolean',
+            'observaciones' => 'nullable|string|max:500',
+            'solicitud_id' => 'nullable|integer|exists:solicitud_material,solicitud_id',
         ], [
-            'receipt_date.after_or_equal' => 'La fecha de recepción no puede ser anterior a hoy.',
+            'fecha_recepcion.after_or_equal' => 'La fecha de recepción no puede ser anterior a hoy.',
         ]);
 
         if ($validator->fails()) {
@@ -109,107 +144,118 @@ class RecepcionMateriaPrimaController extends Controller
             $materialBase = RawMaterialBase::findOrFail($request->material_id);
             
             // Verificar que el proveedor existe
-            $supplier = Supplier::findOrFail($request->supplier_id);
+            $supplier = Supplier::findOrFail($request->proveedor_id);
             
             // Sincronizar la secuencia y obtener el siguiente ID
-            $maxId = DB::table('raw_material')->max('raw_material_id') ?? 0;
-            DB::statement("SELECT setval('raw_material_seq', {$maxId}, true)");
-            $nextId = DB::selectOne("SELECT nextval('raw_material_seq') as id")->id;
+            $maxId = DB::table('materia_prima')->max('materia_prima_id');
             
-            // Convertir receipt_conformity a boolean correctamente
+            // Solo sincronizar la secuencia si hay registros existentes
+            // Si no hay registros, PostgreSQL manejará automáticamente el siguiente valor
+            if ($maxId !== null && $maxId > 0) {
+                // Sincronizar la secuencia con el máximo ID existente
+                // El tercer parámetro 'true' hace que el siguiente nextval devuelva maxId + 1
+                DB::statement("SELECT setval('materia_prima_seq', {$maxId}, true)");
+            }
+            
+            // Obtener el siguiente ID de la secuencia
+            $nextId = DB::selectOne("SELECT nextval('materia_prima_seq') as id")->id;
+            
+            // Convertir conformidad_recepcion a boolean correctamente
             // El formulario envía "1" o "0" como string
             $receiptConformity = true; // Por defecto true
-            if ($request->has('receipt_conformity')) {
-                $receiptConformity = $request->receipt_conformity == '1' || $request->receipt_conformity === 1 || $request->receipt_conformity === true;
+            if ($request->has('conformidad_recepcion')) {
+                $receiptConformity = $request->conformidad_recepcion == '1' || $request->conformidad_recepcion === 1 || $request->conformidad_recepcion === true;
             }
             
             // Guardar el balance anterior antes de actualizar
-            $previousBalance = $materialBase->available_quantity ?? 0;
+            $previousBalance = $materialBase->cantidad_disponible ?? 0;
             
-            // Crear registro en raw_material usando SQL directo para evitar conflictos
+            // Crear registro en materia_prima usando SQL directo para evitar conflictos
             $rawMaterialId = DB::selectOne("
-                INSERT INTO raw_material (raw_material_id, material_id, supplier_id, supplier_batch, invoice_number, receipt_date, expiration_date, quantity, available_quantity, receipt_conformity, observations)
-                VALUES (nextval('raw_material_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                RETURNING raw_material_id
+                INSERT INTO materia_prima (materia_prima_id, material_id, proveedor_id, lote_proveedor, numero_factura, fecha_recepcion, fecha_vencimiento, cantidad, cantidad_disponible, conformidad_recepcion, observaciones)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING materia_prima_id
             ", [
+                $nextId,
                 $request->material_id,
-                $request->supplier_id,
-                $request->supplier_batch,
-                $request->invoice_number,
-                $request->receipt_date,
-                $request->expiration_date,
-                $request->quantity,
-                $request->quantity,
+                $request->proveedor_id,
+                $request->lote_proveedor,
+                $request->numero_factura,
+                $request->fecha_recepcion,
+                $request->fecha_vencimiento,
+                $request->cantidad,
+                $request->cantidad,
                 $receiptConformity,
-                $request->observations
-            ])->raw_material_id;
+                $request->observaciones
+            ])->materia_prima_id;
             
             $rawMaterial = RawMaterial::find($rawMaterialId);
 
-            // Actualizar cantidad disponible en materia prima base solo si receipt_conformity es true
+            // Actualizar cantidad disponible en materia prima base solo si conformidad_recepcion es true
             if ($receiptConformity) {
-                $materialBase->available_quantity = ($materialBase->available_quantity ?? 0) + $request->quantity;
+                $materialBase->cantidad_disponible = ($materialBase->cantidad_disponible ?? 0) + $request->cantidad;
             $materialBase->save();
             }
 
             // Si se recepciona desde una solicitud, actualizar el detalle y verificar si está completa
-            if ($request->has('request_id') && $request->request_id) {
-                $materialRequest = MaterialRequest::with('details')->findOrFail($request->request_id);
+            if ($request->has('solicitud_id') && $request->solicitud_id) {
+                $materialRequest = MaterialRequest::with('details')->findOrFail($request->solicitud_id);
                 
                 // Buscar el detalle correspondiente al material recepcionado
                 $detail = $materialRequest->details->firstWhere('material_id', $request->material_id);
                 
                 if ($detail) {
-                    // Actualizar approved_quantity sumando la cantidad recepcionada
-                    $currentApproved = $detail->approved_quantity ?? 0;
-                    $detail->approved_quantity = $currentApproved + $request->quantity;
+                    // Actualizar cantidad_aprobada sumando la cantidad recepcionada
+                    $currentApproved = $detail->cantidad_aprobada ?? 0;
+                    $detail->cantidad_aprobada = $currentApproved + $request->cantidad;
                     $detail->save();
                 }
                 
                 // Verificar si todos los detalles de la solicitud han sido recepcionados completamente
                 $allCompleted = true;
                 foreach ($materialRequest->details as $det) {
-                    $approvedQty = $det->approved_quantity ?? 0;
-                    $requestedQty = $det->requested_quantity ?? 0;
+                    $approvedQty = $det->cantidad_aprobada ?? 0;
+                    $requestedQty = $det->cantidad_solicitada ?? 0;
                     if ($approvedQty < $requestedQty) {
                         $allCompleted = false;
                         break;
                     }
                 }
                 
-                // Si todos los materiales han sido recepcionados, marcar la solicitud como completa
-                if ($allCompleted) {
-                    $materialRequest->priority = 0;
-                    $materialRequest->save();
-                }
+                // Si todos los materiales han sido recepcionados, la solicitud se considera completada
+                // (Ya no usamos campo priority, el estado se maneja por las cantidades aprobadas)
             }
 
             // Sincronizar secuencia y registrar en log de movimientos
-            $maxLogId = DB::table('material_movement_log')->max('log_id') ?? 0;
-            if ($maxLogId > 0) {
-                DB::statement("SELECT setval('material_movement_log_seq', {$maxLogId}, true)");
-            } else {
-                DB::statement("SELECT setval('material_movement_log_seq', 1, false)");
+            $maxLogId = DB::table('registro_movimiento_material')->max('registro_id');
+            
+            // Solo sincronizar la secuencia si hay registros existentes
+            if ($maxLogId !== null && $maxLogId > 0) {
+                DB::statement("SELECT setval('registro_movimiento_material_seq', {$maxLogId}, true)");
             }
             
+            // Obtener el siguiente ID del log
+            $logNextId = DB::selectOne("SELECT nextval('registro_movimiento_material_seq') as id")->id;
+            
             DB::selectOne("
-                INSERT INTO material_movement_log (log_id, material_id, movement_type_id, user_id, quantity, previous_balance, new_balance, observations)
-                VALUES (nextval('material_movement_log_seq'), ?, ?, ?, ?, ?, ?, ?)
-                RETURNING log_id
+                INSERT INTO registro_movimiento_material (registro_id, material_id, tipo_movimiento_id, operador_id, cantidad, saldo_anterior, saldo_nuevo, descripcion)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING registro_id
             ", [
+                $logNextId,
                 $request->material_id,
                 1, // Entrada
                 auth()->id(),
-                $request->quantity,
+                $request->cantidad,
                 $previousBalance,
-                $materialBase->available_quantity,
+                $materialBase->cantidad_disponible,
                 'Recepción de materia prima' . ($receiptConformity ? ' (Conforme)' : ' (No conforme)')
             ]);
 
             DB::commit();
 
             return redirect()->route('recepcion-materia-prima')
-                ->with('success', 'Materia prima recibida exitosamente. Registro creado en raw_material con ID: ' . $nextId);
+                ->with('success', 'Materia prima recibida exitosamente. Registro creado en materia_prima con ID: ' . $nextId);
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()

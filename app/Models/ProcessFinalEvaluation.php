@@ -7,30 +7,30 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProcessFinalEvaluation extends Model
 {
-    protected $table = 'process_final_evaluation';
-    protected $primaryKey = 'evaluation_id';
+    protected $table = 'evaluacion_final_proceso';
+    protected $primaryKey = 'evaluacion_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'evaluation_id',
-        'batch_id',
+        'evaluacion_id',
+        'lote_id',
         'inspector_id',
-        'reason',
-        'observations',
-        'evaluation_date'
+        'razon',
+        'observaciones',
+        'fecha_evaluacion'
     ];
 
     protected $casts = [
-        'evaluation_date' => 'datetime',
+        'fecha_evaluacion' => 'datetime',
     ];
 
     public function batch(): BelongsTo
     {
-        return $this->belongsTo(ProductionBatch::class, 'batch_id', 'batch_id');
+        return $this->belongsTo(ProductionBatch::class, 'lote_id', 'lote_id');
     }
 
     public function inspector(): BelongsTo
     {
-        return $this->belongsTo(Operator::class, 'inspector_id', 'operator_id');
+        return $this->belongsTo(Operator::class, 'inspector_id', 'operador_id');
     }
 }

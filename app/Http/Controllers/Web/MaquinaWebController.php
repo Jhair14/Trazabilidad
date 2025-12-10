@@ -10,7 +10,7 @@ class MaquinaWebController extends Controller
 {
     public function index()
     {
-        $maquinas = Machine::orderBy('machine_id','desc')
+        $maquinas = Machine::orderBy('maquina_id','desc')
             ->paginate(15);
         return view('maquinas', compact('maquinas'));
     }
@@ -23,29 +23,32 @@ class MaquinaWebController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:100',
-            'description' => 'nullable|string|max:255',
-            'image_url' => 'nullable|string|max:500', // Cambiado de url a string para aceptar URLs de Cloudinary
+            'nombre' => 'required|string|max:100',
+            'descripcion' => 'nullable|string|max:255',
+            'imagen_url' => 'nullable|string|max:500', // Cambiado de url a string para aceptar URLs de Cloudinary
         ]);
         
         try {
             // Sincronizar la secuencia con el máximo ID existente (si hay registros)
             // Esto asegura que la secuencia siempre esté al día
-            DB::statement("SELECT setval('machine_seq', COALESCE((SELECT MAX(machine_id) FROM machine), 0), true)");
+            $maxId = DB::table('maquina')->max('maquina_id') ?? 0;
+            if ($maxId > 0) {
+                DB::statement("SELECT setval('maquina_seq', {$maxId}, true)");
+            }
             
             // Obtener el siguiente ID de la secuencia
-            $nextId = DB::selectOne("SELECT nextval('machine_seq') as id")->id;
+            $nextId = DB::selectOne("SELECT nextval('maquina_seq') as id")->id;
             
             // Generar código automáticamente
             $code = 'MAQ-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
             
             Machine::create([
-                'machine_id' => $nextId,
-                'code' => $code,
-                'name' => $data['name'],
-                'description' => $data['description'] ?? null,
-                'image_url' => $data['image_url'] ?? null,
-                'active' => true,
+                'maquina_id' => $nextId,
+                'codigo' => $code,
+                'nombre' => $data['nombre'],
+                'descripcion' => $data['descripcion'] ?? null,
+                'imagen_url' => $data['imagen_url'] ?? null,
+                'activo' => true,
             ]);
             
             return redirect()->route('maquinas.index')->with('success', 'Máquina creada exitosamente');
@@ -58,7 +61,7 @@ class MaquinaWebController extends Controller
 
     public function show($id)
     {
-        $maquina = Machine::with('operators')->findOrFail($id);
+        $maquina = Machine::findOrFail($id);
         return view('maquinas.show', compact('maquina'));
     }
 
@@ -71,23 +74,28 @@ class MaquinaWebController extends Controller
     public function update(Request $request, $id)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:100',
-            'description' => 'nullable|string|max:255',
-            'image_url' => 'nullable|string|max:500', // Cambiado de url a string para aceptar URLs de Cloudinary
+            'nombre' => 'required|string|max:100',
+            'descripcion' => 'nullable|string|max:255',
+            'imagen_url' => 'nullable|string|max:500', // Cambiado de url a string para aceptar URLs de Cloudinary
             'current_image_url' => 'nullable|string|max:500', // Para mantener la imagen actual si no se sube una nueva
-            'active' => 'nullable|boolean',
+            'activo' => 'nullable|boolean',
         ]);
         
         $maquina = Machine::findOrFail($id);
         
         // Si no se proporciona una nueva imagen, mantener la actual
-        if (empty($data['image_url']) && !empty($data['current_image_url'])) {
-            $data['image_url'] = $data['current_image_url'];
+        if (empty($data['imagen_url']) && !empty($data['current_image_url'])) {
+            $data['imagen_url'] = $data['current_image_url'];
         }
         
         unset($data['current_image_url']); // Eliminar del array antes de actualizar
         
-        $maquina->update($data);
+        $maquina->update([
+            'nombre' => $data['nombre'],
+            'descripcion' => $data['descripcion'] ?? null,
+            'imagen_url' => $data['imagen_url'] ?? null,
+            'activo' => $data['activo'] ?? $maquina->activo,
+        ]);
         return redirect()->route('maquinas.index')->with('success', 'Máquina actualizada exitosamente');
     }
 
@@ -97,10 +105,10 @@ class MaquinaWebController extends Controller
             $maquina = Machine::findOrFail($id);
             
             // Eliminar la imagen de Cloudinary si existe
-            if ($maquina->image_url && strpos($maquina->image_url, 'cloudinary.com') !== false) {
+            if ($maquina->imagen_url && strpos($maquina->imagen_url, 'cloudinary.com') !== false) {
                 try {
                     // Extraer el public_id de la URL de Cloudinary
-                    preg_match('/\/v\d+\/(.+)$/', $maquina->image_url, $matches);
+                    preg_match('/\/v\d+\/(.+)$/', $maquina->imagen_url, $matches);
                     if (isset($matches[1])) {
                         $publicId = pathinfo($matches[1], PATHINFO_FILENAME);
                         $folder = 'maquinas';

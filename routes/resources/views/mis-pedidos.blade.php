@@ -33,7 +33,7 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-warning">
             <div class="inner">
-                <h3>{{ $pedidos->where('priority', '>', 0)->count() }}</h3>
+                <h3>{{ $stats['pendientes'] ?? 0 }}</h3>
                 <p>Pendientes</p>
             </div>
             <div class="icon">
@@ -45,7 +45,7 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-primary">
             <div class="inner">
-                <h3>{{ $pedidos->where('priority', '>', 0)->where('priority', '<=', 5)->count() }}</h3>
+                <h3>{{ $stats['en_proceso'] ?? 0 }}</h3>
                 <p>En Proceso</p>
             </div>
             <div class="icon">
@@ -57,7 +57,7 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-success">
         <div class="inner">
-                <h3>{{ $pedidos->where('priority', 0)->count() }}</h3>
+                <h3>{{ $stats['completados'] ?? 0 }}</h3>
                 <p>Completados</p>
             </div>
             <div class="icon">
@@ -95,20 +95,24 @@
                 </thead>
                 <tbody>
                     @forelse($pedidos as $pedido)
+                    @php
+                        // Usar estado_real si está disponible, sino usar estado
+                        $estadoMostrar = $pedido->estado_real ?? $pedido->estado;
+                    @endphp
                     <tr>
-                        <td><strong>{{ $pedido->name ?? 'Sin nombre' }}</strong></td>
-                        <td>{{ $pedido->description ?? 'Sin descripción' }}</td>
-                        <td>{{ \Carbon\Carbon::parse($pedido->creation_date)->format('d/m/Y') }}</td>
+                        <td><strong>{{ $pedido->nombre ?? 'Sin nombre' }}</strong></td>
+                        <td>{{ $pedido->descripcion ?? 'Sin descripción' }}</td>
+                        <td>{{ \Carbon\Carbon::parse($pedido->fecha_creacion)->format('d/m/Y') }}</td>
                         <td>
-                            @if($pedido->status == 'completado')
+                            @if($estadoMostrar == 'completado')
                                 <span class="badge badge-success">Completado</span>
-                            @elseif($pedido->status == 'aprobado')
+                            @elseif($estadoMostrar == 'aprobado')
                                 <span class="badge badge-info">Aprobado</span>
-                            @elseif($pedido->status == 'rechazado')
+                            @elseif($estadoMostrar == 'rechazado')
                                 <span class="badge badge-danger">Rechazado</span>
-                            @elseif($pedido->status == 'en_produccion')
-                                <span class="badge badge-primary">En Producción</span>
-                            @elseif($pedido->status == 'cancelado')
+                            @elseif($estadoMostrar == 'en_proceso')
+                                <span class="badge badge-primary">En Proceso</span>
+                            @elseif($estadoMostrar == 'cancelado')
                                 <span class="badge badge-secondary">Cancelado</span>
                             @else
                                 <span class="badge badge-warning">Pendiente</span>
@@ -118,25 +122,25 @@
                             <div class="progress progress-sm">
                                 @php
                                     $progreso = 0;
-                                    if($pedido->status == 'completado') {
+                                    if($estadoMostrar == 'completado') {
                                         $progreso = 100;
-                                    } elseif($pedido->status == 'en_produccion') {
+                                    } elseif($estadoMostrar == 'en_proceso') {
                                         $progreso = 80;
-                                    } elseif($pedido->status == 'aprobado') {
+                                    } elseif($estadoMostrar == 'aprobado') {
                                         $progreso = 50;
-                                    } elseif($pedido->status == 'pendiente') {
+                                    } elseif($estadoMostrar == 'pendiente') {
                                         $progreso = 20;
-                                    } elseif($pedido->status == 'cancelado' || $pedido->status == 'rechazado') {
+                                    } elseif($estadoMostrar == 'cancelado' || $estadoMostrar == 'rechazado') {
                                         $progreso = 0;
                                     }
                                 @endphp
-                                @if($pedido->status == 'completado')
+                                @if($estadoMostrar == 'completado')
                                     <div class="progress-bar bg-success" style="width: {{ $progreso }}%"></div>
-                                @elseif($pedido->status == 'en_produccion')
+                                @elseif($estadoMostrar == 'en_proceso')
                                     <div class="progress-bar bg-primary" style="width: {{ $progreso }}%"></div>
-                                @elseif($pedido->status == 'aprobado')
+                                @elseif($estadoMostrar == 'aprobado')
                                     <div class="progress-bar bg-info" style="width: {{ $progreso }}%"></div>
-                                @elseif($pedido->status == 'pendiente')
+                                @elseif($estadoMostrar == 'pendiente')
                                     <div class="progress-bar bg-warning" style="width: {{ $progreso }}%"></div>
                                 @else
                                     <div class="progress-bar bg-danger" style="width: {{ $progreso }}%"></div>
@@ -145,17 +149,17 @@
                             <small class="text-muted">{{ $progreso }}%</small>
                         </td>
                         <td class="text-right">
-                            <button class="btn btn-sm btn-info" title="Ver Detalles" onclick="verPedido({{ $pedido->order_id }})">
+                            <button class="btn btn-sm btn-info" title="Ver Detalles" onclick="verPedido({{ $pedido->pedido_id }})">
                                 <i class="fas fa-eye"></i>
                             </button>
                             @php
-                                $puedeEditar = $pedido->status === 'pendiente' && $pedido->canBeEdited();
+                                $puedeEditar = $pedido->estado === 'pendiente' && $pedido->canBeEdited();
                             @endphp
                             @if($puedeEditar)
-                                <a href="{{ route('mis-pedidos.edit', $pedido->order_id) }}" class="btn btn-sm btn-warning" title="Editar">
+                                <a href="{{ route('mis-pedidos.edit', $pedido->pedido_id) }}" class="btn btn-sm btn-warning" title="Editar">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <form action="{{ route('mis-pedidos.cancel', $pedido->order_id) }}" method="POST" style="display: inline;" onsubmit="return confirm('¿Está seguro de cancelar este pedido?');">
+                                <form action="{{ route('mis-pedidos.cancel', $pedido->pedido_id) }}" method="POST" style="display: inline;" onsubmit="return confirm('¿Está seguro de cancelar este pedido?');">
                                     @csrf
                                     @method('POST')
                                     <button type="submit" class="btn btn-sm btn-danger" title="Cancelar">
@@ -306,16 +310,6 @@ function verPedido(id) {
                                 <td>${data.delivery_date}</td>
                             </tr>
                             ` : ''}
-                            <tr>
-                                <th>Prioridad</th>
-                                <td>
-                                    ${data.priority == 10 
-                                        ? '<span class="badge badge-danger">Urgente</span>' 
-                                        : data.priority == 5
-                                        ? '<span class="badge badge-warning">Alta</span>'
-                                        : '<span class="badge badge-info">Normal</span>'}
-                                </td>
-                            </tr>
                             <tr>
                                 <th>Productos</th>
                                 <td>${productsHtml}</td>

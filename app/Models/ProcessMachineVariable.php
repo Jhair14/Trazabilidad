@@ -7,34 +7,34 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProcessMachineVariable extends Model
 {
-    protected $table = 'process_machine_variable';
+    protected $table = 'variable_proceso_maquina';
     protected $primaryKey = 'variable_id';
     public $timestamps = false;
     
     protected $fillable = [
         'variable_id',
-        'process_machine_id',
-        'standard_variable_id',
-        'min_value',
-        'max_value',
-        'target_value',
-        'mandatory'
+        'proceso_maquina_id',
+        'variable_estandar_id',
+        'valor_minimo',
+        'valor_maximo',
+        'valor_objetivo',
+        'obligatorio'
     ];
 
     protected $casts = [
-        'min_value' => 'decimal:2',
-        'max_value' => 'decimal:2',
-        'target_value' => 'decimal:2',
-        'mandatory' => 'boolean',
+        'valor_minimo' => 'decimal:2',
+        'valor_maximo' => 'decimal:2',
+        'valor_objetivo' => 'decimal:2',
+        'obligatorio' => 'boolean',
     ];
 
     public function processMachine(): BelongsTo
     {
-        return $this->belongsTo(ProcessMachine::class, 'process_machine_id', 'process_machine_id');
+        return $this->belongsTo(ProcessMachine::class, 'proceso_maquina_id', 'proceso_maquina_id');
     }
 
     public function standardVariable(): BelongsTo
     {
-        return $this->belongsTo(StandardVariable::class, 'standard_variable_id', 'variable_id');
+        return $this->belongsTo(StandardVariable::class, 'variable_estandar_id', 'variable_id');
     }
 }

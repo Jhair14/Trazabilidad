@@ -22,10 +22,10 @@
             <div class="card-header">
                 <h3 class="card-title">
                     <i class="fas fa-edit mr-1"></i>
-                    Formulario: {{ $processMachine->name }}
+                    Formulario: {{ $processMachine->nombre }}
                 </h3>
                 <div class="card-tools">
-                    <a href="{{ route('proceso-transformacion', $batch->batch_id) }}" class="btn btn-secondary btn-sm">
+                    <a href="{{ route('proceso-transformacion', $batch->lote_id) }}" class="btn btn-secondary btn-sm">
                         <i class="fas fa-arrow-left mr-1"></i> Volver
                     </a>
                 </div>
@@ -41,29 +41,29 @@
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <h5>Información del Lote</h5>
-                        <p><strong>Lote:</strong> #{{ $batch->batch_code ?? $batch->batch_id }}</p>
-                        <p><strong>Nombre:</strong> {{ $batch->name ?? 'Sin nombre' }}</p>
-                        <p><strong>Cliente:</strong> {{ $batch->order->customer->business_name ?? 'N/A' }}</p>
+                        <p><strong>Lote:</strong> #{{ $batch->codigo_lote ?? $batch->lote_id }}</p>
+                        <p><strong>Nombre:</strong> {{ $batch->nombre ?? 'Sin nombre' }}</p>
+                        <p><strong>Cliente:</strong> {{ $batch->order->customer->razon_social ?? 'N/A' }}</p>
                     </div>
                     <div class="col-md-6">
                         <h5>Información de la Máquina</h5>
-                        <p><strong>Paso:</strong> {{ $processMachine->step_order }}</p>
-                        <p><strong>Nombre:</strong> {{ $processMachine->name }}</p>
-                        <p><strong>Proceso:</strong> {{ $processMachine->process->name ?? 'N/A' }}</p>
+                        <p><strong>Paso:</strong> {{ $processMachine->orden_paso }}</p>
+                        <p><strong>Nombre:</strong> {{ $processMachine->nombre }}</p>
+                        <p><strong>Proceso:</strong> {{ $processMachine->process->nombre ?? 'N/A' }}</p>
                     </div>
                 </div>
 
-                @if($processMachine->machine && $processMachine->machine->image_url)
+                @if($processMachine->machine && $processMachine->machine->imagen_url)
                 <div class="text-center mb-4">
-                    <img src="{{ $processMachine->machine->image_url }}" 
-                         alt="{{ $processMachine->name }}" 
+                    <img src="{{ $processMachine->machine->imagen_url }}" 
+                         alt="{{ $processMachine->nombre }}" 
                          class="img-fluid" 
                          style="max-height: 200px; object-fit: contain;">
                 </div>
                 @endif
 
                 <!-- Formulario de Variables -->
-                <form method="POST" action="{{ route('proceso-transformacion.registrar', [$batch->batch_id, $processMachine->process_machine_id]) }}" id="formularioMaquina">
+                <form method="POST" action="{{ route('proceso-transformacion.registrar', [$batch->lote_id, $processMachine->proceso_maquina_id]) }}" id="formularioMaquina">
                     @csrf
                     
                     <h5 class="mb-3">Variables Estándar</h5>
@@ -76,20 +76,20 @@
                     <div class="row">
                         @foreach($processMachine->variables as $variable)
                         @php
-                            $varName = $variable->standardVariable->code ?? $variable->standardVariable->name;
+                            $varName = $variable->standardVariable->codigo ?? $variable->standardVariable->nombre;
                             $oldValue = old('entered_variables.' . $varName);
-                            if (!$oldValue && $record && isset($record->entered_variables[$varName])) {
-                                $oldValue = $record->entered_variables[$varName];
+                            if (!$oldValue && $record && isset($record->variables_ingresadas[$varName])) {
+                                $oldValue = $record->variables_ingresadas[$varName];
                             }
                         @endphp
                         <div class="col-md-6 mb-3">
                             <div class="form-group">
                                 <label for="variable_{{ $variable->variable_id }}">
-                                    {{ $variable->standardVariable->name ?? 'N/A' }}
-                                    @if($variable->standardVariable->unit)
-                                        <small class="text-muted">({{ $variable->standardVariable->unit }})</small>
+                                    {{ $variable->standardVariable->nombre ?? 'N/A' }}
+                                    @if($variable->standardVariable->unidad)
+                                        <small class="text-muted">({{ $variable->standardVariable->unidad }})</small>
                                     @endif
-                                    @if($variable->mandatory)
+                                    @if($variable->obligatorio)
                                         <span class="text-danger">*</span>
                                     @endif
                                 </label>
@@ -100,13 +100,13 @@
                                            id="variable_{{ $variable->variable_id }}"
                                            name="entered_variables[{{ $varName }}]" 
                                            value="{{ $oldValue }}"
-                                           min="{{ $variable->min_value }}"
-                                           max="{{ $variable->max_value }}"
-                                           @if($variable->mandatory) required @endif
-                                           placeholder="Rango: {{ $variable->min_value }} - {{ $variable->max_value }}">
+                                           min="{{ $variable->valor_minimo }}"
+                                           max="{{ $variable->valor_maximo }}"
+                                           @if($variable->obligatorio) required @endif
+                                           placeholder="Rango: {{ $variable->valor_minimo }} - {{ $variable->valor_maximo }}">
                                     <div class="input-group-append">
                                         <span class="input-group-text">
-                                            Min: {{ $variable->min_value }} | Max: {{ $variable->max_value }}
+                                            Min: {{ $variable->valor_minimo }} | Max: {{ $variable->valor_maximo }}
                                         </span>
                                     </div>
                                 </div>
@@ -114,8 +114,8 @@
                                     <span class="invalid-feedback d-block">{{ $message }}</span>
                                 @enderror
                                 <small class="form-text text-muted">
-                                    @if($variable->target_value)
-                                        Valor objetivo: {{ $variable->target_value }}
+                                    @if($variable->valor_objetivo)
+                                        Valor objetivo: {{ $variable->valor_objetivo }}
                                     @endif
                                 </small>
                             </div>
@@ -131,14 +131,14 @@
                                   id="observations" 
                                   name="observations" 
                                   rows="3" 
-                                  placeholder="Observaciones sobre este proceso...">{{ old('observations', $record->observations ?? '') }}</textarea>
+                                  placeholder="Observaciones sobre este proceso...">{{ old('observations', $record->observaciones ?? '') }}</textarea>
                         @error('observations')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
 
                     <div class="form-group text-right">
-                        <a href="{{ route('proceso-transformacion', $batch->batch_id) }}" class="btn btn-secondary">
+                        <a href="{{ route('proceso-transformacion', $batch->lote_id) }}" class="btn btn-secondary">
                             <i class="fas fa-times mr-1"></i> Cancelar
                         </a>
                         <button type="submit" class="btn btn-primary">

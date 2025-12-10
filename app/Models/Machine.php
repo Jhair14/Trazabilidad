@@ -8,31 +8,31 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Machine extends Model
 {
-    protected $table = 'machine';
-    protected $primaryKey = 'machine_id';
+    protected $table = 'maquina';
+    protected $primaryKey = 'maquina_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'machine_id',
-        'code',
-        'name',
-        'description',
-        'image_url',
-        'active'
+        'maquina_id',
+        'codigo',
+        'nombre',
+        'descripcion',
+        'imagen_url',
+        'activo'
     ];
 
     protected $casts = [
-        'active' => 'boolean',
+        'activo' => 'boolean',
     ];
 
     public function operators(): BelongsToMany
     {
-        return $this->belongsToMany(Operator::class, 'operator_machine', 'machine_id', 'operator_id');
+        return $this->belongsToMany(Operator::class, 'operador_maquina', 'maquina_id', 'operador_id');
     }
 
     public function processMachines(): HasMany
     {
-        return $this->hasMany(ProcessMachine::class, 'machine_id', 'machine_id');
+        return $this->hasMany(ProcessMachine::class, 'maquina_id', 'maquina_id');
     }
 }
 

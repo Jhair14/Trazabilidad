@@ -8,38 +8,36 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MaterialRequest extends Model
 {
-    protected $table = 'material_request';
-    protected $primaryKey = 'request_id';
+    protected $table = 'solicitud_material';
+    protected $primaryKey = 'solicitud_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'request_id',
-        'order_id',
-        'request_number',
-        'request_date',
-        'required_date',
-        'priority',
-        'observations'
+        'solicitud_id',
+        'pedido_id',
+        'numero_solicitud',
+        'fecha_solicitud',
+        'fecha_requerida',
+        'observaciones'
     ];
 
     protected $casts = [
-        'request_date' => 'date',
-        'required_date' => 'date',
-        'priority' => 'integer',
+        'fecha_solicitud' => 'date',
+        'fecha_requerida' => 'date',
     ];
 
     public function order(): BelongsTo
     {
-        return $this->belongsTo(CustomerOrder::class, 'order_id', 'order_id');
+        return $this->belongsTo(CustomerOrder::class, 'pedido_id', 'pedido_id');
     }
 
     public function details(): HasMany
     {
-        return $this->hasMany(MaterialRequestDetail::class, 'request_id', 'request_id');
+        return $this->hasMany(MaterialRequestDetail::class, 'solicitud_id', 'solicitud_id');
     }
 
     public function supplierResponses(): HasMany
     {
-        return $this->hasMany(SupplierResponse::class, 'request_id', 'request_id');
+        return $this->hasMany(SupplierResponse::class, 'solicitud_id', 'solicitud_id');
     }
 }

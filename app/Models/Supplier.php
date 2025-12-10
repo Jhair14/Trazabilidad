@@ -7,34 +7,34 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Supplier extends Model
 {
-    protected $table = 'supplier';
-    protected $primaryKey = 'supplier_id';
+    protected $table = 'proveedor';
+    protected $primaryKey = 'proveedor_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'supplier_id',
-        'business_name',
-        'trading_name',
-        'tax_id',
-        'contact_person',
-        'phone',
+        'proveedor_id',
+        'razon_social',
+        'nombre_comercial',
+        'nit',
+        'contacto',
+        'telefono',
         'email',
-        'address',
-        'active'
+        'direccion',
+        'activo'
     ];
 
     protected $casts = [
-        'active' => 'boolean',
+        'activo' => 'boolean',
     ];
 
     public function rawMaterials(): HasMany
     {
-        return $this->hasMany(RawMaterial::class, 'supplier_id', 'supplier_id');
+        return $this->hasMany(RawMaterial::class, 'proveedor_id', 'proveedor_id');
     }
 
     public function supplierResponses(): HasMany
     {
-        return $this->hasMany(SupplierResponse::class, 'supplier_id', 'supplier_id');
+        return $this->hasMany(SupplierResponse::class, 'proveedor_id', 'proveedor_id');
     }
 }
 

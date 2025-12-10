@@ -47,7 +47,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>{{ $proveedores->where('active', true)->count() }}</h3>
+                                <h3>{{ $proveedores->where('activo', true)->count() }}</h3>
                                 <p>Activos</p>
                             </div>
                             <div class="icon">
@@ -69,7 +69,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-danger">
                             <div class="inner">
-                                <h3>{{ $proveedores->where('active', false)->count() }}</h3>
+                                <h3>{{ $proveedores->where('activo', false)->count() }}</h3>
                                 <p>Inactivos</p>
                             </div>
                             <div class="icon">
@@ -97,29 +97,29 @@
                         <tbody>
                             @forelse($proveedores as $proveedor)
                             <tr>
-                                <td>#{{ $proveedor->supplier_id }}</td>
-                                <td>{{ $proveedor->trading_name ?? $proveedor->business_name }}</td>
-                                <td>{{ $proveedor->business_name }}</td>
-                                <td>{{ $proveedor->contact_person ?? 'N/A' }}</td>
-                                <td>{{ $proveedor->phone ?? 'N/A' }}</td>
+                                <td>#{{ $proveedor->proveedor_id }}</td>
+                                <td>{{ $proveedor->nombre_comercial ?? $proveedor->razon_social }}</td>
+                                <td>{{ $proveedor->razon_social }}</td>
+                                <td>{{ $proveedor->contacto ?? 'N/A' }}</td>
+                                <td>{{ $proveedor->telefono ?? 'N/A' }}</td>
                                 <td>{{ $proveedor->email ?? 'N/A' }}</td>
                                 <td>
-                                    @if($proveedor->active)
+                                    @if($proveedor->activo)
                                         <span class="badge badge-success">Activo</span>
                                     @else
                                         <span class="badge badge-danger">Inactivo</span>
                                     @endif
                                 </td>
                                 <td class="text-right">
-                                    <button onclick="verProveedor({{ $proveedor->supplier_id }})" 
+                                    <button onclick="verProveedor({{ $proveedor->proveedor_id }})" 
                                             class="btn btn-sm btn-info" title="Ver">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    <button onclick="editarProveedor({{ $proveedor->supplier_id }})" 
+                                    <button onclick="editarProveedor({{ $proveedor->proveedor_id }})" 
                                             class="btn btn-sm btn-warning" title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <form method="POST" action="{{ route('proveedores.web.destroy', $proveedor->supplier_id) }}" 
+                                    <form method="POST" action="{{ route('proveedores.web.destroy', $proveedor->proveedor_id) }}" 
                                           style="display: inline;" 
                                           onsubmit="return confirm('¿Está seguro de eliminar este proveedor?');">
                                         @csrf
@@ -188,10 +188,10 @@
                                     <i class="fas fa-building mr-1"></i>
                                     Razón Social <span class="text-danger">*</span>
                                 </label>
-                                <input type="text" class="form-control @error('business_name') is-invalid @enderror" 
-                                       id="business_name" name="business_name" value="{{ old('business_name') }}" 
+                                <input type="text" class="form-control @error('razon_social') is-invalid @enderror" 
+                                       id="razon_social" name="razon_social" value="{{ old('razon_social') }}" 
                                        placeholder="Ej: Empresa ABC S.A." required>
-                                @error('business_name')
+                                @error('razon_social')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -202,10 +202,10 @@
                                     <i class="fas fa-store mr-1"></i>
                                     Nombre Comercial
                                 </label>
-                                <input type="text" class="form-control @error('trading_name') is-invalid @enderror" 
-                                       id="trading_name" name="trading_name" value="{{ old('trading_name') }}" 
+                                <input type="text" class="form-control @error('nombre_comercial') is-invalid @enderror" 
+                                       id="nombre_comercial" name="nombre_comercial" value="{{ old('nombre_comercial') }}" 
                                        placeholder="Ej: ABC Comercial">
-                                @error('trading_name')
+                                @error('nombre_comercial')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -219,24 +219,24 @@
                                     <i class="fas fa-id-card mr-1"></i>
                                     RUC/NIT
                                 </label>
-                                <input type="text" class="form-control @error('tax_id') is-invalid @enderror" 
-                                       id="tax_id" name="tax_id" value="{{ old('tax_id') }}" 
+                                <input type="text" class="form-control @error('nit') is-invalid @enderror" 
+                                       id="nit" name="nit" value="{{ old('nit') }}" 
                                        placeholder="Ej: 12345678901">
-                                @error('tax_id')
+                                @error('nit')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="contact_person">
+                                <label for="contacto">
                                     <i class="fas fa-user mr-1"></i>
                                     Persona de Contacto
                                 </label>
-                                <input type="text" class="form-control @error('contact_person') is-invalid @enderror" 
-                                       id="contact_person" name="contact_person" value="{{ old('contact_person') }}" 
+                                <input type="text" class="form-control @error('contacto') is-invalid @enderror" 
+                                       id="contacto" name="contacto" value="{{ old('contacto') }}" 
                                        placeholder="Ej: Juan Pérez">
-                                @error('contact_person')
+                                @error('contacto')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -250,10 +250,10 @@
                                     <i class="fas fa-phone mr-1"></i>
                                     Teléfono
                                 </label>
-                                <input type="text" class="form-control @error('phone') is-invalid @enderror" 
-                                       id="phone" name="phone" value="{{ old('phone') }}" 
+                                <input type="text" class="form-control @error('telefono') is-invalid @enderror" 
+                                       id="telefono" name="telefono" value="{{ old('telefono') }}" 
                                        placeholder="Ej: +1 234-567-8900">
-                                @error('phone')
+                                @error('telefono')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -279,10 +279,10 @@
                             <i class="fas fa-map-marker-alt mr-1"></i>
                             Dirección
                         </label>
-                        <textarea class="form-control @error('address') is-invalid @enderror" 
-                                  id="address" name="address" rows="2" 
-                                  placeholder="Dirección completa del proveedor...">{{ old('address') }}</textarea>
-                        @error('address')
+                        <textarea class="form-control @error('direccion') is-invalid @enderror" 
+                                  id="direccion" name="direccion" rows="2" 
+                                  placeholder="Dirección completa del proveedor...">{{ old('direccion') }}</textarea>
+                        @error('direccion')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
@@ -366,9 +366,9 @@
                                     <i class="fas fa-building mr-1"></i>
                                     Razón Social <span class="text-danger">*</span>
                                 </label>
-                                <input type="text" class="form-control @error('business_name') is-invalid @enderror" 
-                                       id="edit_business_name" name="business_name" required>
-                                @error('business_name')
+                                <input type="text" class="form-control @error('razon_social') is-invalid @enderror" 
+                                       id="edit_razon_social" name="razon_social" required>
+                                @error('razon_social')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -379,9 +379,9 @@
                                     <i class="fas fa-store mr-1"></i>
                                     Nombre Comercial
                                 </label>
-                                <input type="text" class="form-control @error('trading_name') is-invalid @enderror" 
-                                       id="edit_trading_name" name="trading_name">
-                                @error('trading_name')
+                                <input type="text" class="form-control @error('nombre_comercial') is-invalid @enderror" 
+                                       id="edit_nombre_comercial" name="nombre_comercial">
+                                @error('nombre_comercial')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -395,9 +395,9 @@
                                     <i class="fas fa-id-card mr-1"></i>
                                     RUC/NIT
                                 </label>
-                                <input type="text" class="form-control @error('tax_id') is-invalid @enderror" 
-                                       id="edit_tax_id" name="tax_id">
-                                @error('tax_id')
+                                <input type="text" class="form-control @error('nit') is-invalid @enderror" 
+                                       id="edit_nit" name="nit">
+                                @error('nit')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -408,9 +408,9 @@
                                     <i class="fas fa-user mr-1"></i>
                                     Persona de Contacto
                                 </label>
-                                <input type="text" class="form-control @error('contact_person') is-invalid @enderror" 
-                                       id="edit_contact_person" name="contact_person">
-                                @error('contact_person')
+                                <input type="text" class="form-control @error('contacto') is-invalid @enderror" 
+                                       id="edit_contacto" name="contacto">
+                                @error('contacto')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -424,9 +424,9 @@
                                     <i class="fas fa-phone mr-1"></i>
                                     Teléfono
                                 </label>
-                                <input type="text" class="form-control @error('phone') is-invalid @enderror" 
-                                       id="edit_phone" name="phone">
-                                @error('phone')
+                                <input type="text" class="form-control @error('telefono') is-invalid @enderror" 
+                                       id="edit_telefono" name="telefono">
+                                @error('telefono')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -451,20 +451,20 @@
                             <i class="fas fa-map-marker-alt mr-1"></i>
                             Dirección
                         </label>
-                        <textarea class="form-control @error('address') is-invalid @enderror" 
-                                  id="edit_address" name="address" rows="2"></textarea>
-                        @error('address')
+                        <textarea class="form-control @error('direccion') is-invalid @enderror" 
+                                  id="edit_direccion" name="direccion" rows="2"></textarea>
+                        @error('direccion')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
                     
                     <div class="form-group">
-                        <input type="hidden" name="active" value="0" id="edit_active_hidden">
+                        <input type="hidden" name="activo" value="0" id="edit_activo_hidden">
                         <div class="custom-control custom-switch">
                             <input type="checkbox" class="custom-control-input" 
-                                   id="edit_active" value="1"
-                                   onchange="document.getElementById('edit_active_hidden').value = this.checked ? '1' : '0'">
-                            <label class="custom-control-label" for="edit_active">
+                                   id="edit_activo" value="1"
+                                   onchange="document.getElementById('edit_activo_hidden').value = this.checked ? '1' : '0'">
+                            <label class="custom-control-label" for="edit_activo">
                                 <i class="fas fa-check-circle mr-1"></i>
                                 Proveedor Activo
                             </label>
@@ -516,27 +516,27 @@ function verProveedor(id) {
                         <table class="table table-bordered">
                             <tr>
                                 <th style="width: 30%;">ID</th>
-                                <td>#${data.supplier_id}</td>
+                                <td>#${data.proveedor_id}</td>
                             </tr>
                             <tr>
                                 <th>Razón Social</th>
-                                <td>${data.business_name || 'N/A'}</td>
+                                <td>${data.razon_social || 'N/A'}</td>
                             </tr>
                             <tr>
                                 <th>Nombre Comercial</th>
-                                <td>${data.trading_name || 'N/A'}</td>
+                                <td>${data.nombre_comercial || 'N/A'}</td>
                             </tr>
                             <tr>
                                 <th>RUC/NIT</th>
-                                <td>${data.tax_id || 'N/A'}</td>
+                                <td>${data.nit || 'N/A'}</td>
                             </tr>
                             <tr>
                                 <th>Persona de Contacto</th>
-                                <td>${data.contact_person || 'N/A'}</td>
+                                <td>${data.contacto || 'N/A'}</td>
                             </tr>
                             <tr>
                                 <th>Teléfono</th>
-                                <td>${data.phone || 'N/A'}</td>
+                                <td>${data.telefono || 'N/A'}</td>
                             </tr>
                             <tr>
                                 <th>Email</th>
@@ -544,12 +544,12 @@ function verProveedor(id) {
                             </tr>
                             <tr>
                                 <th>Dirección</th>
-                                <td>${data.address || 'N/A'}</td>
+                                <td>${data.direccion || 'N/A'}</td>
                             </tr>
                             <tr>
                                 <th>Estado</th>
                                 <td>
-                                    ${data.active 
+                                    ${data.activo 
                                         ? '<span class="badge badge-success">Activo</span>' 
                                         : '<span class="badge badge-danger">Inactivo</span>'}
                                 </td>
@@ -585,17 +585,17 @@ function editarProveedor(id) {
         .then(response => response.json())
         .then(data => {
             document.getElementById('editarProveedorForm').action = `${proveedoresBaseUrl}/${id}`;
-            document.getElementById('edit_business_name').value = data.business_name || '';
-            document.getElementById('edit_trading_name').value = data.trading_name || '';
-            document.getElementById('edit_tax_id').value = data.tax_id || '';
-            document.getElementById('edit_contact_person').value = data.contact_person || '';
-            document.getElementById('edit_phone').value = data.phone || '';
+            document.getElementById('edit_razon_social').value = data.razon_social || '';
+            document.getElementById('edit_nombre_comercial').value = data.nombre_comercial || '';
+            document.getElementById('edit_nit').value = data.nit || '';
+            document.getElementById('edit_contacto').value = data.contacto || '';
+            document.getElementById('edit_telefono').value = data.telefono || '';
             document.getElementById('edit_email').value = data.email || '';
-            document.getElementById('edit_address').value = data.address || '';
-            const activeCheckbox = document.getElementById('edit_active');
-            const activeHidden = document.getElementById('edit_active_hidden');
-            activeCheckbox.checked = data.active || false;
-            activeHidden.value = data.active ? '1' : '0';
+            document.getElementById('edit_direccion').value = data.direccion || '';
+            const activoCheckbox = document.getElementById('edit_activo');
+            const activoHidden = document.getElementById('edit_activo_hidden');
+            activoCheckbox.checked = data.activo || false;
+            activoHidden.value = data.activo ? '1' : '0';
             $('#editarProveedorModal').modal('show');
         })
         .catch(error => {

@@ -78,25 +78,31 @@
                 <div class="row mb-3">
                     <div class="col-md-3">
                         <select class="form-control" id="filtroEstado">
+                            <option value="pendientes_aprobados" {{ (isset($estadoFiltro) && $estadoFiltro == 'pendientes_aprobados') ? 'selected' : '' }}>Pendientes y Aprobados</option>
                             <option value="">Todos los estados</option>
-                            <option value="pendiente">Pendiente</option>
-                            <option value="aprobado">Aprobado</option>
-                            <option value="rechazado">Rechazado</option>
-                            <option value="en_produccion">En Producción</option>
-                            <option value="completado">Completado</option>
-                            <option value="cancelado">Cancelado</option>
+                            <option value="pendiente" {{ (isset($estadoFiltro) && $estadoFiltro == 'pendiente') ? 'selected' : '' }}>Pendiente</option>
+                            <option value="aprobado" {{ (isset($estadoFiltro) && $estadoFiltro == 'aprobado') ? 'selected' : '' }}>Aprobado</option>
+                            <option value="rechazado" {{ (isset($estadoFiltro) && $estadoFiltro == 'rechazado') ? 'selected' : '' }}>Rechazado</option>
+                            <option value="en_produccion" {{ (isset($estadoFiltro) && $estadoFiltro == 'en_produccion') ? 'selected' : '' }}>En Producción</option>
+                            <option value="completado" {{ (isset($estadoFiltro) && $estadoFiltro == 'completado') ? 'selected' : '' }}>Completado</option>
+                            <option value="cancelado" {{ (isset($estadoFiltro) && $estadoFiltro == 'cancelado') ? 'selected' : '' }}>Cancelado</option>
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <input type="text" class="form-control" placeholder="Buscar por cliente..." id="buscarCliente">
+                        <input type="text" class="form-control" placeholder="Buscar por cliente..." id="buscarCliente" value="{{ request('cliente', '') }}">
                     </div>
                     <div class="col-md-3">
-                        <input type="date" class="form-control" id="filtroFecha">
+                        <input type="date" class="form-control" id="filtroFecha" value="{{ request('fecha', '') }}">
                     </div>
                     <div class="col-md-3">
                         <button class="btn btn-info" onclick="aplicarFiltros()">
                             <i class="fas fa-search"></i> Filtrar
                         </button>
+                        @if(request()->hasAny(['estado', 'cliente', 'fecha']))
+                            <a href="{{ route('gestion-pedidos') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Limpiar
+                            </a>
+                        @endif
                     </div>
                 </div>
 
@@ -117,26 +123,26 @@
                         <tbody>
                             @forelse($pedidos as $pedido)
                             <tr>
-                                <td><strong>{{ $pedido->name ?? 'Sin nombre' }}</strong></td>
-                                <td>{{ $pedido->customer->business_name ?? 'N/A' }}</td>
-                                <td>{{ $pedido->description ?? 'Sin descripción' }}</td>
+                                <td><strong>{{ $pedido->nombre ?? 'Sin nombre' }}</strong></td>
+                                <td>{{ $pedido->customer->razon_social ?? 'N/A' }}</td>
+                                <td>{{ $pedido->descripcion ?? 'Sin descripción' }}</td>
                                 <td>
-                                    @if($pedido->status == 'pendiente')
+                                    @if($pedido->estado == 'pendiente')
                                         <span class="badge badge-warning">Pendiente</span>
-                                    @elseif($pedido->status == 'aprobado')
+                                    @elseif($pedido->estado == 'aprobado')
                                         <span class="badge badge-success">Aprobado</span>
-                                    @elseif($pedido->status == 'rechazado')
+                                    @elseif($pedido->estado == 'rechazado')
                                         <span class="badge badge-danger">Rechazado</span>
-                                    @elseif($pedido->status == 'en_produccion')
+                                    @elseif($pedido->estado == 'en_produccion')
                                         <span class="badge badge-info">En Producción</span>
                                     @else
-                                        <span class="badge badge-secondary">{{ ucfirst($pedido->status) }}</span>
+                                        <span class="badge badge-secondary">{{ ucfirst($pedido->estado) }}</span>
                                     @endif
                                 </td>
-                                <td>{{ \Carbon\Carbon::parse($pedido->creation_date)->format('Y-m-d') }}</td>
-                                <td>{{ $pedido->delivery_date ? \Carbon\Carbon::parse($pedido->delivery_date)->format('Y-m-d') : 'N/A' }}</td>
+                                <td>{{ \Carbon\Carbon::parse($pedido->fecha_creacion)->format('Y-m-d') }}</td>
+                                <td>{{ $pedido->fecha_entrega ? \Carbon\Carbon::parse($pedido->fecha_entrega)->format('Y-m-d') : 'N/A' }}</td>
                                 <td>
-                                    <a href="{{ route('gestion-pedidos.show', $pedido->order_id) }}" class="btn btn-info btn-sm" title="Ver Detalles">
+                                    <a href="{{ route('gestion-pedidos.show', $pedido->pedido_id) }}" class="btn btn-info btn-sm" title="Ver Detalles">
                                         <i class="fas fa-eye"></i> Ver
                                     </a>
                                 </td>
@@ -182,9 +188,28 @@ function aplicarFiltros() {
     const fecha = document.getElementById('filtroFecha').value;
     
     const url = new URL(window.location);
-    if (estado) url.searchParams.set('estado', estado);
-    if (buscar) url.searchParams.set('buscar', buscar);
-    if (fecha) url.searchParams.set('fecha', fecha);
+    
+    // Si hay estado seleccionado, agregarlo (incluyendo pendientes_aprobados)
+    if (estado) {
+        url.searchParams.set('estado', estado);
+    } else {
+        url.searchParams.delete('estado');
+    }
+    
+    // Si hay búsqueda de cliente
+    if (buscar) {
+        url.searchParams.set('cliente', buscar);
+    } else {
+        url.searchParams.delete('cliente');
+    }
+    
+    // Si hay fecha
+    if (fecha) {
+        url.searchParams.set('fecha', fecha);
+    } else {
+        url.searchParams.delete('fecha');
+    }
+    
     window.location = url;
 }
 </script>

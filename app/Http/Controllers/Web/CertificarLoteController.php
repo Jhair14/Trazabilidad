@@ -24,20 +24,20 @@ class CertificarLoteController extends Controller
             'processMachineRecords.processMachine.process',
             'latestFinalEvaluation'
         ])
-            ->orderBy('creation_date', 'desc')
+            ->orderBy('fecha_creacion', 'desc')
             ->get();
 
         return view('certificar-lote', compact('lotes'));
     }
 
-    public function finalizar($batchId)
+    public function finalizar($loteId)
     {
         DB::beginTransaction();
         try {
-            $batch = ProductionBatch::findOrFail($batchId);
+            $batch = ProductionBatch::findOrFail($loteId);
 
             // ✅ 1. Obtener el proceso del lote a través de los registros existentes
-            $records = ProcessMachineRecord::where('batch_id', $batchId)
+            $records = ProcessMachineRecord::where('lote_id', $loteId)
                 ->with('processMachine.process')
                 ->get();
 
@@ -46,25 +46,25 @@ class CertificarLoteController extends Controller
                     ->with('error', 'El lote no tiene registros de proceso. Debe registrar formularios primero.');
             }
 
-            // Obtener el process_id del primer registro (todos deben ser del mismo proceso)
+            // Obtener el proceso_id del primer registro (todos deben ser del mismo proceso)
             $firstRecord = $records->first();
-            if (!$firstRecord->processMachine || !$firstRecord->processMachine->process_id) {
+            if (!$firstRecord->processMachine || !$firstRecord->processMachine->proceso_id) {
                 return redirect()->back()
                     ->with('error', 'No se pudo identificar el proceso del lote.');
             }
 
-            $processId = $firstRecord->processMachine->process_id;
+            $procesoId = $firstRecord->processMachine->proceso_id;
 
             // Verificar que todos los registros sean del mismo proceso
-            $processIds = $records->pluck('processMachine.process_id')->unique()->filter();
-            if ($processIds->count() > 1) {
+            $procesoIds = $records->pluck('processMachine.proceso_id')->unique()->filter();
+            if ($procesoIds->count() > 1) {
                 return redirect()->back()
                     ->with('error', 'El lote tiene registros de múltiples procesos. Esto no es válido.');
             }
 
             // ✅ 2. Obtener cantidad real de máquinas del proceso asignado al lote (como en proyecto antiguo)
-            $processMachines = ProcessMachine::where('process_id', $processId)
-                ->orderBy('step_order')
+            $processMachines = ProcessMachine::where('proceso_id', $procesoId)
+                ->orderBy('orden_paso')
                 ->get();
             
             $expectedCount = $processMachines->count();
@@ -76,12 +76,12 @@ class CertificarLoteController extends Controller
             }
 
             // ✅ 3. Evaluar si alguna máquina falló
-            $failed = $records->firstWhere('meets_standard', false);
+            $failed = $records->firstWhere('cumple_estandar', false);
             $status = $failed ? 'No Certificado' : 'Certificado';
             
             $machineName = 'N/A';
             if ($failed && $failed->processMachine) {
-                $machineName = $failed->processMachine->name;
+                $machineName = $failed->processMachine->nombre;
             }
             
             $reason = $failed 
@@ -89,29 +89,47 @@ class CertificarLoteController extends Controller
                 : 'Todas las máquinas cumplen los valores estándar';
 
             // ✅ 4. Guardar evaluación final
-            $existingEvaluation = ProcessFinalEvaluation::where('batch_id', $batchId)->first();
+            $existingEvaluation = ProcessFinalEvaluation::where('lote_id', $loteId)->first();
             
             if ($existingEvaluation) {
                 // Actualizar evaluación existente
                 $existingEvaluation->update([
                     'inspector_id' => Auth::id(),
-                    'reason' => $reason,
-                    'observations' => request('observations'),
-                    'evaluation_date' => now(),
+                    'razon' => $reason,
+                    'observaciones' => request('observaciones'),
+                    'fecha_evaluacion' => now(),
                 ]);
             } else {
                 // Obtener el siguiente ID de la secuencia
-                $nextId = DB::selectOne("SELECT nextval('process_final_evaluation_seq') as id")->id;
+                $maxId = DB::table('evaluacion_final_proceso')->max('evaluacion_id') ?? 0;
+                if ($maxId > 0) {
+                    DB::statement("SELECT setval('evaluacion_final_proceso_seq', {$maxId}, true)");
+                }
+                $nextId = DB::selectOne("SELECT nextval('evaluacion_final_proceso_seq') as id")->id;
                 
                 // Crear evaluación final
                 ProcessFinalEvaluation::create([
-                    'evaluation_id' => $nextId,
-                    'batch_id' => $batchId,
+                    'evaluacion_id' => $nextId,
+                    'lote_id' => $loteId,
                     'inspector_id' => Auth::id(),
-                    'reason' => $reason,
-                    'observations' => request('observations'),
-                    'evaluation_date' => now(),
+                    'razon' => $reason,
+                    'observaciones' => request('observaciones'),
+                    'fecha_evaluacion' => now(),
                 ]);
+            }
+
+            // Actualizar estado del pedido si el lote fue certificado
+            if ($status === 'Certificado') {
+                $batch = ProductionBatch::findOrFail($loteId);
+                if ($batch->pedido_id) {
+                    $pedido = \App\Models\CustomerOrder::find($batch->pedido_id);
+                    if ($pedido) {
+                        // Solo actualizar si no está ya en un estado más avanzado
+                        if (in_array($pedido->estado, ['pendiente', 'en_proceso'])) {
+                            $pedido->update(['estado' => 'produccion_finalizada']);
+                        }
+                    }
+                }
             }
 
             DB::commit();
@@ -128,14 +146,14 @@ class CertificarLoteController extends Controller
     /**
      * Obtener el log completo del proceso (similar al proyecto antiguo)
      */
-    public function obtenerLog($batchId)
+    public function obtenerLog($loteId)
     {
         try {
             $batch = ProductionBatch::with([
                 'processMachineRecords.processMachine.machine',
                 'processMachineRecords.processMachine.process',
                 'finalEvaluation.inspector'
-            ])->findOrFail($batchId);
+            ])->findOrFail($loteId);
 
             if (!$batch->finalEvaluation) {
                 return response()->json([
@@ -143,37 +161,37 @@ class CertificarLoteController extends Controller
                 ], 404);
             }
 
-            // Obtener registros de máquinas ordenados por step_order
-            $records = ProcessMachineRecord::where('batch_id', $batchId)
+            // Obtener registros de máquinas ordenados por orden_paso
+            $records = ProcessMachineRecord::where('lote_id', $loteId)
                 ->with(['processMachine.machine', 'processMachine.process', 'operator'])
                 ->get()
                 ->sortBy(function($record) {
-                    return $record->processMachine ? $record->processMachine->step_order : 999;
+                    return $record->processMachine ? $record->processMachine->orden_paso : 999;
                 })
                 ->values();
 
             // Formatear máquinas similar al proyecto antiguo
             $maquinas = $records->map(function($record) {
                 return [
-                    'NumeroMaquina' => $record->processMachine ? $record->processMachine->step_order : null,
-                    'NombreMaquina' => $record->processMachine ? $record->processMachine->name : 'N/A',
-                    'VariablesIngresadas' => $record->entered_variables ?? [],
-                    'CumpleEstandar' => $record->meets_standard ?? false,
-                    'FechaRegistro' => $record->record_date ? $record->record_date->toDateTimeString() : null,
+                    'NumeroMaquina' => $record->processMachine ? $record->processMachine->orden_paso : null,
+                    'NombreMaquina' => $record->processMachine ? $record->processMachine->nombre : 'N/A',
+                    'VariablesIngresadas' => $record->variables_ingresadas ?? [],
+                    'CumpleEstandar' => $record->cumple_estandar ?? false,
+                    'FechaRegistro' => $record->fecha_registro ? $record->fecha_registro->toDateTimeString() : null,
                 ];
             });
 
             // Formatear resultado final
             $resultadoFinal = [
-                'EstadoFinal' => str_contains(strtolower($batch->finalEvaluation->reason ?? ''), 'falló') 
+                'EstadoFinal' => str_contains(strtolower($batch->finalEvaluation->razon ?? ''), 'falló') 
                     ? 'No Certificado' 
                     : 'Certificado',
-                'Motivo' => $batch->finalEvaluation->reason ?? 'N/A',
-                'FechaEvaluacion' => $batch->finalEvaluation->evaluation_date 
-                    ? $batch->finalEvaluation->evaluation_date->toDateTimeString() 
+                'Motivo' => $batch->finalEvaluation->razon ?? 'N/A',
+                'FechaEvaluacion' => $batch->finalEvaluation->fecha_evaluacion 
+                    ? $batch->finalEvaluation->fecha_evaluacion->toDateTimeString() 
                     : null,
                 'Inspector' => $batch->finalEvaluation->inspector 
-                    ? $batch->finalEvaluation->inspector->name 
+                    ? $batch->finalEvaluation->inspector->nombre 
                     : 'N/A',
             ];
 

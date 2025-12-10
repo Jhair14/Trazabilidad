@@ -154,7 +154,9 @@ Route::middleware(['auth'])->group(function () {
     // Usuarios/Operadores
     Route::get('/usuarios', [UsuariosController::class, 'index'])->middleware('permission:gestionar usuarios')->name('usuarios');
     Route::post('/usuarios', [UsuariosController::class, 'store'])->middleware('permission:gestionar usuarios');
-    Route::put('/usuarios/{id}', [UsuariosController::class, 'update'])->middleware('permission:gestionar usuarios');
+    Route::get('/usuarios/{id}/edit', [UsuariosController::class, 'edit'])->middleware('permission:gestionar usuarios')->name('usuarios.edit');
+    Route::put('/usuarios/{id}', [UsuariosController::class, 'update'])->middleware('permission:gestionar usuarios')->name('usuarios.update');
+    Route::delete('/usuarios/{id}', [UsuariosController::class, 'destroy'])->middleware('permission:gestionar usuarios')->name('usuarios.destroy');
 
     // Operadores (CRUD completo)
     Route::resource('operadores', OperadorWebController::class, ['names' => [

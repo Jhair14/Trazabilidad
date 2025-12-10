@@ -91,10 +91,10 @@
                 <tbody>
                     @forelse($lotes as $lote)
                     <tr>
-                        <td>#{{ $lote->batch_code ?? $lote->batch_id }}</td>
-                        <td>{{ $lote->name ?? 'Sin nombre' }}</td>
-                        <td>{{ $lote->order->customer->business_name ?? 'N/A' }}</td>
-                        <td>{{ \Carbon\Carbon::parse($lote->creation_date)->format('d/m/Y') }}</td>
+                        <td>#{{ $lote->codigo_lote ?? $lote->lote_id }}</td>
+                        <td>{{ $lote->nombre ?? 'Sin nombre' }}</td>
+                        <td>{{ $lote->order->customer->razon_social ?? 'N/A' }}</td>
+                        <td>{{ \Carbon\Carbon::parse($lote->fecha_creacion)->format('d/m/Y') }}</td>
                         <td>
                             @if($lote->latestFinalEvaluation)
                                 @if(str_contains(strtolower($lote->latestFinalEvaluation->reason ?? ''), 'falló'))
@@ -109,21 +109,62 @@
                             @endif
                         </td>
                         <td class="text-right">
-                            <a href="{{ route('gestion-lotes.show', $lote->batch_id) }}" class="btn btn-sm btn-info" title="Ver Detalles">
+                            <a href="{{ route('gestion-lotes.show', $lote->lote_id) }}" class="btn btn-sm btn-info" title="Ver Detalles">
                                 <i class="fas fa-eye"></i>
                             </a>
                             @if(!$lote->latestFinalEvaluation)
                                 @if($lote->processMachineRecords->isEmpty())
-                                    <a href="{{ route('proceso-transformacion', $lote->batch_id) }}" class="btn btn-sm btn-warning" title="Ir a Proceso de Transformación">
+                                    <a href="{{ route('proceso-transformacion', $lote->lote_id) }}" class="btn btn-sm btn-warning" title="Ir a Proceso de Transformación">
                                         <i class="fas fa-cogs"></i> Proceso
                                     </a>
                                 @else
-                                    <form method="POST" action="{{ route('certificar-lote.finalizar', $lote->batch_id) }}" style="display: inline;">
+                                    <form method="POST" action="{{ route('certificar-lote.finalizar', $lote->lote_id) }}" style="display: inline;" id="formCertificarLote{{ $lote->lote_id }}">
                                         @csrf
-                                        <button type="submit" class="btn btn-sm btn-success" title="Certificar" onclick="return confirm('¿Desea certificar este lote?')">
+                                        <button type="button" class="btn btn-sm btn-success" title="Certificar" data-toggle="modal" data-target="#modalConfirmarCertificacion{{ $lote->lote_id }}">
                                             <i class="fas fa-check"></i> Certificar
                                         </button>
                                     </form>
+                                    
+                                    <!-- Modal de Confirmación para Certificar Lote -->
+                                    <div class="modal fade" id="modalConfirmarCertificacion{{ $lote->lote_id }}" tabindex="-1" role="dialog" aria-labelledby="modalConfirmarCertificacionLabel{{ $lote->lote_id }}" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered" role="document">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-success text-white">
+                                                    <h5 class="modal-title" id="modalConfirmarCertificacionLabel{{ $lote->lote_id }}">
+                                                        <i class="fas fa-check-circle mr-2"></i>Confirmar Certificación
+                                                    </h5>
+                                                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                        <span aria-hidden="true">&times;</span>
+                                                    </button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="text-center mb-3">
+                                                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                                                        <h5>¿Desea certificar este lote?</h5>
+                                                        <p class="text-muted mt-3">
+                                                            Esta acción certificará el lote <strong>{{ $lote->codigo_lote ?? $lote->lote_id }}</strong>. 
+                                                            Una vez certificado, el lote estará disponible para almacenamiento.
+                                                        </p>
+                                                        <div class="alert alert-info mt-3">
+                                                            <strong>Lote:</strong> {{ $lote->codigo_lote ?? $lote->lote_id }}<br>
+                                                            <strong>Nombre:</strong> {{ $lote->nombre ?? 'Sin nombre' }}<br>
+                                                            @if($lote->order)
+                                                                <strong>Pedido:</strong> {{ $lote->order->numero_pedido ?? 'N/A' }}
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                                        <i class="fas fa-times mr-1"></i> Cancelar
+                                                    </button>
+                                                    <button type="button" class="btn btn-success btnConfirmarCertificacion" data-form-id="formCertificarLote{{ $lote->lote_id }}">
+                                                        <i class="fas fa-check-circle mr-1"></i> Sí, Certificar Lote
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 @endif
                             @endif
                         </td>
@@ -198,4 +239,17 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    // Cuando se confirma en el modal, enviar el formulario correspondiente
+    $('.btnConfirmarCertificacion').on('click', function() {
+        var formId = $(this).data('form-id');
+        $('#' + formId).submit();
+    });
+});
+</script>
+@endpush
+
 @endsection

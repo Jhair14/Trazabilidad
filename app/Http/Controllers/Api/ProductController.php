@@ -16,16 +16,16 @@ class ProductController extends Controller
             $query = Product::with('unit');
 
             // Filtro por tipo
-            if ($request->has('type')) {
-                $query->where('type', $request->type);
+            if ($request->has('tipo')) {
+                $query->where('tipo', $request->tipo);
             }
 
             // Filtro por activo
-            if ($request->has('active')) {
-                $query->where('active', $request->boolean('active'));
+            if ($request->has('activo')) {
+                $query->where('activo', $request->boolean('activo'));
             }
 
-            $products = $query->orderBy('name')->paginate($request->get('per_page', 15));
+            $products = $query->orderBy('nombre')->paginate($request->get('per_page', 15));
 
             return response()->json($products);
         } catch (\Exception $e) {
@@ -52,13 +52,13 @@ class ProductController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'code' => 'required|string|max:50|unique:product,code',
-            'name' => 'required|string|max:200',
-            'type' => 'required|in:organico,marca_univalle,comestibles',
-            'weight' => 'nullable|numeric|min:0',
-            'unit_id' => 'nullable|integer|exists:unit_of_measure,unit_id',
-            'description' => 'nullable|string',
-            'active' => 'nullable|boolean',
+            'codigo' => 'required|string|max:50|unique:producto,codigo',
+            'nombre' => 'required|string|max:200',
+            'tipo' => 'required|in:organico,marca_univalle,comestibles',
+            'peso' => 'nullable|numeric|min:0',
+            'unidad_id' => 'nullable|integer|exists:unidad_medida,unidad_id',
+            'descripcion' => 'nullable|string',
+            'activo' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -85,13 +85,13 @@ class ProductController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'code' => 'sometimes|string|max:50|unique:product,code,' . $id . ',product_id',
-            'name' => 'sometimes|string|max:200',
-            'type' => 'sometimes|in:organico,marca_univalle,comestibles',
-            'weight' => 'nullable|numeric|min:0',
-            'unit_id' => 'nullable|integer|exists:unit_of_measure,unit_id',
-            'description' => 'nullable|string',
-            'active' => 'nullable|boolean',
+            'codigo' => 'sometimes|string|max:50|unique:producto,codigo,' . $id . ',producto_id',
+            'nombre' => 'sometimes|string|max:200',
+            'tipo' => 'sometimes|in:organico,marca_univalle,comestibles',
+            'peso' => 'nullable|numeric|min:0',
+            'unidad_id' => 'nullable|integer|exists:unidad_medida,unidad_id',
+            'descripcion' => 'nullable|string',
+            'activo' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -132,6 +132,15 @@ class ProductController extends Controller
         }
     }
 }
+
+
+
+
+
+
+
+
+
 
 
 

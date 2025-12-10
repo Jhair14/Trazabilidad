@@ -8,31 +8,30 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RawMaterial extends Model
 {
-    protected $table = 'raw_material';
-    protected $primaryKey = 'raw_material_id';
+    protected $table = 'materia_prima';
+    protected $primaryKey = 'materia_prima_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'raw_material_id',
+        'materia_prima_id',
         'material_id',
-        'supplier_id',
-        'supplier_batch',
-        'invoice_number',
-        'receipt_date',
-        'expiration_date',
-        'quantity',
-        'available_quantity',
-        'receipt_conformity',
-        'receipt_signature',
-        'observations'
+        'proveedor_id',
+        'lote_proveedor',
+        'numero_factura',
+        'fecha_recepcion',
+        'fecha_vencimiento',
+        'cantidad',
+        'cantidad_disponible',
+        'conformidad_recepcion',
+        'observaciones'
     ];
 
     protected $casts = [
-        'receipt_date' => 'date',
-        'expiration_date' => 'date',
-        'quantity' => 'decimal:4',
-        'available_quantity' => 'decimal:4',
-        'receipt_conformity' => 'boolean',
+        'fecha_recepcion' => 'date',
+        'fecha_vencimiento' => 'date',
+        'cantidad' => 'decimal:4',
+        'cantidad_disponible' => 'decimal:4',
+        'conformidad_recepcion' => 'boolean',
     ];
 
     public function materialBase(): BelongsTo
@@ -42,11 +41,11 @@ class RawMaterial extends Model
 
     public function supplier(): BelongsTo
     {
-        return $this->belongsTo(Supplier::class, 'supplier_id', 'supplier_id');
+        return $this->belongsTo(Supplier::class, 'proveedor_id', 'proveedor_id');
     }
 
     public function batchRawMaterials(): HasMany
     {
-        return $this->hasMany(BatchRawMaterial::class, 'raw_material_id', 'raw_material_id');
+        return $this->hasMany(BatchRawMaterial::class, 'materia_prima_id', 'materia_prima_id');
     }
 }
