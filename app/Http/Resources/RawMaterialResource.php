@@ -15,19 +15,19 @@ class RawMaterialResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'raw_material_id' => $this->raw_material_id,
+            'raw_material_id' => $this->materia_prima_id,
             'material_id' => $this->material_id,
-            'supplier_id' => $this->supplier_id,
-            'supplier_batch' => $this->supplier_batch,
-            'invoice_number' => $this->invoice_number,
-            'receipt_date' => $this->receipt_date,
-            'expiration_date' => $this->expiration_date,
-            'quantity' => $this->quantity,
-            'available_quantity' => $this->available_quantity,
-            'receipt_conformity' => $this->receipt_conformity,
-            'observations' => $this->observations,
-            'material_base' => $this->whenLoaded('materialBase'),
-            'supplier' => $this->whenLoaded('supplier'),
+            'supplier_id' => $this->proveedor_id,
+            'supplier_batch' => $this->lote_proveedor,
+            'invoice_number' => $this->numero_factura,
+            'receipt_date' => $this->fecha_recepcion,
+            'expiration_date' => $this->fecha_vencimiento,
+            'quantity' => $this->cantidad,
+            'available_quantity' => $this->cantidad_disponible,
+            'receipt_conformity' => $this->conformidad_recepcion,
+            'observations' => $this->observaciones,
+            'material_base' => new RawMaterialBaseResource($this->whenLoaded('materialBase')),
+            'supplier' => new SupplierResource($this->whenLoaded('supplier')),
         ];
     }
 }

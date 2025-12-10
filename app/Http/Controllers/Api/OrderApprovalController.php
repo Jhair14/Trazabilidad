@@ -26,11 +26,11 @@ class OrderApprovalController extends Controller
                 'customer',
                 'orderProducts.product.unit',
                 'orderProducts' => function($query) {
-                    $query->where('status', 'pendiente');
+                    $query->where('estado', 'pendiente');
                 }
             ])
-            ->where('status', 'pendiente')
-            ->orderBy('creation_date', 'desc')
+            ->where('estado', 'pendiente')
+            ->orderBy('fecha_creacion', 'desc')
             ->paginate($request->get('per_page', 15));
 
             return response()->json($orders);

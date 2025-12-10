@@ -19,12 +19,11 @@ class AuthController extends Controller
     public function register(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'username' => 'required|string|max:60|unique:operator,username',
+            'nombre' => 'required|string|max:100',
+            'apellido' => 'required|string|max:100',
+            'usuario' => 'required|string|max:60|unique:operador,usuario',
             'password' => 'required|string|min:6',
             'email' => 'nullable|email|max:100',
-            'role_id' => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
@@ -35,31 +34,23 @@ class AuthController extends Controller
         }
 
         try {
-            // Get default role if not provided
-            $roleId = $request->role_id;
-            if (!$roleId) {
-                $defaultRole = \App\Models\OperatorRole::where('name', 'Operator')->first();
-                $roleId = $defaultRole ? $defaultRole->role_id : 2;
-            }
-
             // Generate ID manually if needed (checking max ID)
-            $maxId = Operator::max('operator_id') ?? 0;
+            $maxId = Operator::max('operador_id') ?? 0;
             $nextId = $maxId + 1;
 
             $operator = Operator::create([
-                'operator_id' => $nextId,
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
-                'username' => $request->username,
+                'operador_id' => $nextId,
+                'nombre' => $request->nombre,
+                'apellido' => $request->apellido,
+                'usuario' => $request->usuario,
                 'password_hash' => Hash::make($request->password),
                 'email' => $request->email,
-                'role_id' => $roleId,
-                'active' => true
+                'activo' => true
             ]);
 
             return response()->json([
                 'message' => 'Usuario registrado exitosamente',
-                'operator_id' => $operator->operator_id
+                'operador_id' => $operator->operador_id
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -88,8 +79,8 @@ class AuthController extends Controller
 
         $credentials = $request->only('username', 'password');
         
-        // Find operator by username
-        $operator = Operator::where('username', $credentials['username'])->first();
+        // Find operator by usuario (Spanish column name)
+        $operator = Operator::where('usuario', $credentials['username'])->first();
         
         if (!$operator || !Hash::check($credentials['password'], $operator->password_hash)) {
             return response()->json([
@@ -103,12 +94,11 @@ class AuthController extends Controller
             return response()->json([
                 'token' => $token,
                 'operator' => [
-                    'operator_id' => $operator->operator_id,
-                    'first_name' => $operator->first_name,
-                    'last_name' => $operator->last_name,
-                    'username' => $operator->username,
+                    'operador_id' => $operator->operador_id,
+                    'nombre' => $operator->nombre,
+                    'apellido' => $operator->apellido,
+                    'usuario' => $operator->usuario,
                     'email' => $operator->email,
-                    'role' => $operator->role,
                 ]
             ]);
         } catch (\Exception $e) {
@@ -134,12 +124,11 @@ class AuthController extends Controller
             }
 
             return response()->json([
-                'operator_id' => $operator->operator_id,
-                'first_name' => $operator->first_name,
-                'last_name' => $operator->last_name,
-                'username' => $operator->username,
+                'operador_id' => $operator->operador_id,
+                'nombre' => $operator->nombre,
+                'apellido' => $operator->apellido,
+                'usuario' => $operator->usuario,
                 'email' => $operator->email,
-                'role' => $operator->role,
             ]);
         } catch (\Exception $e) {
             return response()->json([

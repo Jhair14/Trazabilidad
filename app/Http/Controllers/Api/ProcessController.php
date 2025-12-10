@@ -43,54 +43,66 @@ class ProcessController extends Controller
             \Log::info('Process creation - validated data', ['data' => $data]);
             
             // Manual ID generation if not auto-increment
-            if (empty($data['process_id'])) {
-                $maxId = Process::max('process_id') ?? 0;
-                $nextId = $maxId + 1;
-                $data['process_id'] = $nextId;
-                
-                // Generate code automatically if not provided
-                if (empty($data['code'])) {
-                    $data['code'] = 'PROC-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
-                }
-            }
+            $maxId = Process::max('proceso_id') ?? 0;
+            $nextId = $maxId + 1;
+            
+            // Map English field names to Spanish column names
+            $processData = [
+                'proceso_id' => $nextId,
+                'codigo' => $data['code'] ?? 'PROC-' . str_pad($nextId, 4, '0', STR_PAD_LEFT),
+                'nombre' => $data['name'],
+                'descripcion' => $data['description'] ?? null,
+                'activo' => $data['active'] ?? true,
+            ];
 
             // Extract process machines data
             $processMachinesData = $data['process_machines'] ?? [];
-            unset($data['process_machines']);
 
             // Create the process
-            $process = Process::create($data);
+            $process = Process::create($processData);
 
             // Create process machines if provided
             if (!empty($processMachinesData)) {
                 foreach ($processMachinesData as $index => $machineData) {
-                    $maxMachineId = ProcessMachine::max('process_machine_id') ?? 0;
-                    $machineData['process_machine_id'] = $maxMachineId + 1;
-                    $machineData['process_id'] = $process->process_id;
+                    $maxMachineId = ProcessMachine::max('proceso_maquina_id') ?? 0;
                     
-                    // Ensure step_order is set
-                    if (!isset($machineData['step_order'])) {
-                        $machineData['step_order'] = $index + 1;
-                    }
+                    // Map English field names to Spanish column names
+                    $processMachineData = [
+                        'proceso_maquina_id' => $maxMachineId + 1,
+                        'proceso_id' => $process->proceso_id,
+                        'maquina_id' => $machineData['machine_id'],
+                        'orden_paso' => $machineData['step_order'] ?? ($index + 1),
+                        'nombre' => $machineData['name'],
+                        'descripcion' => $machineData['description'] ?? null,
+                        'tiempo_estimado' => $machineData['estimated_time'] ?? null,
+                    ];
                     
                     // Extract variables data
                     $variablesData = $machineData['variables'] ?? [];
-                    unset($machineData['variables']);
                     
                     // Create process machine
-                    $processMachine = ProcessMachine::create($machineData);
+                    $processMachine = ProcessMachine::create($processMachineData);
                     
                     // Create process machine variables if provided
-                    \Log::info('Variables data for machine ' . $processMachine->process_machine_id, ['variables' => $variablesData]);
+                    \Log::info('Variables data for machine ' . $processMachine->proceso_maquina_id, ['variables' => $variablesData]);
                     
                     if (!empty($variablesData)) {
                         foreach ($variablesData as $variableData) {
                             $maxVariableId = \App\Models\ProcessMachineVariable::max('variable_id') ?? 0;
-                            $variableData['variable_id'] = $maxVariableId + 1;
-                            $variableData['process_machine_id'] = $processMachine->process_machine_id;
                             
-                            \Log::info('Creating variable', ['data' => $variableData]);
-                            $createdVar = \App\Models\ProcessMachineVariable::create($variableData);
+                            // Map English field names to Spanish column names
+                            $variableRecord = [
+                                'variable_id' => $maxVariableId + 1,
+                                'proceso_maquina_id' => $processMachine->proceso_maquina_id,
+                                'variable_estandar_id' => $variableData['standard_variable_id'],
+                                'valor_minimo' => $variableData['min_value'] ?? null,
+                                'valor_maximo' => $variableData['max_value'] ?? null,
+                                'valor_objetivo' => $variableData['target_value'] ?? null,
+                                'obligatorio' => $variableData['mandatory'] ?? true,
+                            ];
+                            
+                            \Log::info('Creating variable', ['data' => $variableRecord]);
+                            $createdVar = \App\Models\ProcessMachineVariable::create($variableRecord);
                             \Log::info('Variable created', ['id' => $createdVar->variable_id]);
                         }
                     }
@@ -105,6 +117,7 @@ class ProcessController extends Controller
             return response()->json(new ProcessResource($process), 201);
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Process creation failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(['error' => 'Failed to create process: ' . $e->getMessage()], 500);
         }
     }
@@ -132,27 +145,60 @@ class ProcessController extends Controller
             
             // Extract process machines data
             $processMachinesData = $data['process_machines'] ?? null;
-            unset($data['process_machines']);
-
+            
+            // Map English field names to Spanish column names for process update
+            $processUpdateData = [
+                'nombre' => $data['name'],
+                'descripcion' => $data['description'] ?? null,
+                'activo' => $data['active'] ?? true,
+            ];
+            
             // Update the process
-            $process->update($data);
+            $process->update($processUpdateData);
 
             // Handle process machines update if provided
             if ($processMachinesData !== null) {
-                // Delete existing process machines
-                ProcessMachine::where('process_id', $process->process_id)->delete();
+                // Delete existing process machines (and their variables via cascade)
+                ProcessMachine::where('proceso_id', $process->proceso_id)->delete();
                 
                 // Create new process machines
                 foreach ($processMachinesData as $index => $machineData) {
-                    $maxMachineId = ProcessMachine::max('process_machine_id') ?? 0;
-                    $machineData['process_machine_id'] = $maxMachineId + 1;
-                    $machineData['process_id'] = $process->process_id;
+                    $maxMachineId = ProcessMachine::max('proceso_maquina_id') ?? 0;
                     
-                    if (!isset($machineData['step_order'])) {
-                        $machineData['step_order'] = $index + 1;
+                    // Map English to Spanish column names
+                    $processMachineData = [
+                        'proceso_maquina_id' => $maxMachineId + 1,
+                        'proceso_id' => $process->proceso_id,
+                        'maquina_id' => $machineData['machine_id'],
+                        'orden_paso' => $machineData['step_order'] ?? ($index + 1),
+                        'nombre' => $machineData['name'],
+                        'descripcion' => $machineData['description'] ?? null,
+                        'tiempo_estimado' => $machineData['estimated_time'] ?? null,
+                    ];
+                    
+                    // Extract variables data
+                    $variablesData = $machineData['variables'] ?? [];
+                    
+                    $processMachine = ProcessMachine::create($processMachineData);
+                    
+                    // Create process machine variables if provided
+                    if (!empty($variablesData)) {
+                        foreach ($variablesData as $variableData) {
+                            $maxVariableId = \App\Models\ProcessMachineVariable::max('variable_id') ?? 0;
+                            
+                            $variableRecord = [
+                                'variable_id' => $maxVariableId + 1,
+                                'proceso_maquina_id' => $processMachine->proceso_maquina_id,
+                                'variable_estandar_id' => $variableData['standard_variable_id'],
+                                'valor_minimo' => $variableData['min_value'] ?? null,
+                                'valor_maximo' => $variableData['max_value'] ?? null,
+                                'valor_objetivo' => $variableData['target_value'] ?? null,
+                                'obligatorio' => $variableData['mandatory'] ?? true,
+                            ];
+                            
+                            \App\Models\ProcessMachineVariable::create($variableRecord);
+                        }
                     }
-                    
-                    ProcessMachine::create($machineData);
                 }
             }
 
@@ -164,6 +210,7 @@ class ProcessController extends Controller
             return response()->json(new ProcessResource($process));
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Process update failed', ['error' => $e->getMessage()]);
             return response()->json(['error' => 'Failed to update process: ' . $e->getMessage()], 500);
         }
     }

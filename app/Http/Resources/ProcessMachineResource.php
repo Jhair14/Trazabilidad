@@ -15,21 +15,21 @@ class ProcessMachineResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'process_machine_id' => $this->process_machine_id,
-            'process_id' => $this->process_id,
-            'machine_id' => $this->machine_id,
-            'step_order' => $this->step_order,
-            'name' => $this->name,
-            'description' => $this->description,
-            'estimated_time' => $this->estimated_time,
+            'process_machine_id' => $this->proceso_maquina_id,
+            'process_id' => $this->proceso_id,
+            'machine_id' => $this->maquina_id,
+            'step_order' => $this->orden_paso,
+            'name' => $this->nombre,
+            'description' => $this->descripcion,
+            'estimated_time' => $this->tiempo_estimado,
             'machine' => $this->whenLoaded('machine', function () {
                 return [
-                    'machine_id' => $this->machine->machine_id,
-                    'code' => $this->machine->code,
-                    'name' => $this->machine->name,
-                    'description' => $this->machine->description,
-                    'image_url' => $this->machine->image_url,
-                    'active' => $this->machine->active,
+                    'machine_id' => $this->machine->maquina_id,
+                    'code' => $this->machine->codigo,
+                    'name' => $this->machine->nombre,
+                    'description' => $this->machine->descripcion,
+                    'image_url' => $this->machine->imagen_url,
+                    'active' => $this->machine->activo,
                 ];
             }),
         ];

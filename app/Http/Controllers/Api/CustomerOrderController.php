@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use App\Http\Resources\CustomerOrderResource;
 
 class CustomerOrderController extends Controller
 {
@@ -18,10 +19,10 @@ class CustomerOrderController extends Controller
     {
         try {
             $orders = CustomerOrder::with('customer')
-                ->orderBy('creation_date', 'desc')
+                ->orderBy('fecha_creacion', 'desc')
                 ->paginate($request->get('per_page', 15));
 
-            return response()->json($orders);
+            return response()->json(CustomerOrderResource::collection($orders)->response()->getData());
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al obtener pedidos',
