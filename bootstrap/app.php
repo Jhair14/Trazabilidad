@@ -16,6 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\Cors::class,
         ]);
         
+        // Establecer idioma español para todas las rutas web
+        $middleware->web(prepend: [
+            \App\Http\Middleware\SetLocale::class,
+        ]);
+        
         // Registrar middleware de Spatie Permission
         $middleware->alias([
             // 'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

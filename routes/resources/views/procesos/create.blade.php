@@ -35,28 +35,28 @@
                     <div class="row mb-4">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="name">
+                                <label for="nombre">
                                     <i class="fas fa-tag mr-1"></i>
                                     Nombre del Proceso <span class="text-danger">*</span>
                                 </label>
-                                <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                                       id="name" name="name" value="{{ old('name') }}" 
+                                <input type="text" class="form-control @error('nombre') is-invalid @enderror" 
+                                       id="nombre" name="nombre" value="{{ old('nombre') }}" 
                                        placeholder="Ej: Proceso de Mezclado" required>
-                                @error('name')
+                                @error('nombre')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="description">
+                                <label for="descripcion">
                                     <i class="fas fa-align-left mr-1"></i>
                                     Descripción
                                 </label>
-                                <textarea class="form-control @error('description') is-invalid @enderror" 
-                                          id="description" name="description" rows="2" 
-                                          placeholder="Descripción del proceso...">{{ old('description') }}</textarea>
-                                @error('description')
+                                <textarea class="form-control @error('descripcion') is-invalid @enderror" 
+                                          id="descripcion" name="descripcion" rows="2" 
+                                          placeholder="Descripción del proceso...">{{ old('descripcion') }}</textarea>
+                                @error('descripcion')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -85,19 +85,19 @@
                                 <div class="col-md-3 mb-3">
                                     <div class="card h-100">
                                         <div class="card-body text-center">
-                                            @if($maquina->image_url)
-                                            <img src="{{ $maquina->image_url }}" alt="{{ $maquina->name }}" 
+                                            @if($maquina->imagen_url)
+                                            <img src="{{ $maquina->imagen_url }}" alt="{{ $maquina->nombre }}" 
                                                  class="img-fluid mb-2" style="max-height: 100px; object-fit: contain;">
                                             @else
                                             <div class="bg-light p-3 mb-2" style="height: 100px; display: flex; align-items: center; justify-content: center;">
                                                 <i class="fas fa-cog fa-3x text-muted"></i>
                                             </div>
                                             @endif
-                                            <h6 class="card-title">{{ $maquina->name }}</h6>
+                                            <h6 class="card-title">{{ $maquina->nombre }}</h6>
                                             <button type="button" class="btn btn-sm btn-primary agregar-maquina" 
-                                                    data-machine-id="{{ $maquina->machine_id }}"
-                                                    data-machine-name="{{ $maquina->name }}"
-                                                    data-machine-image="{{ $maquina->image_url ?? '' }}">
+                                                    data-machine-id="{{ $maquina->maquina_id }}"
+                                                    data-machine-name="{{ $maquina->nombre }}"
+                                                    data-machine-image="{{ $maquina->imagen_url ?? '' }}">
                                                 <i class="fas fa-plus mr-1"></i> Agregar
                                             </button>
                                         </div>
@@ -196,26 +196,33 @@ function actualizarVariable(maquinaIndex, variableIndex, campo, valor) {
         return;
     }
     
-    if (campo === 'standard_variable_id') {
+    if (campo === 'variable_estandar_id') {
         const variable = variablesEstandar.find(v => v.variable_id == valor);
+        // Guardar en el array interno con el nombre que usa el código
         maquinasSeleccionadas[maquinaIndex].variables[variableIndex].standard_variable_id = valor;
         if (variable) {
             // Actualizar unidad automáticamente si existe
-            $('#unidad_' + maquinaIndex + '_' + variableIndex).val(variable.unit || '');
+            $('#unidad_' + maquinaIndex + '_' + variableIndex).val(variable.unidad || '');
         }
     } else {
-        maquinasSeleccionadas[maquinaIndex].variables[variableIndex][campo] = valor;
+        // Mapear nombres de campos para el array interno
+        const campoMap = {
+            'valor_minimo': 'min_value',
+            'valor_maximo': 'max_value'
+        };
+        const campoInterno = campoMap[campo] || campo;
+        maquinasSeleccionadas[maquinaIndex].variables[variableIndex][campoInterno] = valor;
     }
 }
 
 // Sincronizar cuando se cambian los valores en los inputs
-$(document).on('change', 'input[name*="[min_value]"], input[name*="[max_value]"]', function() {
+$(document).on('change', 'input[name*="[valor_minimo]"], input[name*="[valor_maximo]"]', function() {
     const name = $(this).attr('name');
     const matches = name.match(/maquinas\[(\d+)\]\[variables\]\[(\d+)\]/);
     if (matches) {
         const mIndex = parseInt(matches[1]);
         const vIndex = parseInt(matches[2]);
-        const campo = name.includes('min_value') ? 'min_value' : 'max_value';
+        const campo = name.includes('valor_minimo') ? 'valor_minimo' : 'valor_maximo';
         actualizarVariable(mIndex, vIndex, campo, $(this).val());
     }
 });
@@ -236,9 +243,9 @@ function renderizarMaquinas() {
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <div>
                         <strong>Paso ${maquina.step_order}: ${maquina.name}</strong>
-                        <input type="hidden" name="maquinas[${mIndex}][machine_id]" value="${maquina.machine_id}">
-                        <input type="hidden" name="maquinas[${mIndex}][step_order]" value="${maquina.step_order}">
-                        <input type="hidden" name="maquinas[${mIndex}][name]" value="${maquina.name}">
+                        <input type="hidden" name="maquinas[${mIndex}][maquina_id]" value="${maquina.machine_id}">
+                        <input type="hidden" name="maquinas[${mIndex}][orden_paso]" value="${maquina.step_order}">
+                        <input type="hidden" name="maquinas[${mIndex}][nombre]" value="${maquina.name}">
                     </div>
                     <button type="button" class="btn btn-sm btn-danger" onclick="eliminarMaquina(${mIndex})">
                         <i class="fas fa-trash"></i> Eliminar
@@ -248,12 +255,12 @@ function renderizarMaquinas() {
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label>Descripción (opcional)</label>
-                            <input type="text" class="form-control" name="maquinas[${mIndex}][description]" 
+                            <input type="text" class="form-control" name="maquinas[${mIndex}][descripcion]" 
                                    placeholder="Descripción de esta máquina en el proceso">
                         </div>
                         <div class="col-md-6">
                             <label>Tiempo Estimado (minutos, opcional)</label>
-                            <input type="number" class="form-control" name="maquinas[${mIndex}][estimated_time]" 
+                            <input type="number" class="form-control" name="maquinas[${mIndex}][tiempo_estimado]" 
                                    placeholder="Ej: 30" min="0">
                         </div>
                     </div>
@@ -269,12 +276,12 @@ function renderizarMaquinas() {
                     <div class="row mb-2 variable-item">
                         <div class="col-md-4">
                             <label>Variable <span class="text-danger">*</span></label>
-                            <select class="form-control" name="maquinas[${mIndex}][variables][${vIndex}][standard_variable_id]" 
-                                    onchange="actualizarVariable(${mIndex}, ${vIndex}, 'standard_variable_id', this.value)" required>
+                            <select class="form-control" name="maquinas[${mIndex}][variables][${vIndex}][variable_estandar_id]" 
+                                    onchange="actualizarVariable(${mIndex}, ${vIndex}, 'variable_estandar_id', this.value)" required>
                                 <option value="">Seleccionar...</option>
                                 ${variablesEstandar.map(v => `
                                     <option value="${v.variable_id}" ${variable.standard_variable_id == v.variable_id ? 'selected' : ''}>
-                                        ${v.name} ${v.unit ? '(' + v.unit + ')' : ''}
+                                        ${v.nombre} ${v.unidad ? '(' + v.unidad + ')' : ''}
                                     </option>
                                 `).join('')}
                             </select>
@@ -282,18 +289,18 @@ function renderizarMaquinas() {
                         <div class="col-md-2">
                             <label>Unidad</label>
                             <input type="text" class="form-control" id="unidad_${mIndex}_${vIndex}" 
-                                   value="${varEstandar ? (varEstandar.unit || '') : ''}" readonly>
+                                   value="${varEstandar ? (varEstandar.unidad || '') : ''}" readonly>
                         </div>
                         <div class="col-md-2">
                             <label>Valor Mínimo <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control" 
-                                   name="maquinas[${mIndex}][variables][${vIndex}][min_value]" 
+                                   name="maquinas[${mIndex}][variables][${vIndex}][valor_minimo]" 
                                    value="${variable.min_value || ''}" required>
                         </div>
                         <div class="col-md-2">
                             <label>Valor Máximo <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control" 
-                                   name="maquinas[${mIndex}][variables][${vIndex}][max_value]" 
+                                   name="maquinas[${mIndex}][variables][${vIndex}][valor_maximo]" 
                                    value="${variable.max_value || ''}" required>
                         </div>
                         <div class="col-md-2">
@@ -329,9 +336,9 @@ function sincronizarValoresFormulario() {
         if (maquina.variables) {
             maquina.variables.forEach((variable, vIndex) => {
                 // Obtener valores del formulario
-                const selectVariable = $(`select[name="maquinas[${mIndex}][variables][${vIndex}][standard_variable_id]"]`);
-                const inputMin = $(`input[name="maquinas[${mIndex}][variables][${vIndex}][min_value]"]`);
-                const inputMax = $(`input[name="maquinas[${mIndex}][variables][${vIndex}][max_value]"]`);
+                const selectVariable = $(`select[name="maquinas[${mIndex}][variables][${vIndex}][variable_estandar_id]"]`);
+                const inputMin = $(`input[name="maquinas[${mIndex}][variables][${vIndex}][valor_minimo]"]`);
+                const inputMax = $(`input[name="maquinas[${mIndex}][variables][${vIndex}][valor_maximo]"]`);
                 
                 if (selectVariable.length) {
                     variable.standard_variable_id = selectVariable.val() || '';
@@ -369,9 +376,9 @@ $('#crearProcesoForm').on('submit', function(e) {
         // Validar que cada variable tenga valores min y max
         for (let j = 0; j < maquinasSeleccionadas[i].variables.length; j++) {
             // Leer valores directamente del formulario HTML
-            const selectVariable = $(`select[name="maquinas[${i}][variables][${j}][standard_variable_id]"]`);
-            const inputMin = $(`input[name="maquinas[${i}][variables][${j}][min_value]"]`);
-            const inputMax = $(`input[name="maquinas[${i}][variables][${j}][max_value]"]`);
+            const selectVariable = $(`select[name="maquinas[${i}][variables][${j}][variable_estandar_id]"]`);
+            const inputMin = $(`input[name="maquinas[${i}][variables][${j}][valor_minimo]"]`);
+            const inputMax = $(`input[name="maquinas[${i}][variables][${j}][valor_maximo]"]`);
             
             const standardVariableId = selectVariable.val();
             const minValue = inputMin.val();

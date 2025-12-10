@@ -20,7 +20,6 @@ class CustomerOrderResource extends JsonResource
             'order_number' => $this->order_number,
             'creation_date' => $this->creation_date,
             'delivery_date' => $this->delivery_date,
-            'priority' => $this->priority,
             'description' => $this->description,
             'observations' => $this->observations,
             'customer' => $this->whenLoaded('customer'),

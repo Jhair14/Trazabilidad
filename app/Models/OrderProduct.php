@@ -8,45 +8,47 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OrderProduct extends Model
 {
-    protected $table = 'order_product';
-    protected $primaryKey = 'order_product_id';
+    protected $table = 'producto_pedido';
+    protected $primaryKey = 'producto_pedido_id';
     public $timestamps = true;
     
     protected $fillable = [
-        'order_product_id',
-        'order_id',
-        'product_id',
-        'quantity',
-        'status',
-        'rejection_reason',
-        'approved_by',
-        'approved_at',
-        'observations'
+        'producto_pedido_id',
+        'pedido_id',
+        'producto_id',
+        'cantidad',
+        'precio',
+        'estado',
+        'razon_rechazo',
+        'aprobado_por',
+        'aprobado_en',
+        'observaciones'
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:4',
-        'approved_at' => 'datetime',
+        'cantidad' => 'decimal:4',
+        'precio' => 'decimal:2',
+        'aprobado_en' => 'datetime',
     ];
 
     public function order(): BelongsTo
     {
-        return $this->belongsTo(CustomerOrder::class, 'order_id', 'order_id');
+        return $this->belongsTo(CustomerOrder::class, 'pedido_id', 'pedido_id');
     }
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class, 'product_id', 'product_id');
+        return $this->belongsTo(Product::class, 'producto_id', 'producto_id');
     }
 
     public function approver(): BelongsTo
     {
-        return $this->belongsTo(Operator::class, 'approved_by', 'operator_id');
+        return $this->belongsTo(Operator::class, 'aprobado_por', 'operador_id');
     }
 
     public function destinationProducts(): HasMany
     {
-        return $this->hasMany(OrderDestinationProduct::class, 'order_product_id', 'order_product_id');
+        return $this->hasMany(OrderDestinationProduct::class, 'producto_pedido_id', 'producto_pedido_id');
     }
 }
 

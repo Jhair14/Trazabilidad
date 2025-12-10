@@ -7,43 +7,43 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProcessMachineRecord extends Model
 {
-    protected $table = 'process_machine_record';
-    protected $primaryKey = 'record_id';
+    protected $table = 'registro_proceso_maquina';
+    protected $primaryKey = 'registro_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'record_id',
-        'batch_id',
-        'process_machine_id',
-        'operator_id',
-        'entered_variables',
-        'meets_standard',
-        'observations',
-        'start_time',
-        'end_time',
-        'record_date'
+        'registro_id',
+        'lote_id',
+        'proceso_maquina_id',
+        'operador_id',
+        'variables_ingresadas',
+        'cumple_estandar',
+        'observaciones',
+        'hora_inicio',
+        'hora_fin',
+        'fecha_registro'
     ];
 
     protected $casts = [
-        'entered_variables' => 'array',
-        'meets_standard' => 'boolean',
-        'start_time' => 'datetime',
-        'end_time' => 'datetime',
-        'record_date' => 'datetime',
+        'variables_ingresadas' => 'array',
+        'cumple_estandar' => 'boolean',
+        'hora_inicio' => 'datetime',
+        'hora_fin' => 'datetime',
+        'fecha_registro' => 'datetime',
     ];
 
     public function batch(): BelongsTo
     {
-        return $this->belongsTo(ProductionBatch::class, 'batch_id', 'batch_id');
+        return $this->belongsTo(ProductionBatch::class, 'lote_id', 'lote_id');
     }
 
     public function processMachine(): BelongsTo
     {
-        return $this->belongsTo(ProcessMachine::class, 'process_machine_id', 'process_machine_id');
+        return $this->belongsTo(ProcessMachine::class, 'proceso_maquina_id', 'proceso_maquina_id');
     }
 
     public function operator(): BelongsTo
     {
-        return $this->belongsTo(Operator::class, 'operator_id', 'operator_id');
+        return $this->belongsTo(Operator::class, 'operador_id', 'operador_id');
     }
 }

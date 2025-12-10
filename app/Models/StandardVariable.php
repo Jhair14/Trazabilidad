@@ -7,25 +7,25 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StandardVariable extends Model
 {
-    protected $table = 'standard_variable';
+    protected $table = 'variable_estandar';
     protected $primaryKey = 'variable_id';
     public $timestamps = false;
     
     protected $fillable = [
         'variable_id',
-        'code',
-        'name',
-        'unit',
-        'description',
-        'active'
+        'codigo',
+        'nombre',
+        'unidad',
+        'descripcion',
+        'activo'
     ];
 
     protected $casts = [
-        'active' => 'boolean',
+        'activo' => 'boolean',
     ];
 
     public function processMachineVariables(): HasMany
     {
-        return $this->hasMany(ProcessMachineVariable::class, 'standard_variable_id', 'variable_id');
+        return $this->hasMany(ProcessMachineVariable::class, 'variable_estandar_id', 'variable_id');
     }
 }

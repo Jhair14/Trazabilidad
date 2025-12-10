@@ -7,28 +7,28 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Customer extends Model
 {
-    protected $table = 'customer';
-    protected $primaryKey = 'customer_id';
+    protected $table = 'cliente';
+    protected $primaryKey = 'cliente_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'customer_id',
-        'business_name',
-        'trading_name',
-        'tax_id',
-        'address',
-        'phone',
+        'cliente_id',
+        'razon_social',
+        'nombre_comercial',
+        'nit',
+        'direccion',
+        'telefono',
         'email',
-        'contact_person',
-        'active'
+        'contacto',
+        'activo'
     ];
 
     protected $casts = [
-        'active' => 'boolean',
+        'activo' => 'boolean',
     ];
 
     public function orders(): HasMany
     {
-        return $this->hasMany(CustomerOrder::class, 'customer_id', 'customer_id');
+        return $this->hasMany(CustomerOrder::class, 'cliente_id', 'cliente_id');
     }
 }

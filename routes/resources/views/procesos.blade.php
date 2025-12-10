@@ -47,7 +47,7 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-success">
             <div class="inner">
-                                <h3>{{ $procesos->where('active', true)->count() }}</h3>
+                                <h3>{{ $procesos->where('activo', true)->count() }}</h3>
                 <p>Activos</p>
             </div>
             <div class="icon">
@@ -69,7 +69,7 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-danger">
             <div class="inner">
-                                <h3>{{ $procesos->where('active', false)->count() }}</h3>
+                                <h3>{{ $procesos->where('activo', false)->count() }}</h3>
                 <p>Inactivos</p>
             </div>
             <div class="icon">
@@ -95,9 +95,9 @@
                 <tbody>
                             @forelse($procesos as $proceso)
                     <tr>
-                                <td>#{{ $proceso->process_id }}</td>
-                                <td>{{ $proceso->name }}</td>
-                                <td>{{ $proceso->description ?? 'Sin descripción' }}</td>
+                                <td>#{{ $proceso->proceso_id }}</td>
+                                <td>{{ $proceso->nombre }}</td>
+                                <td>{{ $proceso->descripcion ?? 'Sin descripción' }}</td>
                                 <td>
                                     @if($proceso->processMachines && $proceso->processMachines->count() > 0)
                                         <span class="badge badge-info">{{ $proceso->processMachines->count() }} máquina(s)</span>
@@ -106,28 +106,23 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if($proceso->active)
+                                    @if($proceso->activo)
                                         <span class="badge badge-success">Activo</span>
                                     @else
                                         <span class="badge badge-danger">Inactivo</span>
                                     @endif
                         </td>
                         <td class="text-right">
-                                    <button class="btn btn-sm btn-info" title="Ver" onclick="verProceso({{ $proceso->process_id }})">
+                                    <button class="btn btn-sm btn-info" title="Ver" onclick="verProceso({{ $proceso->proceso_id }})">
                                 <i class="fas fa-eye"></i>
                             </button>
-                                    <button class="btn btn-sm btn-warning" title="Editar" onclick="editarProceso({{ $proceso->process_id }})">
+                                    <button class="btn btn-sm btn-warning" title="Editar" onclick="editarProceso({{ $proceso->proceso_id }})">
                                 <i class="fas fa-edit"></i>
                             </button>
-                                    <form method="POST" action="{{ route('procesos.destroy', $proceso->process_id) }}" 
-                                          style="display: inline;" 
-                                          onsubmit="return confirm('¿Está seguro de eliminar este proceso?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                                    </form>
+                                    <button type="button" class="btn btn-sm btn-danger" title="Eliminar" 
+                                            onclick="confirmarEliminarProceso({{ $proceso->proceso_id }}, '{{ $proceso->nombre }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                         </td>
                     </tr>
                             @empty
@@ -182,27 +177,27 @@
                     @csrf
                     
                     <div class="form-group">
-                        <label for="name">
+                        <label for="nombre">
                             <i class="fas fa-tag mr-1"></i>
                             Nombre del Proceso <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                               id="name" name="name" value="{{ old('name') }}" 
+                        <input type="text" class="form-control @error('nombre') is-invalid @enderror" 
+                               id="nombre" name="nombre" value="{{ old('nombre') }}" 
                                placeholder="Ej: Mezclado" required>
-                        @error('name')
+                        @error('nombre')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
                     
                             <div class="form-group">
-                        <label for="description">
+                        <label for="descripcion">
                             <i class="fas fa-align-left mr-1"></i>
                             Descripción
                         </label>
-                        <textarea class="form-control @error('description') is-invalid @enderror" 
-                                  id="description" name="description" rows="3" 
-                                  placeholder="Descripción detallada del proceso...">{{ old('description') }}</textarea>
-                        @error('description')
+                        <textarea class="form-control @error('descripcion') is-invalid @enderror" 
+                                  id="descripcion" name="descripcion" rows="3" 
+                                  placeholder="Descripción detallada del proceso...">{{ old('descripcion') }}</textarea>
+                        @error('descripcion')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
@@ -258,6 +253,42 @@
                         </div>
                     </div>
 
+<!-- Modal Confirmar Eliminación -->
+<div class="modal fade" id="confirmarEliminarProcesoModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h4 class="modal-title">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Confirmar Eliminación
+                </h4>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de eliminar este proceso?</p>
+                <p class="font-weight-bold" id="procesoNombreEliminar"></p>
+                <p class="text-danger"><small>Esta acción no se puede deshacer.</small></p>
+                <form method="POST" id="eliminarProcesoForm" style="display: none;">
+                    @csrf
+                    @method('DELETE')
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-danger" onclick="eliminarProceso()">
+                    <i class="fas fa-trash mr-1"></i>
+                    Sí, Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Editar Proceso -->
 <div class="modal fade" id="editarProcesoModal" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-xl" role="document">
@@ -286,28 +317,28 @@
                     @method('PUT')
                     
                     <div class="form-group">
-                        <label for="edit_name">
+                        <label for="edit_nombre">
                             <i class="fas fa-tag mr-1"></i>
                             Nombre del Proceso <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                               id="edit_name" name="name" required>
-                        @error('name')
+                        <input type="text" class="form-control @error('nombre') is-invalid @enderror" 
+                               id="edit_nombre" name="nombre" required>
+                        @error('nombre')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
                     
                     <div class="form-group">
-                        <label for="edit_description">
+                        <label for="edit_descripcion">
                             <i class="fas fa-align-left mr-1"></i>
                             Descripción
                         </label>
-                        <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
+                        <textarea class="form-control" id="edit_descripcion" name="descripcion" rows="3"></textarea>
                     </div>
                     
                     <div class="form-group">
                         <label>
-                            <input type="checkbox" name="active" id="edit_active" value="1">
+                            <input type="checkbox" name="activo" id="edit_activo" value="1">
                             Proceso Activo
                         </label>
                     </div>
@@ -334,19 +365,19 @@
                                 <div class="col-md-3 mb-3">
                                     <div class="card h-100">
                                         <div class="card-body text-center">
-                                            @if($maquina->image_url)
-                                            <img src="{{ $maquina->image_url }}" alt="{{ $maquina->name }}" 
+                                            @if($maquina->imagen_url)
+                                            <img src="{{ $maquina->imagen_url }}" alt="{{ $maquina->nombre }}" 
                                                  class="img-fluid mb-2" style="max-height: 80px; object-fit: contain;">
                                             @else
                                             <div class="bg-light p-2 mb-2" style="height: 80px; display: flex; align-items: center; justify-content: center;">
                                                 <i class="fas fa-cog fa-2x text-muted"></i>
                                             </div>
                                             @endif
-                                            <h6 class="card-title" style="font-size: 0.9rem;">{{ $maquina->name }}</h6>
+                                            <h6 class="card-title" style="font-size: 0.9rem;">{{ $maquina->nombre }}</h6>
                                             <button type="button" class="btn btn-sm btn-primary edit-agregar-maquina" 
-                                                    data-machine-id="{{ $maquina->machine_id }}"
-                                                    data-machine-name="{{ $maquina->name }}"
-                                                    data-machine-image="{{ $maquina->image_url ?? '' }}">
+                                                    data-machine-id="{{ $maquina->maquina_id }}"
+                                                    data-machine-name="{{ $maquina->nombre }}"
+                                                    data-machine-image="{{ $maquina->imagen_url ?? '' }}">
                                                 <i class="fas fa-plus mr-1"></i> Agregar
                                             </button>
                                         </div>
@@ -390,13 +421,13 @@ function verProceso(id) {
         .then(response => response.json())
         .then(data => {
             let machinesHtml = '';
-            if (data.process_machines && data.process_machines.length > 0) {
-                data.process_machines.forEach(function(pm) {
+            if (data.proceso_maquinas && data.proceso_maquinas.length > 0) {
+                data.proceso_maquinas.forEach(function(pm) {
                     let variablesHtml = '';
                     if (pm.variables && pm.variables.length > 0) {
                         variablesHtml = '<ul class="mb-0">';
                         pm.variables.forEach(function(v) {
-                            variablesHtml += `<li>${v.variable_name} (${v.unit}): ${v.min_value} - ${v.max_value}${v.target_value ? ' (Objetivo: ' + v.target_value + ')' : ''} ${v.mandatory ? '<span class="badge badge-warning">Obligatorio</span>' : ''}</li>`;
+                            variablesHtml += `<li>${v.variable_nombre} (${v.unidad}): ${v.valor_minimo} - ${v.valor_maximo}${v.valor_objetivo ? ' (Objetivo: ' + v.valor_objetivo + ')' : ''} ${v.obligatorio ? '<span class="badge badge-warning">Obligatorio</span>' : ''}</li>`;
                         });
                         variablesHtml += '</ul>';
                     } else {
@@ -406,11 +437,11 @@ function verProceso(id) {
                     machinesHtml += `
                         <div class="card mb-2">
                             <div class="card-header">
-                                <strong>${pm.name}</strong> - ${pm.machine_name} (Paso ${pm.step_order})
+                                <strong>${pm.nombre}</strong> - ${pm.maquina_nombre} (Paso ${pm.orden_paso})
                             </div>
                             <div class="card-body">
-                                <p><strong>Descripción:</strong> ${pm.description || 'Sin descripción'}</p>
-                                <p><strong>Tiempo Estimado:</strong> ${pm.estimated_time || 'N/A'} minutos</p>
+                                <p><strong>Descripción:</strong> ${pm.descripcion || 'Sin descripción'}</p>
+                                <p><strong>Tiempo Estimado:</strong> ${pm.tiempo_estimado || 'N/A'} minutos</p>
                                 <p><strong>Variables:</strong></p>
                                 ${variablesHtml}
                             </div>
@@ -427,20 +458,20 @@ function verProceso(id) {
                         <table class="table table-bordered">
                             <tr>
                                 <th style="width: 30%;">ID</th>
-                                <td>#${data.process_id}</td>
+                                <td>#${data.proceso_id}</td>
                             </tr>
                             <tr>
                                 <th>Nombre</th>
-                                <td>${data.name}</td>
+                                <td>${data.nombre}</td>
                             </tr>
                             <tr>
                                 <th>Descripción</th>
-                                <td>${data.description || 'Sin descripción'}</td>
+                                <td>${data.descripcion || 'Sin descripción'}</td>
                             </tr>
                             <tr>
                                 <th>Estado</th>
                                 <td>
-                                    ${data.active 
+                                    ${data.activo 
                                         ? '<span class="badge badge-success">Activo</span>' 
                                         : '<span class="badge badge-danger">Inactivo</span>'}
                                 </td>
@@ -470,30 +501,30 @@ function editarProceso(id) {
         .then(response => response.json())
         .then(data => {
             document.getElementById('editarProcesoForm').action = `{{ url('procesos') }}/${id}`;
-            document.getElementById('edit_name').value = data.name || '';
-            document.getElementById('edit_description').value = data.description || '';
-            document.getElementById('edit_active').checked = data.active || false;
+            document.getElementById('edit_nombre').value = data.nombre || '';
+            document.getElementById('edit_descripcion').value = data.descripcion || '';
+            document.getElementById('edit_activo').checked = data.activo || false;
             
             // Cargar máquinas existentes
             editMaquinasSeleccionadas = [];
-            if (data.process_machines && data.process_machines.length > 0) {
-                data.process_machines.forEach(pm => {
+            if (data.proceso_maquinas && data.proceso_maquinas.length > 0) {
+                data.proceso_maquinas.forEach(pm => {
                     const maquina = {
-                        machine_id: pm.machine_id,
-                        name: pm.name,
-                        step_order: pm.step_order,
-                        description: pm.description || '',
-                        estimated_time: pm.estimated_time || '',
+                        maquina_id: pm.maquina_id,
+                        nombre: pm.nombre,
+                        orden_paso: pm.orden_paso,
+                        descripcion: pm.descripcion || '',
+                        tiempo_estimado: pm.tiempo_estimado || '',
                         variables: []
                     };
                     
                     if (pm.variables && pm.variables.length > 0) {
                         pm.variables.forEach(v => {
                             maquina.variables.push({
-                                standard_variable_id: v.standard_variable_id,
-                                min_value: v.min_value,
-                                max_value: v.max_value,
-                                target_value: v.target_value || ''
+                                variable_estandar_id: v.variable_estandar_id,
+                                valor_minimo: v.valor_minimo,
+                                valor_maximo: v.valor_maximo,
+                                valor_objetivo: v.valor_objetivo || ''
                             });
                         });
                     }
@@ -518,19 +549,19 @@ $(document).on('click', '.edit-agregar-maquina', function() {
     const machineImage = $(this).data('machine-image');
     
     // Verificar si ya está agregada
-    if (editMaquinasSeleccionadas.find(m => m.machine_id === machineId)) {
+    if (editMaquinasSeleccionadas.find(m => m.maquina_id === machineId)) {
         alert('Esta máquina ya está agregada al proceso');
         return;
     }
     
     const stepOrder = editMaquinasSeleccionadas.length + 1;
     const nuevaMaquina = {
-        machine_id: machineId,
-        name: machineName,
-        image_url: machineImage,
-        step_order: stepOrder,
-        description: '',
-        estimated_time: '',
+        maquina_id: machineId,
+        nombre: machineName,
+        imagen_url: machineImage,
+        orden_paso: stepOrder,
+        descripcion: '',
+        tiempo_estimado: '',
         variables: []
     };
     
@@ -541,9 +572,9 @@ $(document).on('click', '.edit-agregar-maquina', function() {
 // Eliminar máquina (edición)
 function editEliminarMaquina(index) {
     editMaquinasSeleccionadas.splice(index, 1);
-    // Reordenar step_order
+    // Reordenar orden_paso
     editMaquinasSeleccionadas.forEach((m, i) => {
-        m.step_order = i + 1;
+        m.orden_paso = i + 1;
     });
     editRenderizarMaquinas();
 }
@@ -554,9 +585,9 @@ function editAgregarVariable(maquinaIndex) {
         editMaquinasSeleccionadas[maquinaIndex].variables = [];
     }
     editMaquinasSeleccionadas[maquinaIndex].variables.push({
-        standard_variable_id: '',
-        min_value: '',
-        max_value: ''
+        variable_estandar_id: '',
+        valor_minimo: '',
+        valor_maximo: ''
     });
     editRenderizarMaquinas();
 }
@@ -573,11 +604,11 @@ function editActualizarVariable(maquinaIndex, variableIndex, campo, valor) {
         return;
     }
     
-    if (campo === 'standard_variable_id') {
+    if (campo === 'variable_estandar_id') {
         const variable = variablesEstandar.find(v => v.variable_id == valor);
-        editMaquinasSeleccionadas[maquinaIndex].variables[variableIndex].standard_variable_id = valor;
+        editMaquinasSeleccionadas[maquinaIndex].variables[variableIndex].variable_estandar_id = valor;
         if (variable) {
-            $('#edit_unidad_' + maquinaIndex + '_' + variableIndex).val(variable.unit || '');
+            $('#edit_unidad_' + maquinaIndex + '_' + variableIndex).val(variable.unidad || '');
         }
     } else {
         editMaquinasSeleccionadas[maquinaIndex].variables[variableIndex][campo] = valor;
@@ -585,13 +616,13 @@ function editActualizarVariable(maquinaIndex, variableIndex, campo, valor) {
 }
 
 // Sincronizar cuando se cambian los valores en los inputs (edición)
-$(document).on('change', '#editarProcesoModal input[name*="[min_value]"], #editarProcesoModal input[name*="[max_value]"]', function() {
+$(document).on('change', '#editarProcesoModal input[name*="[valor_minimo]"], #editarProcesoModal input[name*="[valor_maximo]"]', function() {
     const name = $(this).attr('name');
     const matches = name.match(/maquinas\[(\d+)\]\[variables\]\[(\d+)\]/);
     if (matches) {
         const mIndex = parseInt(matches[1]);
         const vIndex = parseInt(matches[2]);
-        const campo = name.includes('min_value') ? 'min_value' : 'max_value';
+        const campo = name.includes('valor_minimo') ? 'valor_minimo' : 'valor_maximo';
         editActualizarVariable(mIndex, vIndex, campo, $(this).val());
     }
 });
@@ -611,10 +642,10 @@ function editRenderizarMaquinas() {
             <div class="card mb-3 maquina-item" data-index="${mIndex}">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <div>
-                        <strong>Paso ${maquina.step_order}: ${maquina.name}</strong>
-                        <input type="hidden" name="maquinas[${mIndex}][machine_id]" value="${maquina.machine_id}">
-                        <input type="hidden" name="maquinas[${mIndex}][step_order]" value="${maquina.step_order}">
-                        <input type="hidden" name="maquinas[${mIndex}][name]" value="${maquina.name}">
+                        <strong>Paso ${maquina.orden_paso}: ${maquina.nombre}</strong>
+                        <input type="hidden" name="maquinas[${mIndex}][maquina_id]" value="${maquina.maquina_id}">
+                        <input type="hidden" name="maquinas[${mIndex}][orden_paso]" value="${maquina.orden_paso}">
+                        <input type="hidden" name="maquinas[${mIndex}][nombre]" value="${maquina.nombre}">
                     </div>
                     <button type="button" class="btn btn-sm btn-danger" onclick="editEliminarMaquina(${mIndex})">
                         <i class="fas fa-trash"></i> Eliminar
@@ -624,13 +655,13 @@ function editRenderizarMaquinas() {
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label>Descripción (opcional)</label>
-                            <input type="text" class="form-control" name="maquinas[${mIndex}][description]" 
-                                   value="${maquina.description || ''}" placeholder="Descripción de esta máquina en el proceso">
+                            <input type="text" class="form-control" name="maquinas[${mIndex}][descripcion]" 
+                                   value="${maquina.descripcion || ''}" placeholder="Descripción de esta máquina en el proceso">
                         </div>
                         <div class="col-md-6">
                             <label>Tiempo Estimado (minutos, opcional)</label>
-                            <input type="number" class="form-control" name="maquinas[${mIndex}][estimated_time]" 
-                                   value="${maquina.estimated_time || ''}" placeholder="Ej: 30" min="0">
+                            <input type="number" class="form-control" name="maquinas[${mIndex}][tiempo_estimado]" 
+                                   value="${maquina.tiempo_estimado || ''}" placeholder="Ej: 30" min="0">
                         </div>
                     </div>
                     
@@ -640,17 +671,17 @@ function editRenderizarMaquinas() {
         
         if (maquina.variables && maquina.variables.length > 0) {
             maquina.variables.forEach((variable, vIndex) => {
-                const varEstandar = variablesEstandar.find(v => v.variable_id == variable.standard_variable_id);
+                const varEstandar = variablesEstandar.find(v => v.variable_id == variable.variable_estandar_id);
                 html += `
                     <div class="row mb-2 variable-item">
                         <div class="col-md-4">
                             <label>Variable <span class="text-danger">*</span></label>
-                            <select class="form-control" name="maquinas[${mIndex}][variables][${vIndex}][standard_variable_id]" 
-                                    onchange="editActualizarVariable(${mIndex}, ${vIndex}, 'standard_variable_id', this.value)" required>
+                            <select class="form-control" name="maquinas[${mIndex}][variables][${vIndex}][variable_estandar_id]" 
+                                    onchange="editActualizarVariable(${mIndex}, ${vIndex}, 'variable_estandar_id', this.value)" required>
                                 <option value="">Seleccionar...</option>
                                 ${variablesEstandar.map(v => `
-                                    <option value="${v.variable_id}" ${variable.standard_variable_id == v.variable_id ? 'selected' : ''}>
-                                        ${v.name} ${v.unit ? '(' + v.unit + ')' : ''}
+                                    <option value="${v.variable_id}" ${variable.variable_estandar_id == v.variable_id ? 'selected' : ''}>
+                                        ${v.nombre} ${v.unidad ? '(' + v.unidad + ')' : ''}
                                     </option>
                                 `).join('')}
                             </select>
@@ -658,19 +689,19 @@ function editRenderizarMaquinas() {
                         <div class="col-md-2">
                             <label>Unidad</label>
                             <input type="text" class="form-control" id="edit_unidad_${mIndex}_${vIndex}" 
-                                   value="${varEstandar ? (varEstandar.unit || '') : ''}" readonly>
+                                   value="${varEstandar ? (varEstandar.unidad || '') : ''}" readonly>
                         </div>
                         <div class="col-md-2">
                             <label>Valor Mínimo <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control" 
-                                   name="maquinas[${mIndex}][variables][${vIndex}][min_value]" 
-                                   value="${variable.min_value || ''}" required>
+                                   name="maquinas[${mIndex}][variables][${vIndex}][valor_minimo]" 
+                                   value="${variable.valor_minimo || ''}" required>
                         </div>
                         <div class="col-md-2">
                             <label>Valor Máximo <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control" 
-                                   name="maquinas[${mIndex}][variables][${vIndex}][max_value]" 
-                                   value="${variable.max_value || ''}" required>
+                                   name="maquinas[${mIndex}][variables][${vIndex}][valor_maximo]" 
+                                   value="${variable.valor_maximo || ''}" required>
                         </div>
                         <div class="col-md-2">
                             <label>&nbsp;</label>
@@ -704,5 +735,21 @@ $('#editarProcesoModal').on('hidden.bs.modal', function () {
     editMaquinasSeleccionadas = [];
     $('#editListaMaquinas').html('<p class="text-muted">No hay máquinas seleccionadas. Haz clic en "Agregar" para seleccionar máquinas.</p>');
 });
+
+// Variables para el modal de eliminación de proceso
+let procesoIdAEliminar = null;
+
+function confirmarEliminarProceso(id, nombre) {
+    procesoIdAEliminar = id;
+    document.getElementById('procesoNombreEliminar').textContent = nombre;
+    document.getElementById('eliminarProcesoForm').action = '{{ url("procesos") }}/' + id;
+    $('#confirmarEliminarProcesoModal').modal('show');
+}
+
+function eliminarProceso() {
+    if (procesoIdAEliminar) {
+        document.getElementById('eliminarProcesoForm').submit();
+    }
+}
 </script>
 @endpush

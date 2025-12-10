@@ -47,11 +47,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>{{ $materias_primas->filter(function($mp) { 
-                                    $available = $mp->calculated_available_quantity ?? ($mp->available_quantity ?? 0);
-                                    $minimum = $mp->minimum_stock ?? 0;
-                                    return $available > 0 && ($minimum == 0 || $available > $minimum);
-                                })->count() }}</h3>
+                                <h3>{{ $stats['disponibles'] ?? 0 }}</h3>
                                 <p>Disponibles</p>
                             </div>
                             <div class="icon">
@@ -62,11 +58,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>{{ $materias_primas->filter(function($mp) { 
-                                    $available = $mp->calculated_available_quantity ?? ($mp->available_quantity ?? 0);
-                                    $minimum = $mp->minimum_stock ?? 0;
-                                    return $available > 0 && $minimum > 0 && $available <= $minimum;
-                                })->count() }}</h3>
+                                <h3>{{ $stats['bajo_stock'] ?? 0 }}</h3>
                                 <p>Bajo Stock</p>
                             </div>
                             <div class="icon">
@@ -77,10 +69,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-danger">
                             <div class="inner">
-                                <h3>{{ $materias_primas->filter(function($mp) { 
-                                    $available = $mp->calculated_available_quantity ?? ($mp->available_quantity ?? 0);
-                                    return $available <= 0;
-                                })->count() }}</h3>
+                                <h3>{{ $stats['agotadas'] ?? 0 }}</h3>
                                 <p>Agotadas</p>
                             </div>
                             <div class="icon">
@@ -145,14 +134,14 @@
                             @endphp
                             <tr>
                                 <td>#{{ $mp->material_id }}</td>
-                                <td>{{ $mp->name }}</td>
-                                <td>{{ $mp->category->name ?? 'N/A' }}</td>
-                                <td>{{ $mp->unit->code ?? 'N/A' }}</td>
+                                <td>{{ $mp->nombre }}</td>
+                                <td>{{ $mp->category->nombre ?? 'N/A' }}</td>
+                                <td>{{ $mp->unit->codigo ?? 'N/A' }}</td>
                                 <td>
                                     <strong class="{{ $available <= 0 ? 'text-danger' : ($minimum > 0 && $available <= $minimum ? 'text-warning' : 'text-success') }}">
                                         {{ number_format($available, 2) }}
                                     </strong>
-                                    <small class="text-muted"> {{ $mp->unit->code ?? '' }}</small>
+                                    <small class="text-muted"> {{ $mp->unit->codigo ?? '' }}</small>
                                 </td>
                                 <td>{{ number_format($minimum, 2) }}</td>
                                 <td>{{ $maximum > 0 ? number_format($maximum, 2) : 'N/A' }}</td>
@@ -165,7 +154,7 @@
                                         <span class="badge badge-success">Disponible</span>
                                     @endif
                                 </td>
-                                <td>{{ $mp->code }}</td>
+                                <td>{{ $mp->codigo }}</td>
                                 <td class="text-right">
                                     <button class="btn btn-sm btn-info" title="Ver" onclick="verMateriaPrima({{ $mp->material_id }})">
                                         <i class="fas fa-eye"></i>
@@ -225,11 +214,11 @@
                     <div class="row">
                         <div class="col-md-12">
                             <div class="form-group">
-                                <label for="name">Nombre <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                                       id="name" name="name" value="{{ old('name') }}" 
+                                <label for="nombre">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('nombre') is-invalid @enderror" 
+                                       id="nombre" name="nombre" value="{{ old('nombre') }}" 
                                        placeholder="Ej: Harina de Trigo" required>
-                                @error('name')
+                                @error('nombre')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -239,34 +228,34 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="category_id">Categoría <span class="text-danger">*</span></label>
-                                <select class="form-control @error('category_id') is-invalid @enderror" 
-                                        id="category_id" name="category_id" required>
+                                <label for="categoria_id">Categoría <span class="text-danger">*</span></label>
+                                <select class="form-control @error('categoria_id') is-invalid @enderror" 
+                                        id="categoria_id" name="categoria_id" required>
                                     <option value="">Seleccionar categoría...</option>
                                     @foreach($categorias as $cat)
-                                        <option value="{{ $cat->category_id }}" {{ old('category_id') == $cat->category_id ? 'selected' : '' }}>
-                                            {{ $cat->name }}
+                                        <option value="{{ $cat->categoria_id }}" {{ old('categoria_id') == $cat->categoria_id ? 'selected' : '' }}>
+                                            {{ $cat->nombre }}
                                         </option>
                                     @endforeach
                                 </select>
-                                @error('category_id')
+                                @error('categoria_id')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="unit_id">Unidad de Medida <span class="text-danger">*</span></label>
-                                <select class="form-control @error('unit_id') is-invalid @enderror" 
-                                        id="unit_id" name="unit_id" required>
+                                <label for="unidad_id">Unidad de Medida <span class="text-danger">*</span></label>
+                                <select class="form-control @error('unidad_id') is-invalid @enderror" 
+                                        id="unidad_id" name="unidad_id" required>
                                     <option value="">Seleccionar unidad...</option>
                                     @foreach($unidades as $unidad)
-                                        <option value="{{ $unidad->unit_id }}" {{ old('unit_id') == $unidad->unit_id ? 'selected' : '' }}>
-                                            {{ $unidad->name }} ({{ $unidad->code }})
+                                        <option value="{{ $unidad->unidad_id }}" {{ old('unidad_id') == $unidad->unidad_id ? 'selected' : '' }}>
+                                            {{ $unidad->nombre }} ({{ $unidad->codigo }})
                                         </option>
                                     @endforeach
                                 </select>
-                                @error('unit_id')
+                                @error('unidad_id')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -276,26 +265,26 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="minimum_stock">Stock Mínimo</label>
-                                <input type="number" class="form-control" id="minimum_stock" 
-                                       name="minimum_stock" value="{{ old('minimum_stock', 0) }}" 
+                                <label for="stock_minimo">Stock Mínimo</label>
+                                <input type="number" class="form-control" id="stock_minimo" 
+                                       name="stock_minimo" value="{{ old('stock_minimo', 0) }}" 
                                        placeholder="0.00" step="0.01" min="0">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="maximum_stock">Stock Máximo</label>
-                                <input type="number" class="form-control" id="maximum_stock" 
-                                       name="maximum_stock" value="{{ old('maximum_stock') }}" 
+                                <label for="stock_maximo">Stock Máximo</label>
+                                <input type="number" class="form-control" id="stock_maximo" 
+                                       name="stock_maximo" value="{{ old('stock_maximo') }}" 
                                        placeholder="0.00" step="0.01" min="0">
                             </div>
                         </div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="description">Descripción</label>
-                        <textarea class="form-control" id="description" name="description" 
-                                  rows="3" placeholder="Descripción de la materia prima...">{{ old('description') }}</textarea>
+                        <label for="descripcion">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" 
+                                  rows="3" placeholder="Descripción de la materia prima...">{{ old('descripcion') }}</textarea>
                     </div>
                 </form>
             </div>
@@ -387,32 +376,32 @@
                                     <i class="fas fa-folder mr-1"></i>
                                     Categoría <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-control @error('category_id') is-invalid @enderror" 
-                                        id="edit_category_id" name="category_id" required>
+                                <select class="form-control @error('categoria_id') is-invalid @enderror" 
+                                        id="edit_categoria_id" name="categoria_id" required>
                                     <option value="">Seleccionar categoría...</option>
                                     @foreach($categorias as $cat)
-                                        <option value="{{ $cat->category_id }}">{{ $cat->name }}</option>
+                                        <option value="{{ $cat->categoria_id }}">{{ $cat->nombre }}</option>
                                     @endforeach
                                 </select>
-                                @error('category_id')
+                                @error('categoria_id')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="edit_unit_id">
+                                <label for="edit_unidad_id">
                                     <i class="fas fa-ruler mr-1"></i>
                                     Unidad de Medida <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-control @error('unit_id') is-invalid @enderror" 
-                                        id="edit_unit_id" name="unit_id" required>
+                                <select class="form-control @error('unidad_id') is-invalid @enderror" 
+                                        id="edit_unidad_id" name="unidad_id" required>
                                     <option value="">Seleccionar unidad...</option>
                                     @foreach($unidades as $unidad)
-                                        <option value="{{ $unidad->unit_id }}">{{ $unidad->name }} ({{ $unidad->code }})</option>
+                                        <option value="{{ $unidad->unidad_id }}">{{ $unidad->nombre }} ({{ $unidad->codigo }})</option>
                                     @endforeach
                                 </select>
-                                @error('unit_id')
+                                @error('unidad_id')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -577,9 +566,9 @@ async function submitCrearMateriaPrima() {
     const submitButton = document.getElementById('crearMateriaPrimaBtn');
     
     // Validar campos requeridos antes de enviar
-    const name = form.querySelector('#name').value.trim();
-    const categoryId = form.querySelector('#category_id').value;
-    const unitId = form.querySelector('#unit_id').value;
+    const name = form.querySelector('#nombre').value.trim();
+    const categoryId = form.querySelector('#categoria_id').value;
+    const unitId = form.querySelector('#unidad_id').value;
     
     if (!name || !categoryId || !unitId) {
         alert('Por favor complete todos los campos requeridos');

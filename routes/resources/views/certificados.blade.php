@@ -43,7 +43,7 @@
                             <div class="inner">
                                 <h3>{{ $certificados->getCollection()->filter(function($c) { 
                                     $eval = $c->latestFinalEvaluation;
-                                    return $eval && !str_contains(strtolower($eval->reason ?? ''), 'falló'); 
+                                    return $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló'); 
                                 })->count() }}</h3>
                                 <p>Certificados</p>
                             </div>
@@ -57,7 +57,7 @@
                             <div class="inner">
                                 <h3>{{ $certificados->getCollection()->filter(function($c) { 
                                     $eval = $c->latestFinalEvaluation;
-                                    return $eval && str_contains(strtolower($eval->reason ?? ''), 'falló'); 
+                                    return $eval && str_contains(strtolower($eval->razon ?? ''), 'falló'); 
                                 })->count() }}</h3>
                                 <p>No Certificados</p>
                             </div>
@@ -113,35 +113,35 @@
                     @foreach($certificados as $certificado)
                     @php
                         $finalEval = $certificado->latestFinalEvaluation;
-                        $esFallido = $finalEval && str_contains(strtolower($finalEval->reason ?? ''), 'falló');
+                        $esFallido = $finalEval && str_contains(strtolower($finalEval->razon ?? ''), 'falló');
                     @endphp
                     <div class="col-md-4 mb-4">
                         <div class="card h-100 border {{ $esFallido ? 'border-danger' : 'border-success' }}">
                             <div class="card-header {{ $esFallido ? 'bg-danger text-white' : 'bg-success text-white' }}">
                                 <h5 class="mb-0">
-                                    Lote #{{ $certificado->batch_code ?? $certificado->batch_id }}
+                                    Lote #{{ $certificado->codigo_lote ?? $certificado->lote_id }}
                                 </h5>
                             </div>
                             <div class="card-body">
                                 <p class="text-gray-600 mb-1">
-                                    <strong>Nombre:</strong> {{ $certificado->name ?? 'Sin nombre' }}
+                                    <strong>Nombre:</strong> {{ $certificado->nombre ?? 'Sin nombre' }}
                                 </p>
                                 <p class="text-gray-500 text-sm mb-2">
-                                    <strong>Fecha de Creación:</strong> {{ \Carbon\Carbon::parse($certificado->creation_date)->format('d/m/Y') }}
+                                    <strong>Fecha de Creación:</strong> {{ $certificado->fecha_creacion ? \Carbon\Carbon::parse($certificado->fecha_creacion)->format('d/m/Y') : 'N/A' }}
                                 </p>
                                 @if($finalEval)
                                 <p class="text-sm mb-2">
-                                    <strong>Fecha de Evaluación:</strong> {{ \Carbon\Carbon::parse($finalEval->evaluation_date)->format('d/m/Y') }}
+                                    <strong>Fecha de Evaluación:</strong> {{ $finalEval->fecha_evaluacion ? \Carbon\Carbon::parse($finalEval->fecha_evaluacion)->format('d/m/Y') : 'N/A' }}
                                 </p>
                                 @endif
                             </div>
                             <div class="card-footer">
                                 <div class="d-flex flex-column flex-sm-row justify-content-between gap-2">
-                                    <a href="{{ route('certificado.show', $certificado->batch_id) }}" 
+                                    <a href="{{ route('certificado.show', $certificado->lote_id) }}" 
                                        class="btn btn-sm {{ $esFallido ? 'btn-danger' : 'btn-success' }}">
                                         <i class="fas fa-certificate mr-1"></i> Ver Certificado
                                     </a>
-                                    <a href="{{ route('certificado.qr', $certificado->batch_id) }}" 
+                                    <a href="{{ route('certificado.qr', $certificado->lote_id) }}" 
                                        class="btn btn-sm btn-secondary">
                                         <i class="fas fa-qrcode mr-1"></i> Generar QR
                                     </a>

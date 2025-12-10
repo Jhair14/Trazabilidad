@@ -21,52 +21,52 @@ class GestionLotesController extends Controller
             'rawMaterials.rawMaterial.supplier',
             'finalEvaluation'
         ])
-            ->orderBy('creation_date', 'desc')
+            ->orderBy('fecha_creacion', 'desc')
             ->paginate(15);
 
         // Estadísticas
         $stats = [
             'total' => ProductionBatch::count(),
-            'pendientes' => ProductionBatch::whereNull('start_time')->count(),
-            'en_proceso' => ProductionBatch::whereNotNull('start_time')
-                ->whereNull('end_time')->count(),
-            'completados' => ProductionBatch::whereNotNull('end_time')->count(),
+            'pendientes' => ProductionBatch::whereNull('hora_inicio')->count(),
+            'en_proceso' => ProductionBatch::whereNotNull('hora_inicio')
+                ->whereNull('hora_fin')->count(),
+            'completados' => ProductionBatch::whereNotNull('hora_fin')->count(),
             'certificados' => ProductionBatch::whereHas('finalEvaluation', function($query) {
-                $query->whereRaw("LOWER(reason) NOT LIKE '%falló%'");
+                $query->whereRaw("LOWER(razon) NOT LIKE '%falló%'");
             })->count(),
         ];
 
-        // Datos para formularios - pedidos con estado pendiente o en proceso
-        $pedidos = CustomerOrder::where('priority', '>', 0)
+        // Datos para formularios - pedidos con estado pendiente o aprobado
+        $pedidos = CustomerOrder::whereIn('estado', ['pendiente', 'aprobado'])
             ->with('customer')
-            ->orderBy('creation_date', 'desc')
+            ->orderBy('fecha_creacion', 'desc')
             ->get();
 
         // Materias primas base activas (todas las guardadas)
-        $materias_primas = RawMaterialBase::where('active', true)
+        $materias_primas = RawMaterialBase::where('activo', true)
             ->with('unit')
-            ->orderBy('name', 'asc')
+            ->orderBy('nombre', 'asc')
             ->get()
             ->map(function ($mp) {
                 // Calcular cantidad disponible dinámicamente desde las materias primas relacionadas
                 $mp->calculated_available_quantity = $mp->rawMaterials()
-                    ->where('receipt_conformity', true)
-                    ->sum('available_quantity') ?? 0;
+                    ->where('conformidad_recepcion', true)
+                    ->sum('cantidad_disponible') ?? 0;
                 return $mp;
             });
 
         // Preparar datos para JavaScript
         $materias_primas_json = $materias_primas->map(function($mp) {
-            $available = $mp->calculated_available_quantity ?? ($mp->available_quantity ?? 0);
+            $available = $mp->calculated_available_quantity ?? ($mp->cantidad_disponible ?? 0);
             return [
                 'material_id' => $mp->material_id,
-                'name' => $mp->name,
-                'unit_code' => $mp->unit->code ?? 'N/A',
+                'name' => $mp->nombre,
+                'unit_code' => $mp->unit->codigo ?? 'N/A',
                 'available' => number_format($available, 2)
             ];
         });
 
-        $procesos = Process::where('active', true)->get();
+        $procesos = Process::where('activo', true)->get();
 
         return view('gestion-lotes', compact('lotes', 'stats', 'pedidos', 'materias_primas', 'materias_primas_json', 'procesos'));
     }
@@ -75,10 +75,10 @@ class GestionLotesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
-            'order_id' => 'nullable|integer|exists:customer_order,order_id',
+            'pedido_id' => 'nullable|integer|exists:pedido_cliente,pedido_id',
             'target_quantity' => 'nullable|numeric|min:0',
             'raw_materials' => 'required|array|min:1',
-            'raw_materials.*.material_id' => 'required|integer|exists:raw_material_base,material_id',
+            'raw_materials.*.material_id' => 'required|integer|exists:materia_prima_base,material_id',
             'raw_materials.*.planned_quantity' => 'required|numeric|min:0',
         ]);
 
@@ -91,62 +91,62 @@ class GestionLotesController extends Controller
         DB::beginTransaction();
         try {
             // Validar que el pedido exista si se proporciona
-            if ($request->order_id) {
-                $order = CustomerOrder::find($request->order_id);
+            if ($request->pedido_id) {
+                $order = CustomerOrder::find($request->pedido_id);
                 if (!$order) {
                     throw new \Exception('El pedido especificado no existe');
                 }
             }
 
-            // Si no hay order_id, crear un pedido genérico o usar uno por defecto
-            $orderId = $request->order_id;
+            // Si no hay pedido_id, crear un pedido genérico o usar uno por defecto
+            $orderId = $request->pedido_id;
             if (!$orderId) {
                 // Sincronizar secuencia y obtener el siguiente ID para order
-                $maxOrderId = DB::table('customer_order')->max('order_id');
+                $maxOrderId = DB::table('pedido_cliente')->max('pedido_id');
                 
                 // Solo sincronizar la secuencia si hay registros existentes
                 if ($maxOrderId !== null && $maxOrderId > 0) {
-                    DB::statement("SELECT setval('customer_order_seq', {$maxOrderId}, true)");
+                    DB::statement("SELECT setval('pedido_cliente_seq', {$maxOrderId}, true)");
                 }
                 
                 // Obtener el siguiente ID de la secuencia
-                $orderNextId = DB::selectOne("SELECT nextval('customer_order_seq') as id")->id;
+                $orderNextId = DB::selectOne("SELECT nextval('pedido_cliente_seq') as id")->id;
                 $orderNumber = 'INTERNO-' . str_pad($orderNextId, 4, '0', STR_PAD_LEFT) . '-' . date('Ymd');
                 
                 // Crear un pedido genérico interno usando SQL directo
                 $orderId = DB::selectOne("
-                    INSERT INTO customer_order (order_id, order_number, customer_id, creation_date, priority, description)
+                    INSERT INTO pedido_cliente (pedido_id, numero_pedido, cliente_id, fecha_creacion, estado, descripcion)
                     VALUES (?, ?, ?, ?, ?, ?)
-                    RETURNING order_id
+                    RETURNING pedido_id
                 ", [
                     $orderNextId,
                     $orderNumber,
                     1, // Cliente por defecto
                     now()->toDateString(),
-                    1,
+                    'pendiente',
                     'Pedido interno generado automáticamente'
-                ])->order_id;
+                ])->pedido_id;
             }
 
             // Sincronizar secuencia y obtener el siguiente ID para batch
-            $maxBatchId = DB::table('production_batch')->max('batch_id');
+            $maxBatchId = DB::table('lote_produccion')->max('lote_id');
             
             // Solo sincronizar la secuencia si hay registros existentes
             if ($maxBatchId !== null && $maxBatchId > 0) {
-                DB::statement("SELECT setval('production_batch_seq', {$maxBatchId}, true)");
+                DB::statement("SELECT setval('lote_produccion_seq', {$maxBatchId}, true)");
             }
             
             // Obtener el siguiente ID de la secuencia
-            $batchNextId = DB::selectOne("SELECT nextval('production_batch_seq') as id")->id;
+            $batchNextId = DB::selectOne("SELECT nextval('lote_produccion_seq') as id")->id;
             
             // Generar código de lote automáticamente
             $batchCode = 'LOTE-' . str_pad($batchNextId, 4, '0', STR_PAD_LEFT) . '-' . date('Ymd');
 
             // Crear batch usando SQL directo
             $batchId = DB::selectOne("
-                INSERT INTO production_batch (batch_id, order_id, batch_code, name, creation_date, target_quantity, observations)
+                INSERT INTO lote_produccion (lote_id, pedido_id, codigo_lote, nombre, fecha_creacion, cantidad_objetivo, observaciones)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-                RETURNING batch_id
+                RETURNING lote_id
             ", [
                 $batchNextId,
                 $orderId,
@@ -155,7 +155,7 @@ class GestionLotesController extends Controller
                 now()->toDateString(),
                 $request->target_quantity,
                 $request->observations
-            ])->batch_id;
+            ])->lote_id;
             
             $batch = ProductionBatch::find($batchId);
 
@@ -165,92 +165,94 @@ class GestionLotesController extends Controller
                 
                 // Calcular cantidad disponible dinámicamente desde las materias primas recibidas
                 $calculatedAvailable = $materialBase->rawMaterials
-                    ->where('receipt_conformity', true)
-                    ->sum('available_quantity') ?? 0;
+                    ->where('conformidad_recepcion', true)
+                    ->sum('cantidad_disponible') ?? 0;
                 
                 // Si no hay materias primas recibidas, usar el valor almacenado
                 if ($calculatedAvailable == 0 && $materialBase->rawMaterials->count() == 0) {
-                    $calculatedAvailable = $materialBase->available_quantity ?? 0;
+                    $calculatedAvailable = $materialBase->cantidad_disponible ?? 0;
                 }
                 
                 // Verificar disponibilidad
                 if ($calculatedAvailable < $rm['planned_quantity']) {
-                    throw new \Exception("No hay suficiente cantidad disponible de {$materialBase->name}. Disponible: {$calculatedAvailable}");
+                    throw new \Exception("No hay suficiente cantidad disponible de {$materialBase->nombre}. Disponible: {$calculatedAvailable}");
                 }
 
                 // Buscar una instancia de RawMaterial disponible para esta materia prima base
                 $rawMaterial = \App\Models\RawMaterial::where('material_id', $rm['material_id'])
-                    ->where('available_quantity', '>=', $rm['planned_quantity'])
-                    ->orderBy('receipt_date', 'asc') // FIFO
+                    ->where('cantidad_disponible', '>=', $rm['planned_quantity'])
+                    ->orderBy('fecha_recepcion', 'asc') // FIFO
                     ->first();
 
                 if (!$rawMaterial) {
                     // Si no hay instancia disponible, crear una genérica o lanzar error
-                    throw new \Exception("No hay materia prima recibida disponible para {$materialBase->name}. Debe recibir materia prima primero.");
+                    throw new \Exception("No hay materia prima recibida disponible para {$materialBase->nombre}. Debe recibir materia prima primero.");
                 }
 
                 // Sincronizar secuencia y crear batch raw material
-                $maxBatchMaterialId = DB::table('batch_raw_material')->max('batch_material_id');
+                $maxBatchMaterialId = DB::table('lote_materia_prima')->max('lote_material_id');
                 
                 // Solo sincronizar la secuencia si hay registros existentes
                 if ($maxBatchMaterialId !== null && $maxBatchMaterialId > 0) {
-                    DB::statement("SELECT setval('batch_raw_material_seq', {$maxBatchMaterialId}, true)");
+                    DB::statement("SELECT setval('lote_materia_prima_seq', {$maxBatchMaterialId}, true)");
                 }
                 
                 // Obtener el siguiente ID de la secuencia
-                $batchMaterialNextId = DB::selectOne("SELECT nextval('batch_raw_material_seq') as id")->id;
+                $batchMaterialNextId = DB::selectOne("SELECT nextval('lote_materia_prima_seq') as id")->id;
                 
                 $batchMaterialId = DB::selectOne("
-                    INSERT INTO batch_raw_material (batch_material_id, batch_id, raw_material_id, planned_quantity, used_quantity)
+                    INSERT INTO lote_materia_prima (lote_material_id, lote_id, materia_prima_id, cantidad_planificada, cantidad_usada)
                     VALUES (?, ?, ?, ?, ?)
-                    RETURNING batch_material_id
+                    RETURNING lote_material_id
                 ", [
                     $batchMaterialNextId,
-                    $batch->batch_id,
-                    $rawMaterial->raw_material_id,
+                    $batch->lote_id,
+                    $rawMaterial->materia_prima_id,
                     $rm['planned_quantity'],
                     0
-                ])->batch_material_id;
+                ])->lote_material_id;
 
                 // Descontar de la materia prima base
-                $materialBase->available_quantity -= $rm['planned_quantity'];
+                $materialBase->cantidad_disponible -= $rm['planned_quantity'];
                 $materialBase->save();
 
                 // Descontar de la instancia de raw material
-                $rawMaterial->available_quantity -= $rm['planned_quantity'];
+                $rawMaterial->cantidad_disponible -= $rm['planned_quantity'];
                 $rawMaterial->save();
 
                 // Sincronizar secuencia y registrar en log de movimientos
-                $maxLogId = DB::table('material_movement_log')->max('log_id');
+                $maxLogId = DB::table('registro_movimiento_material')->max('registro_id');
                 
                 // Solo sincronizar la secuencia si hay registros existentes
                 if ($maxLogId !== null && $maxLogId > 0) {
-                    DB::statement("SELECT setval('material_movement_log_seq', {$maxLogId}, true)");
+                    DB::statement("SELECT setval('registro_movimiento_material_seq', {$maxLogId}, true)");
                 }
                 
                 // Obtener el siguiente ID del log
-                $logNextId = DB::selectOne("SELECT nextval('material_movement_log_seq') as id")->id;
+                $logNextId = DB::selectOne("SELECT nextval('registro_movimiento_material_seq') as id")->id;
                 
                 DB::selectOne("
-                    INSERT INTO material_movement_log (log_id, material_id, movement_type_id, user_id, quantity, previous_balance, new_balance, description)
+                    INSERT INTO registro_movimiento_material (registro_id, material_id, tipo_movimiento_id, operador_id, cantidad, saldo_anterior, saldo_nuevo, descripcion)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    RETURNING log_id
+                    RETURNING registro_id
                 ", [
                     $logNextId,
                     $rm['material_id'],
                     2, // Salida
                     auth()->id(),
                     $rm['planned_quantity'],
-                    $materialBase->available_quantity + $rm['planned_quantity'],
-                    $materialBase->available_quantity,
-                    "Descuento por creación de lote (Código: {$batch->batch_code})"
+                    $materialBase->cantidad_disponible + $rm['planned_quantity'],
+                    $materialBase->cantidad_disponible,
+                    "Descuento por creación de lote (Código: {$batch->codigo_lote})"
                 ]);
             }
 
-            // Cambiar estado del pedido si existe
-            if ($request->order_id) {
-                // El estado se maneja por priority, no hay campo estado directo
-                // Podrías agregar lógica aquí si necesitas cambiar el estado
+            // Actualizar estado del pedido a "en_proceso" cuando se crea un lote
+            if ($request->pedido_id) {
+                $pedido = \App\Models\CustomerOrder::find($request->pedido_id);
+                if ($pedido && $pedido->estado == 'pendiente') {
+                    $pedido->update(['estado' => 'en_proceso']);
+                }
             }
 
             DB::commit();
@@ -278,32 +280,32 @@ class GestionLotesController extends Controller
             ])->findOrFail($id);
             
             return response()->json([
-                'batch_id' => $lote->batch_id,
-                'batch_code' => $lote->batch_code,
-                'name' => $lote->name,
-                'order_id' => $lote->order_id,
-                'order_number' => $lote->order->order_number ?? null,
-                'order_name' => $lote->order->name ?? null,
-                'customer_name' => $lote->order->customer->business_name ?? null,
-                'creation_date' => $lote->creation_date,
-                'start_time' => $lote->start_time,
-                'end_time' => $lote->end_time,
-                'target_quantity' => $lote->target_quantity,
-                'produced_quantity' => $lote->produced_quantity,
-                'observations' => $lote->observations,
+                'batch_id' => $lote->lote_id,
+                'batch_code' => $lote->codigo_lote,
+                'name' => $lote->nombre,
+                'order_id' => $lote->pedido_id,
+                'order_number' => $lote->order->numero_pedido ?? null,
+                'order_name' => $lote->order->nombre ?? null,
+                'customer_name' => $lote->order->customer->razon_social ?? null,
+                'creation_date' => $lote->fecha_creacion,
+                'start_time' => $lote->hora_inicio,
+                'end_time' => $lote->hora_fin,
+                'target_quantity' => $lote->cantidad_objetivo,
+                'produced_quantity' => $lote->cantidad_producida,
+                'observations' => $lote->observaciones,
                 'raw_materials' => $lote->rawMaterials->map(function($rm) {
                     return [
-                        'material_name' => $rm->rawMaterial->materialBase->name ?? 'N/A',
-                        'unit' => $rm->rawMaterial->materialBase->unit->code ?? 'N/A',
-                        'supplier' => $rm->rawMaterial->supplier->business_name ?? 'N/A',
-                        'planned_quantity' => $rm->planned_quantity,
-                        'used_quantity' => $rm->used_quantity,
+                        'material_name' => $rm->rawMaterial->materialBase->nombre ?? 'N/A',
+                        'unit' => $rm->rawMaterial->materialBase->unit->codigo ?? 'N/A',
+                        'supplier' => $rm->rawMaterial->supplier->razon_social ?? 'N/A',
+                        'planned_quantity' => $rm->cantidad_planificada,
+                        'used_quantity' => $rm->cantidad_usada,
                     ];
                 }),
                 'evaluation' => $lote->finalEvaluation->first() ? [
-                    'reason' => $lote->finalEvaluation->first()->reason,
-                    'observations' => $lote->finalEvaluation->first()->observations,
-                    'evaluation_date' => $lote->finalEvaluation->first()->evaluation_date,
+                    'reason' => $lote->finalEvaluation->first()->razon,
+                    'observations' => $lote->finalEvaluation->first()->observaciones,
+                    'evaluation_date' => $lote->finalEvaluation->first()->fecha_evaluacion,
                 ] : null,
             ]);
         } catch (\Exception $e) {
@@ -320,15 +322,15 @@ class GestionLotesController extends Controller
             ])->findOrFail($id);
             
             return response()->json([
-                'batch_id' => $lote->batch_id,
-                'name' => $lote->name,
-                'order_id' => $lote->order_id,
-                'target_quantity' => $lote->target_quantity,
-                'observations' => $lote->observations,
+                'batch_id' => $lote->lote_id,
+                'name' => $lote->nombre,
+                'order_id' => $lote->pedido_id,
+                'target_quantity' => $lote->cantidad_objetivo,
+                'observations' => $lote->observaciones,
                 'raw_materials' => $lote->rawMaterials->map(function($rm) {
                     return [
                         'material_id' => $rm->rawMaterial->material_id,
-                        'planned_quantity' => $rm->planned_quantity,
+                        'planned_quantity' => $rm->cantidad_planificada,
                     ];
                 }),
             ]);
@@ -341,7 +343,7 @@ class GestionLotesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
-            'order_id' => 'nullable|integer|exists:customer_order,order_id',
+            'pedido_id' => 'nullable|integer|exists:pedido_cliente,pedido_id',
             'target_quantity' => 'nullable|numeric|min:0',
             'observations' => 'nullable|string|max:500',
         ]);
@@ -357,15 +359,15 @@ class GestionLotesController extends Controller
             $lote = ProductionBatch::findOrFail($id);
             
             // Solo permitir editar si el lote no ha comenzado
-            if ($lote->start_time) {
+            if ($lote->hora_inicio) {
                 throw new \Exception('No se puede editar un lote que ya ha comenzado su producción');
             }
 
             $lote->update([
-                'name' => $request->name,
-                'order_id' => $request->order_id ?? $lote->order_id,
-                'target_quantity' => $request->target_quantity,
-                'observations' => $request->observations,
+                'nombre' => $request->name,
+                'pedido_id' => $request->pedido_id ?? $lote->pedido_id,
+                'cantidad_objetivo' => $request->target_quantity,
+                'observaciones' => $request->observations,
             ]);
 
             DB::commit();

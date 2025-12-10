@@ -7,26 +7,26 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MaterialRequestDetail extends Model
 {
-    protected $table = 'material_request_detail';
-    protected $primaryKey = 'detail_id';
+    protected $table = 'detalle_solicitud_material';
+    protected $primaryKey = 'detalle_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'detail_id',
-        'request_id',
+        'detalle_id',
+        'solicitud_id',
         'material_id',
-        'requested_quantity',
-        'approved_quantity'
+        'cantidad_solicitada',
+        'cantidad_aprobada'
     ];
 
     protected $casts = [
-        'requested_quantity' => 'decimal:4',
-        'approved_quantity' => 'decimal:4',
+        'cantidad_solicitada' => 'decimal:4',
+        'cantidad_aprobada' => 'decimal:4',
     ];
 
     public function request(): BelongsTo
     {
-        return $this->belongsTo(MaterialRequest::class, 'request_id', 'request_id');
+        return $this->belongsTo(MaterialRequest::class, 'solicitud_id', 'solicitud_id');
     }
 
     public function material(): BelongsTo

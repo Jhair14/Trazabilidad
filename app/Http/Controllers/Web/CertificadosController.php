@@ -19,7 +19,7 @@ class CertificadosController extends Controller
                 'rawMaterials.rawMaterial.materialBase',
                 'storage'
             ])
-            ->orderBy('creation_date', 'desc')
+            ->orderBy('fecha_creacion', 'desc')
             ->paginate(15);
 
         return view('certificados', compact('certificados'));
@@ -29,11 +29,14 @@ class CertificadosController extends Controller
     {
         $lote = ProductionBatch::with([
             'order.customer',
+            'order.orderProducts.product.unit',
             'latestFinalEvaluation.inspector',
             'processMachineRecords.processMachine.machine',
             'processMachineRecords.processMachine.process',
+            'processMachineRecords.processMachine.variables.standardVariable',
             'processMachineRecords.operator',
-            'rawMaterials.rawMaterial.materialBase',
+            'rawMaterials.rawMaterial.materialBase.unit',
+            'rawMaterials.rawMaterial.supplier',
             'storage'
         ])->findOrFail($id);
 

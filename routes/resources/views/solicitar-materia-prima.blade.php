@@ -36,7 +36,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
                             <div class="inner">
-                                <h3>{{ $solicitudes->total() }}</h3>
+                                <h3>{{ $stats['total'] ?? 0 }}</h3>
                                 <p>Total Solicitudes</p>
                             </div>
                             <div class="icon">
@@ -47,7 +47,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>{{ $solicitudes->where('priority', '>', 0)->count() }}</h3>
+                                <h3>{{ $stats['pendientes'] ?? 0 }}</h3>
                                 <p>Pendientes</p>
                             </div>
                             <div class="icon">
@@ -58,7 +58,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>{{ $solicitudes->where('priority', 0)->count() }}</h3>
+                                <h3>{{ $stats['completadas'] ?? 0 }}</h3>
                                 <p>Completadas</p>
                             </div>
                             <div class="icon">
@@ -69,11 +69,11 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-primary">
                             <div class="inner">
-                                <h3>{{ $solicitudes->where('priority', '>', 5)->count() }}</h3>
-                                <p>Urgentes</p>
+                                <h3>{{ $pedidos->count() }}</h3>
+                                <p>Pedidos Sin Solicitud</p>
                             </div>
                             <div class="icon">
-                                <i class="fas fa-exclamation"></i>
+                                <i class="fas fa-list"></i>
                             </div>
                         </div>
                     </div>
@@ -121,27 +121,33 @@
                         <tbody>
                             @forelse($solicitudes as $solicitud)
                             <tr>
-                                <td>#{{ $solicitud->request_number ?? $solicitud->request_id }}</td>
-                                <td>{{ $solicitud->order->customer->business_name ?? 'N/A' }}</td>
+                                <td>#{{ $solicitud->numero_solicitud ?? $solicitud->solicitud_id }}</td>
+                                <td>{{ $solicitud->order->customer->razon_social ?? 'N/A' }}</td>
                                 <td>
                                     @foreach($solicitud->details as $detail)
-                                        {{ $detail->material->name ?? 'N/A' }}<br>
+                                        {{ $detail->material->nombre ?? 'N/A' }}<br>
                                     @endforeach
                                 </td>
                                 <td>
                                     @foreach($solicitud->details as $detail)
-                                        {{ number_format($detail->requested_quantity, 2) }} {{ $detail->material->unit->code ?? '' }}<br>
+                                        {{ number_format($detail->cantidad_solicitada, 2) }} {{ $detail->material->unit->codigo ?? '' }}<br>
                                     @endforeach
                                 </td>
                                 <td>
-                                    @if($solicitud->priority > 0)
-                                        <span class="badge badge-warning">Pendiente</span>
-                                    @else
+                                    @php
+                                        // Verificar si la solicitud está completada basándose en si todos los detalles tienen cantidad aprobada
+                                        $completada = $solicitud->details->every(function($detail) {
+                                            return $detail->cantidad_aprobada > 0;
+                                        });
+                                    @endphp
+                                    @if($completada)
                                         <span class="badge badge-success">Completada</span>
+                                    @else
+                                        <span class="badge badge-warning">Pendiente</span>
                                     @endif
                                 </td>
-                                <td>{{ \Carbon\Carbon::parse($solicitud->request_date)->format('Y-m-d') }}</td>
-                                <td>{{ $solicitud->required_date ? \Carbon\Carbon::parse($solicitud->required_date)->format('Y-m-d') : 'N/A' }}</td>
+                                <td>{{ \Carbon\Carbon::parse($solicitud->fecha_solicitud)->format('Y-m-d') }}</td>
+                                <td>{{ $solicitud->fecha_requerida ? \Carbon\Carbon::parse($solicitud->fecha_requerida)->format('Y-m-d') : 'N/A' }}</td>
                                 <td>
                                     <button class="btn btn-info btn-sm" title="Ver">
                                         <i class="fas fa-eye"></i>
@@ -198,54 +204,37 @@
                     
                     <!-- Pedido Asociado -->
                     <div class="form-group">
-                        <label for="order_id">
+                        <label for="pedido_id">
                             <i class="fas fa-shopping-cart mr-1"></i>
                             Pedido Asociado <span class="text-danger">*</span>
                         </label>
-                        <select class="form-control @error('order_id') is-invalid @enderror" 
-                                id="order_id" name="order_id" required>
+                        <select class="form-control @error('pedido_id') is-invalid @enderror" 
+                                id="pedido_id" name="pedido_id" required>
                             <option value="">Seleccionar pedido...</option>
                             @foreach($pedidos as $pedido)
-                                <option value="{{ $pedido->order_id }}" {{ old('order_id') == $pedido->order_id ? 'selected' : '' }}>
-                                    {{ $pedido->name ?? 'Sin nombre' }} - {{ $pedido->customer->business_name ?? 'N/A' }}
+                                <option value="{{ $pedido->pedido_id }}" {{ old('pedido_id') == $pedido->pedido_id ? 'selected' : '' }}>
+                                    {{ $pedido->nombre ?? 'Sin nombre' }} - {{ $pedido->customer->razon_social ?? 'N/A' }}
                                 </option>
                             @endforeach
                         </select>
-                        @error('order_id')
+                        @error('pedido_id')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                         <small class="form-text text-muted">Seleccione el pedido al que pertenece esta solicitud</small>
                     </div>
                     
-                    <!-- Fecha y Prioridad -->
+                    <!-- Fecha -->
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="required_date">
+                                <label for="fecha_requerida">
                                     <i class="fas fa-calendar-alt mr-1"></i>
                                     Fecha Requerida <span class="text-danger">*</span>
                                 </label>
-                                <input type="date" class="form-control @error('required_date') is-invalid @enderror" 
-                                       id="required_date" name="required_date" 
-                                       value="{{ old('required_date') }}" required>
-                                @error('required_date')
-                                    <span class="invalid-feedback">{{ $message }}</span>
-                                @enderror
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="priority">
-                                    <i class="fas fa-exclamation-triangle mr-1"></i>
-                                    Prioridad
-                                </label>
-                                <select class="form-control @error('priority') is-invalid @enderror" 
-                                        id="priority" name="priority">
-                                    <option value="1" {{ old('priority', 1) == 1 ? 'selected' : '' }}>Normal</option>
-                                    <option value="5" {{ old('priority') == 5 ? 'selected' : '' }}>Alta</option>
-                                    <option value="10" {{ old('priority') == 10 ? 'selected' : '' }}>Urgente</option>
-                                </select>
-                                @error('priority')
+                                <input type="date" class="form-control @error('fecha_requerida') is-invalid @enderror" 
+                                       id="fecha_requerida" name="fecha_requerida" 
+                                       value="{{ old('fecha_requerida') }}" required min="{{ date('Y-m-d') }}">
+                                @error('fecha_requerida')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -274,7 +263,7 @@
                                                 <option value="">Seleccionar materia prima...</option>
                                                 @foreach($materias_primas as $mp)
                                                     <option value="{{ $mp->material_id }}">
-                                                        {{ $mp->name }} ({{ $mp->unit->code ?? 'N/A' }})
+                                                        {{ $mp->nombre }} ({{ $mp->unit->codigo ?? 'N/A' }})
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -282,7 +271,7 @@
                                         <td>
                                             <div class="input-group input-group-sm">
                                                 <input type="number" class="form-control" 
-                                                       name="materials[0][requested_quantity]" 
+                                                       name="materials[0][cantidad_solicitada]" 
                                                        placeholder="0.00" step="0.01" min="0" required>
                                             </div>
                                         </td>
@@ -335,7 +324,7 @@
 @push('scripts')
 <script>
 let materialIndex = 1;
-const materiasPrimas = @json($materias_primas);
+const materiasPrimas = @json($materias_primas_json ?? []);
 
 function addMaterial() {
     const table = document.getElementById('materialsTable');
@@ -343,7 +332,7 @@ function addMaterial() {
     
     let optionsHtml = '<option value="">Seleccionar materia prima...</option>';
     materiasPrimas.forEach(function(mp) {
-        optionsHtml += `<option value="${mp.material_id}">${mp.name} (${mp.unit ? mp.unit.code : 'N/A'})</option>`;
+        optionsHtml += `<option value="${mp.material_id}">${mp.nombre} (${mp.unit ? mp.unit.codigo : 'N/A'})</option>`;
     });
     
     row.innerHTML = `
@@ -355,7 +344,7 @@ function addMaterial() {
         <td>
             <div class="input-group input-group-sm">
                 <input type="number" class="form-control" 
-                       name="materials[${materialIndex}][requested_quantity]" 
+                       name="materials[${materialIndex}][cantidad_solicitada]" 
                        placeholder="0.00" step="0.01" min="0" required>
             </div>
         </td>
@@ -385,13 +374,13 @@ function reindexMaterials() {
     const rows = table.querySelectorAll('tr');
     rows.forEach(function(row, index) {
         const materialSelect = row.querySelector('select[name*="[material_id]"]');
-        const quantityInput = row.querySelector('input[name*="[requested_quantity]"]');
+        const quantityInput = row.querySelector('input[name*="[cantidad_solicitada]"]');
         
         if (materialSelect) {
             materialSelect.name = `materials[${index}][material_id]`;
         }
         if (quantityInput) {
-            quantityInput.name = `materials[${index}][requested_quantity]`;
+            quantityInput.name = `materials[${index}][cantidad_solicitada]`;
         }
     });
     materialIndex = rows.length;
@@ -417,7 +406,7 @@ document.getElementById('crearSolicitudForm').addEventListener('submit', functio
     
     rows.forEach(function(row) {
         const materialSelect = row.querySelector('select[name*="[material_id]"]');
-        const quantityInput = row.querySelector('input[name*="[requested_quantity]"]');
+        const quantityInput = row.querySelector('input[name*="[cantidad_solicitada]"]');
         
         if (materialSelect && materialSelect.value && quantityInput && quantityInput.value > 0) {
             hasValidMaterial = true;

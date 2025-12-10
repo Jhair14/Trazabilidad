@@ -7,23 +7,23 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RawMaterialCategory extends Model
 {
-    protected $table = 'raw_material_category';
-    protected $primaryKey = 'category_id';
+    protected $table = 'categoria_materia_prima';
+    protected $primaryKey = 'categoria_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'code',
-        'name',
-        'description',
-        'active'
+        'codigo',
+        'nombre',
+        'descripcion',
+        'activo'
     ];
 
     protected $casts = [
-        'active' => 'boolean',
+        'activo' => 'boolean',
     ];
 
     public function rawMaterialBases(): HasMany
     {
-        return $this->hasMany(RawMaterialBase::class, 'category_id', 'category_id');
+        return $this->hasMany(RawMaterialBase::class, 'categoria_id', 'categoria_id');
     }
 }

@@ -47,7 +47,7 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-success">
             <div class="inner">
-                                <h3>{{ $maquinas->where('active', true)->count() }}</h3>
+                                <h3>{{ $maquinas->where('activo', true)->count() }}</h3>
                 <p>Operativas</p>
             </div>
             <div class="icon">
@@ -69,7 +69,7 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-danger">
             <div class="inner">
-                                <h3>{{ $maquinas->where('active', false)->count() }}</h3>
+                                <h3>{{ $maquinas->where('activo', false)->count() }}</h3>
                 <p>Fuera de Servicio</p>
             </div>
             <div class="icon">
@@ -96,8 +96,8 @@
                             @forelse($maquinas as $maquina)
                             <tr>
                                 <td>
-                                    @if($maquina->image_url)
-                                        <img src="{{ $maquina->image_url }}" alt="{{ $maquina->name }}" 
+                                    @if($maquina->imagen_url)
+                                        <img src="{{ $maquina->imagen_url }}" alt="{{ $maquina->nombre }}" 
                                              class="img-thumbnail" style="max-width: 80px; max-height: 80px; object-fit: cover;">
                                     @else
                                         <div class="bg-light d-flex align-items-center justify-content-center" 
@@ -106,34 +106,29 @@
         </div>
                                     @endif
                                 </td>
-                                <td>#{{ $maquina->machine_id }}</td>
-                                <td>{{ $maquina->name }}</td>
-                                <td>{{ $maquina->description ?? 'Sin descripción' }}</td>
+                                <td>#{{ $maquina->maquina_id }}</td>
+                                <td>{{ $maquina->nombre }}</td>
+                                <td>{{ $maquina->descripcion ?? 'Sin descripción' }}</td>
                                 <td>
-                                    @if($maquina->active)
+                                    @if($maquina->activo)
                                         <span class="badge badge-success">Operativa</span>
                                     @else
                                         <span class="badge badge-danger">Fuera de Servicio</span>
                                     @endif
                                 </td>
                                 <td class="text-right">
-                                    <a href="{{ route('maquinas.show', $maquina->machine_id) }}" 
+                                    <a href="{{ route('maquinas.show', $maquina->maquina_id) }}" 
                                        class="btn btn-sm btn-info" title="Ver">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     <button type="button" class="btn btn-sm btn-warning" title="Editar" 
-                                            onclick="editarMaquina({{ $maquina->machine_id }}, '{{ $maquina->name }}', '{{ $maquina->description ?? '' }}', '{{ $maquina->image_url ?? '' }}', {{ $maquina->active ? 'true' : 'false' }})">
+                                            onclick="editarMaquina({{ $maquina->maquina_id }}, '{{ $maquina->nombre }}', '{{ $maquina->descripcion ?? '' }}', '{{ $maquina->imagen_url ?? '' }}', {{ $maquina->activo ? 'true' : 'false' }})">
                                         <i class="fas fa-edit"></i>
                                 </button>
-                                    <form method="POST" action="{{ route('maquinas.destroy', $maquina->machine_id) }}" 
-                                          style="display: inline;" 
-                                          onsubmit="return confirm('¿Está seguro de eliminar esta máquina?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
-                                            <i class="fas fa-trash"></i>
-                                </button>
-                                    </form>
+                                    <button type="button" class="btn btn-sm btn-danger" title="Eliminar" 
+                                            onclick="confirmarEliminar({{ $maquina->maquina_id }}, '{{ $maquina->nombre }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </td>
                             </tr>
                             @empty
@@ -188,27 +183,27 @@
                     @csrf
                     
                     <div class="form-group">
-                        <label for="name">
+                        <label for="nombre">
                             <i class="fas fa-tag mr-1"></i>
                             Nombre de la Máquina <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                               id="name" name="name" value="{{ old('name') }}" 
+                        <input type="text" class="form-control @error('nombre') is-invalid @enderror" 
+                               id="nombre" name="nombre" value="{{ old('nombre') }}" 
                                placeholder="Ej: Mezcladora Industrial" required>
-                        @error('name')
+                        @error('nombre')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
                     
                     <div class="form-group">
-                        <label for="description">
+                        <label for="descripcion">
                             <i class="fas fa-align-left mr-1"></i>
                             Descripción
                         </label>
-                        <textarea class="form-control @error('description') is-invalid @enderror" 
-                                  id="description" name="description" rows="3" 
-                                  placeholder="Descripción detallada de la máquina...">{{ old('description') }}</textarea>
-                        @error('description')
+                        <textarea class="form-control @error('descripcion') is-invalid @enderror" 
+                                  id="descripcion" name="descripcion" rows="3" 
+                                  placeholder="Descripción detallada de la máquina...">{{ old('descripcion') }}</textarea>
+                        @error('descripcion')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
             </div>
@@ -265,6 +260,42 @@
     </div>
 </div>
 
+<!-- Modal Confirmar Eliminación -->
+<div class="modal fade" id="confirmarEliminarModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h4 class="modal-title">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Confirmar Eliminación
+                </h4>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de eliminar esta máquina?</p>
+                <p class="font-weight-bold" id="maquinaNombreEliminar"></p>
+                <p class="text-danger"><small>Esta acción no se puede deshacer.</small></p>
+                <form method="POST" id="eliminarMaquinaForm" style="display: none;">
+                    @csrf
+                    @method('DELETE')
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-danger" onclick="eliminarMaquina()">
+                    <i class="fas fa-trash mr-1"></i>
+                    Sí, Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Editar Máquina -->
 <div class="modal fade" id="editarMaquinaModal" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg" role="document">
@@ -284,21 +315,21 @@
                     @method('PUT')
                     
                             <div class="form-group">
-                        <label for="edit_name">
+                        <label for="edit_nombre">
                             <i class="fas fa-tag mr-1"></i>
                             Nombre de la Máquina <span class="text-danger">*</span>
                         </label>
                         <input type="text" class="form-control" 
-                               id="edit_name" name="name" required>
+                               id="edit_nombre" name="nombre" required>
                             </div>
                     
                             <div class="form-group">
-                        <label for="edit_description">
+                        <label for="edit_descripcion">
                             <i class="fas fa-align-left mr-1"></i>
                             Descripción
                         </label>
                         <textarea class="form-control" 
-                                  id="edit_description" name="description" rows="3"></textarea>
+                                  id="edit_descripcion" name="descripcion" rows="3"></textarea>
                     </div>
 
                             <div class="form-group">
@@ -335,8 +366,8 @@
 
                             <div class="form-group">
                         <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="edit_active" name="active" value="1">
-                            <label class="form-check-label" for="edit_active">
+                            <input type="checkbox" class="form-check-input" id="edit_activo" name="activo" value="1">
+                            <label class="form-check-label" for="edit_activo">
                                 Máquina Activa
                             </label>
                         </div>
@@ -384,16 +415,16 @@ function clearImagePreview(previewId) {
     document.getElementById(container).style.display = 'none';
 }
 
-function editarMaquina(id, name, description, imageUrl, active) {
+function editarMaquina(id, nombre, descripcion, imagenUrl, activo) {
     document.getElementById('editarMaquinaForm').action = '{{ url("maquinas") }}/' + id;
-    document.getElementById('edit_name').value = name;
-    document.getElementById('edit_description').value = description || '';
-    document.getElementById('edit_current_image_url').value = imageUrl || '';
-    document.getElementById('edit_active').checked = active;
+    document.getElementById('edit_nombre').value = nombre;
+    document.getElementById('edit_descripcion').value = descripcion || '';
+    document.getElementById('edit_current_image_url').value = imagenUrl || '';
+    document.getElementById('edit_activo').checked = activo;
     
     // Mostrar imagen actual si existe
-    if (imageUrl) {
-        document.getElementById('edit_current_image').src = imageUrl;
+    if (imagenUrl) {
+        document.getElementById('edit_current_image').src = imagenUrl;
         document.getElementById('edit_current_image_container').style.display = 'block';
     } else {
         document.getElementById('edit_current_image_container').style.display = 'none';
@@ -444,7 +475,7 @@ document.getElementById('crearMaquinaForm').addEventListener('submit', async fun
         }
         
         // Agregar la URL de la imagen al formulario
-        formData.append('image_url', uploadResult.imageUrl);
+        formData.append('imagen_url', uploadResult.imageUrl);
         formData.delete('image_file'); // Eliminar el archivo del FormData
         
         // Crear un formulario temporal para enviar
@@ -514,7 +545,7 @@ document.getElementById('editarMaquinaForm').addEventListener('submit', async fu
             }
             
             // Agregar la URL de la imagen al formulario
-            formData.append('image_url', uploadResult.imageUrl);
+            formData.append('imagen_url', uploadResult.imageUrl);
             formData.delete('image_file');
         } catch (error) {
             alert('Error al subir la imagen: ' + error.message);
@@ -586,5 +617,21 @@ $('#editarMaquinaModal').on('hidden.bs.modal', function () {
     document.getElementById('edit_current_image_container').style.display = 'none';
     document.getElementById('edit_image_file').nextElementSibling.textContent = 'Seleccionar nueva imagen...';
 });
+
+// Variables para el modal de eliminación
+let maquinaIdAEliminar = null;
+
+function confirmarEliminar(id, nombre) {
+    maquinaIdAEliminar = id;
+    document.getElementById('maquinaNombreEliminar').textContent = nombre;
+    document.getElementById('eliminarMaquinaForm').action = '{{ url("maquinas") }}/' + id;
+    $('#confirmarEliminarModal').modal('show');
+}
+
+function eliminarMaquina() {
+    if (maquinaIdAEliminar) {
+        document.getElementById('eliminarMaquinaForm').submit();
+    }
+}
 </script>
 @endpush

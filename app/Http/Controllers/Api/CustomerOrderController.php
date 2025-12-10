@@ -45,19 +45,19 @@ class CustomerOrderController extends Controller
             $data = $order->toArray();
             $data['orderProducts'] = $order->orderProducts->map(function($op) {
                 return [
-                    'order_product_id' => $op->order_product_id,
-                    'product_id' => $op->product_id,
-                    'quantity' => $op->quantity,
-                    'status' => $op->status,
-                    'observations' => $op->observations,
-                    'rejection_reason' => $op->rejection_reason,
+                    'producto_pedido_id' => $op->producto_pedido_id,
+                    'producto_id' => $op->producto_id,
+                    'cantidad' => $op->cantidad,
+                    'estado' => $op->estado,
+                    'observaciones' => $op->observaciones,
+                    'razon_rechazo' => $op->razon_rechazo,
                     'product' => [
-                        'product_id' => $op->product->product_id,
-                        'name' => $op->product->name ?? 'N/A',
-                        'code' => $op->product->code ?? 'N/A',
+                        'producto_id' => $op->product->producto_id,
+                        'nombre' => $op->product->nombre ?? 'N/A',
+                        'codigo' => $op->product->codigo ?? 'N/A',
                         'unit' => [
-                            'name' => $op->product->unit->name ?? 'N/A',
-                            'abbreviation' => $op->product->unit->code ?? 'N/A',
+                            'nombre' => $op->product->unit->nombre ?? 'N/A',
+                            'abbreviation' => $op->product->unit->codigo ?? 'N/A',
                         ]
                     ]
                 ];
@@ -75,28 +75,27 @@ class CustomerOrderController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'customer_id' => 'required|integer|exists:customer,customer_id',
-            'name' => 'required|string|max:200',
-            'delivery_date' => 'nullable|date',
-            'priority' => 'nullable|integer|min:1|max:10',
-            'description' => 'nullable|string',
-            'observations' => 'nullable|string',
-            'editable_until' => 'nullable|date|after:now',
+            'cliente_id' => 'required|integer|exists:cliente,cliente_id',
+            'nombre' => 'required|string|max:200',
+            'fecha_entrega' => 'nullable|date',
+            'descripcion' => 'nullable|string',
+            'observaciones' => 'nullable|string',
+            'editable_hasta' => 'nullable|date|after:now',
             'products' => 'required|array|min:1',
-            'products.*.product_id' => 'required|integer|exists:product,product_id',
-            'products.*.quantity' => 'required|numeric|min:0.0001',
-            'products.*.observations' => 'nullable|string',
+            'products.*.producto_id' => 'required|integer|exists:producto,producto_id',
+            'products.*.cantidad' => 'required|numeric|min:0.0001',
+            'products.*.observaciones' => 'nullable|string',
             'destinations' => 'required|array|min:1',
-            'destinations.*.address' => 'required|string|max:500',
-            'destinations.*.latitude' => 'nullable|numeric|between:-90,90',
-            'destinations.*.longitude' => 'nullable|numeric|between:-180,180',
-            'destinations.*.reference' => 'nullable|string|max:200',
-            'destinations.*.contact_name' => 'nullable|string|max:200',
-            'destinations.*.contact_phone' => 'nullable|string|max:20',
-            'destinations.*.delivery_instructions' => 'nullable|string',
+            'destinations.*.direccion' => 'required|string|max:500',
+            'destinations.*.latitud' => 'nullable|numeric|between:-90,90',
+            'destinations.*.longitud' => 'nullable|numeric|between:-180,180',
+            'destinations.*.referencia' => 'nullable|string|max:200',
+            'destinations.*.nombre_contacto' => 'nullable|string|max:200',
+            'destinations.*.telefono_contacto' => 'nullable|string|max:20',
+            'destinations.*.instrucciones_entrega' => 'nullable|string',
             'destinations.*.products' => 'required|array|min:1',
             'destinations.*.products.*.order_product_index' => 'required|integer|min:0',
-            'destinations.*.products.*.quantity' => 'required|numeric|min:0.0001',
+            'destinations.*.products.*.cantidad' => 'required|numeric|min:0.0001',
         ]);
 
         if ($validator->fails()) {
@@ -110,44 +109,49 @@ class CustomerOrderController extends Controller
             DB::beginTransaction();
 
             // Obtener el siguiente ID de la secuencia
-            $maxId = DB::table('customer_order')->max('order_id') ?? 0;
-            $nextId = $maxId + 1;
+            $maxId = DB::table('pedido_cliente')->max('pedido_id') ?? 0;
+            if ($maxId > 0) {
+                DB::statement("SELECT setval('pedido_cliente_seq', {$maxId}, true)");
+            }
+            $nextId = DB::selectOne("SELECT nextval('pedido_cliente_seq') as id")->id;
             
             // Generar número de pedido automáticamente
             $orderNumber = 'PED-' . str_pad($nextId, 4, '0', STR_PAD_LEFT) . '-' . date('Ymd');
             
             // Calcular fecha límite de edición (por defecto 24 horas)
-            $editableUntil = $request->editable_until 
-                ? now()->parse($request->editable_until)
+            $editableUntil = $request->editable_hasta 
+                ? now()->parse($request->editable_hasta)
                 : now()->addHours(24);
             
             $order = CustomerOrder::create([
-                'order_id' => $nextId,
-                'customer_id' => $request->customer_id,
-                'order_number' => $orderNumber,
-                'name' => $request->name,
-                'status' => 'pendiente',
-                'creation_date' => now()->toDateString(),
-                'delivery_date' => $request->delivery_date,
-                'priority' => $request->priority ?? 1,
-                'description' => $request->description,
-                'observations' => $request->observations,
-                'editable_until' => $editableUntil,
+                'pedido_id' => $nextId,
+                'cliente_id' => $request->cliente_id,
+                'numero_pedido' => $orderNumber,
+                'nombre' => $request->nombre,
+                'estado' => 'pendiente',
+                'fecha_creacion' => now()->toDateString(),
+                'fecha_entrega' => $request->fecha_entrega,
+                'descripcion' => $request->descripcion,
+                'observaciones' => $request->observaciones,
+                'editable_hasta' => $editableUntil,
             ]);
 
             // Crear productos del pedido
             $orderProducts = [];
             foreach ($request->products as $index => $productData) {
-                $orderProductId = DB::table('order_product')->max('order_product_id') ?? 0;
-                $orderProductId = $orderProductId + $index + 1;
+                $maxProductId = DB::table('producto_pedido')->max('producto_pedido_id') ?? 0;
+                if ($maxProductId > 0) {
+                    DB::statement("SELECT setval('producto_pedido_seq', {$maxProductId}, true)");
+                }
+                $orderProductId = DB::selectOne("SELECT nextval('producto_pedido_seq') as id")->id;
                 
                 $orderProduct = OrderProduct::create([
-                    'order_product_id' => $orderProductId,
-                    'order_id' => $order->order_id,
-                    'product_id' => $productData['product_id'],
-                    'quantity' => $productData['quantity'],
-                    'status' => 'pendiente',
-                    'observations' => $productData['observations'] ?? null,
+                    'producto_pedido_id' => $orderProductId,
+                    'pedido_id' => $order->pedido_id,
+                    'producto_id' => $productData['producto_id'],
+                    'cantidad' => $productData['cantidad'],
+                    'estado' => 'pendiente',
+                    'observaciones' => $productData['observaciones'] ?? null,
                 ]);
                 
                 $orderProducts[] = $orderProduct;
@@ -155,34 +159,40 @@ class CustomerOrderController extends Controller
 
             // Crear destinos y asignar productos
             foreach ($request->destinations as $destIndex => $destData) {
-                $destinationId = DB::table('order_destination')->max('destination_id') ?? 0;
-                $destinationId = $destinationId + $destIndex + 1;
+                $maxDestId = DB::table('destino_pedido')->max('destino_id') ?? 0;
+                if ($maxDestId > 0) {
+                    DB::statement("SELECT setval('destino_pedido_seq', {$maxDestId}, true)");
+                }
+                $destinationId = DB::selectOne("SELECT nextval('destino_pedido_seq') as id")->id;
                 
                 $destination = OrderDestination::create([
-                    'destination_id' => $destinationId,
-                    'order_id' => $order->order_id,
-                    'address' => $destData['address'],
-                    'latitude' => $destData['latitude'] ?? null,
-                    'longitude' => $destData['longitude'] ?? null,
-                    'reference' => $destData['reference'] ?? null,
-                    'contact_name' => $destData['contact_name'] ?? null,
-                    'contact_phone' => $destData['contact_phone'] ?? null,
-                    'delivery_instructions' => $destData['delivery_instructions'] ?? null,
+                    'destino_id' => $destinationId,
+                    'pedido_id' => $order->pedido_id,
+                    'direccion' => $destData['direccion'],
+                    'latitud' => $destData['latitud'] ?? null,
+                    'longitud' => $destData['longitud'] ?? null,
+                    'referencia' => $destData['referencia'] ?? null,
+                    'nombre_contacto' => $destData['nombre_contacto'] ?? null,
+                    'telefono_contacto' => $destData['telefono_contacto'] ?? null,
+                    'instrucciones_entrega' => $destData['instrucciones_entrega'] ?? null,
                 ]);
 
                 // Asignar productos a este destino
                 foreach ($destData['products'] as $destProdIndex => $destProdData) {
                     $orderProductIndex = $destProdData['order_product_index'];
                     if (isset($orderProducts[$orderProductIndex])) {
-                        $destProdId = DB::table('order_destination_product')->max('destination_product_id') ?? 0;
-                        $destProdId = $destProdId + $destProdIndex + 1;
+                        $maxDestProdId = DB::table('producto_destino_pedido')->max('producto_destino_id') ?? 0;
+                        if ($maxDestProdId > 0) {
+                            DB::statement("SELECT setval('producto_destino_pedido_seq', {$maxDestProdId}, true)");
+                        }
+                        $destProdId = DB::selectOne("SELECT nextval('producto_destino_pedido_seq') as id")->id;
                         
                         OrderDestinationProduct::create([
-                            'destination_product_id' => $destProdId,
-                            'destination_id' => $destination->destination_id,
-                            'order_product_id' => $orderProducts[$orderProductIndex]->order_product_id,
-                            'quantity' => $destProdData['quantity'],
-                            'observations' => $destProdData['observations'] ?? null,
+                            'producto_destino_id' => $destProdId,
+                            'destino_id' => $destination->destino_id,
+                            'producto_pedido_id' => $orderProducts[$orderProductIndex]->producto_pedido_id,
+                            'cantidad' => $destProdData['cantidad'],
+                            'observaciones' => $destProdData['observaciones'] ?? null,
                         ]);
                     }
                 }
@@ -208,7 +218,6 @@ class CustomerOrderController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:200',
             'delivery_date' => 'nullable|date',
-            'priority' => 'nullable|integer|min:1|max:10',
             'description' => 'nullable|string',
             'observations' => 'nullable|string',
         ]);
@@ -231,7 +240,7 @@ class CustomerOrderController extends Controller
             }
 
             $order->update($request->only([
-                'name', 'delivery_date', 'priority', 'description', 'observations'
+                'name', 'delivery_date', 'description', 'observations'
             ]));
 
             return response()->json([

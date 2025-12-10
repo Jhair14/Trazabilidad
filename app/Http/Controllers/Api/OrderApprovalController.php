@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CustomerOrder;
 use App\Models\OrderProduct;
+use App\Models\OrderEnvioTracking;
+use App\Services\PlantaCrudsIntegrationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderApprovalController extends Controller
 {
@@ -211,10 +214,25 @@ class OrderApprovalController extends Controller
 
             DB::commit();
 
-            return response()->json([
+            // NOTA: El envío a plantaCruds ahora se realiza al almacenar el lote, no al aprobar el pedido
+
+            $response = [
                 'message' => 'Pedido aprobado exitosamente',
-                'order' => $order->load('orderProducts.product', 'approver')
-            ]);
+                'order' => $order->load('orderProducts.product', 'approver'),
+            ];
+            
+            if (!empty($enviosCreated)) {
+                $response['envios_created'] = $enviosCreated;
+                $response['integration_success'] = true;
+            }
+            
+            if (!empty($integrationErrors)) {
+                $response['integration_errors'] = $integrationErrors;
+                $response['integration_partial_success'] = !empty($enviosCreated);
+            }
+
+            return response()->json($response);
+            
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -224,6 +242,7 @@ class OrderApprovalController extends Controller
         }
     }
 }
+
 
 
 

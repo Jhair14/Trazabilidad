@@ -12,7 +12,7 @@ class VariablesEstandarController extends Controller
 {
     public function index()
     {
-        $variables = StandardVariable::orderBy('name', 'asc')
+        $variables = StandardVariable::orderBy('nombre', 'asc')
             ->paginate(15);
 
         return view('variables-estandar', compact('variables'));
@@ -21,9 +21,9 @@ class VariablesEstandarController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:100',
-            'unit' => 'nullable|string|max:50',
-            'description' => 'nullable|string|max:255',
+            'nombre' => 'required|string|max:100',
+            'unidad' => 'nullable|string|max:50',
+            'descripcion' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -33,32 +33,25 @@ class VariablesEstandarController extends Controller
         }
 
         try {
-            // Sincronizar secuencia de standard_variable si es necesario
-            $maxVariableId = StandardVariable::max('variable_id') ?? 0;
-            try {
-                $seqResult = DB::selectOne("SELECT last_value FROM standard_variable_seq");
-                $seqValue = $seqResult->last_value ?? 0;
-            } catch (\Exception $e) {
-                $seqValue = 0;
-            }
-            
-            if ($seqValue < $maxVariableId) {
-                DB::statement("SELECT setval('standard_variable_seq', $maxVariableId, true)");
+            // Sincronizar secuencia de variable_estandar si es necesario
+            $maxVariableId = DB::table('variable_estandar')->max('variable_id') ?? 0;
+            if ($maxVariableId > 0) {
+                DB::statement("SELECT setval('variable_estandar_seq', {$maxVariableId}, true)");
             }
             
             // Obtener el siguiente ID de la secuencia
-            $nextId = DB::selectOne("SELECT nextval('standard_variable_seq') as id")->id;
+            $nextId = DB::selectOne("SELECT nextval('variable_estandar_seq') as id")->id;
             
             // Generar código automáticamente
             $code = 'VAR-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
 
             StandardVariable::create([
                 'variable_id' => $nextId,
-                'code' => $code,
-                'name' => $request->name,
-                'unit' => $request->unit,
-                'description' => $request->description,
-                'active' => true,
+                'codigo' => $code,
+                'nombre' => $request->nombre,
+                'unidad' => $request->unidad,
+                'descripcion' => $request->descripcion,
+                'activo' => true,
             ]);
 
             return redirect()->route('variables-estandar')
@@ -76,11 +69,11 @@ class VariablesEstandarController extends Controller
             $variable = StandardVariable::findOrFail($id);
             return response()->json([
                 'variable_id' => $variable->variable_id,
-                'code' => $variable->code,
-                'name' => $variable->name,
-                'unit' => $variable->unit,
-                'description' => $variable->description,
-                'active' => $variable->active,
+                'codigo' => $variable->codigo,
+                'nombre' => $variable->nombre,
+                'unidad' => $variable->unidad,
+                'descripcion' => $variable->descripcion,
+                'activo' => $variable->activo,
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Variable no encontrada'], 404);
@@ -90,10 +83,10 @@ class VariablesEstandarController extends Controller
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:100',
-            'unit' => 'nullable|string|max:50',
-            'description' => 'nullable|string|max:255',
-            'active' => 'nullable|boolean',
+            'nombre' => 'required|string|max:100',
+            'unidad' => 'nullable|string|max:50',
+            'descripcion' => 'nullable|string|max:255',
+            'activo' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -104,7 +97,7 @@ class VariablesEstandarController extends Controller
 
         try {
             $variable = StandardVariable::findOrFail($id);
-            $variable->update($request->only(['name', 'unit', 'description', 'active']));
+            $variable->update($request->only(['nombre', 'unidad', 'descripcion', 'activo']));
 
             return redirect()->route('variables-estandar')
                 ->with('success', 'Variable actualizada exitosamente');

@@ -15,48 +15,48 @@ class MateriaPrimaBaseController extends Controller
     public function index()
     {
         $materias_primas = RawMaterialBase::with(['category', 'unit', 'rawMaterials'])
-            ->where('active', true)
-            ->orderBy('name', 'asc')
+            ->where('activo', true)
+            ->orderBy('nombre', 'asc')
             ->paginate(15);
 
-        // Calcular available_quantity dinámicamente desde las materias primas relacionadas
+        // Calcular cantidad_disponible dinámicamente desde las materias primas relacionadas
         $materias_primas->getCollection()->transform(function ($mp) {
             // Usar la relación cargada o hacer una nueva consulta si no está cargada
             if ($mp->relationLoaded('rawMaterials')) {
                 $calculated = $mp->rawMaterials
-                    ->where('receipt_conformity', true)
-                    ->sum('available_quantity') ?? 0;
+                    ->where('conformidad_recepcion', true)
+                    ->sum('cantidad_disponible') ?? 0;
             } else {
                 $calculated = $mp->rawMaterials()
-                    ->where('receipt_conformity', true)
-                    ->sum('available_quantity') ?? 0;
+                    ->where('conformidad_recepcion', true)
+                    ->sum('cantidad_disponible') ?? 0;
             }
             
-            // Si no hay materias primas recibidas, usar el valor almacenado en raw_material_base
+            // Si no hay materias primas recibidas, usar el valor almacenado en materia_prima_base
             if ($calculated == 0 && ($mp->rawMaterials->count() == 0 || !$mp->relationLoaded('rawMaterials'))) {
-                $mp->calculated_available_quantity = $mp->available_quantity ?? 0;
+                $mp->calculated_available_quantity = $mp->cantidad_disponible ?? 0;
             } else {
                 $mp->calculated_available_quantity = $calculated;
             }
             return $mp;
         });
 
-        $categorias = RawMaterialCategory::where('active', true)->get();
-        $unidades = UnitOfMeasure::where('active', true)->get();
+        $categorias = RawMaterialCategory::where('activo', true)->get();
+        $unidades = UnitOfMeasure::where('activo', true)->get();
 
         // Estadísticas basadas en calculated_available_quantity
         $allMaterias = RawMaterialBase::with('rawMaterials')
-            ->where('active', true)
+            ->where('activo', true)
             ->get()
             ->map(function ($mp) {
                 // Usar la relación cargada
                 $calculated = $mp->rawMaterials
-                    ->where('receipt_conformity', true)
-                    ->sum('available_quantity') ?? 0;
+                    ->where('conformidad_recepcion', true)
+                    ->sum('cantidad_disponible') ?? 0;
                 
-                // Si no hay materias primas recibidas, usar el valor almacenado en raw_material_base
+                // Si no hay materias primas recibidas, usar el valor almacenado en materia_prima_base
                 if ($calculated == 0 && $mp->rawMaterials->count() == 0) {
-                    $mp->calculated_available_quantity = $mp->available_quantity ?? 0;
+                    $mp->calculated_available_quantity = $mp->cantidad_disponible ?? 0;
                 } else {
                     $mp->calculated_available_quantity = $calculated;
                 }
@@ -69,7 +69,7 @@ class MateriaPrimaBaseController extends Controller
 
         foreach ($allMaterias as $mp) {
             $available = $mp->calculated_available_quantity ?? 0;
-            $minimum = $mp->minimum_stock ?? 0;
+            $minimum = $mp->stock_minimo ?? 0;
             
             if ($available <= 0) {
                 $agotadas++;
@@ -93,12 +93,12 @@ class MateriaPrimaBaseController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'category_id' => 'required|integer|exists:raw_material_category,category_id',
-            'unit_id' => 'required|integer|exists:unit_of_measure,unit_id',
-            'name' => 'required|string|max:100',
-            'description' => 'nullable|string|max:255',
-            'minimum_stock' => 'nullable|numeric|min:0',
-            'maximum_stock' => 'nullable|numeric|min:0',
+            'categoria_id' => 'required|integer|exists:categoria_materia_prima,categoria_id',
+            'unidad_id' => 'required|integer|exists:unidad_medida,unidad_id',
+            'nombre' => 'required|string|max:100',
+            'descripcion' => 'nullable|string|max:255',
+            'stock_minimo' => 'nullable|numeric|min:0',
+            'stock_maximo' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -119,43 +119,43 @@ class MateriaPrimaBaseController extends Controller
         DB::beginTransaction();
         try {
             // Verificar que la categoría existe
-            $categoria = RawMaterialCategory::findOrFail($request->category_id);
+            $categoria = RawMaterialCategory::findOrFail($request->categoria_id);
             
             // Verificar que la unidad existe
-            $unidad = UnitOfMeasure::findOrFail($request->unit_id);
+            $unidad = UnitOfMeasure::findOrFail($request->unidad_id);
             
             // Sincronizar la secuencia y obtener el siguiente ID
-            $maxId = DB::table('raw_material_base')->max('material_id');
+            $maxId = DB::table('materia_prima_base')->max('material_id');
             
             // Solo sincronizar la secuencia si hay registros existentes
             // Si no hay registros, PostgreSQL manejará automáticamente el siguiente valor
             if ($maxId !== null && $maxId > 0) {
                 // Sincronizar la secuencia con el máximo ID existente
                 // El tercer parámetro 'true' hace que el siguiente nextval devuelva maxId + 1
-                DB::statement("SELECT setval('raw_material_base_seq', {$maxId}, true)");
+                DB::statement("SELECT setval('materia_prima_base_seq', {$maxId}, true)");
             }
             
             // Obtener el siguiente ID de la secuencia
-            $nextId = DB::selectOne("SELECT nextval('raw_material_base_seq') as id")->id;
+            $nextId = DB::selectOne("SELECT nextval('materia_prima_base_seq') as id")->id;
             
             // Generar código automáticamente
             $code = 'MP-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
 
             // Crear usando SQL directo para evitar conflictos
             $materialId = DB::selectOne("
-                INSERT INTO raw_material_base (material_id, category_id, unit_id, code, name, description, available_quantity, minimum_stock, maximum_stock, active)
+                INSERT INTO materia_prima_base (material_id, categoria_id, unidad_id, codigo, nombre, descripcion, cantidad_disponible, stock_minimo, stock_maximo, activo)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING material_id
             ", [
                 $nextId,
-                $request->category_id,
-                $request->unit_id,
+                $request->categoria_id,
+                $request->unidad_id,
                 $code,
-                $request->name,
-                $request->description,
+                $request->nombre,
+                $request->descripcion,
                 0,
-                $request->minimum_stock ?? 0,
-                $request->maximum_stock,
+                $request->stock_minimo ?? 0,
+                $request->stock_maximo,
                 true
             ])->material_id;
 
@@ -196,25 +196,25 @@ class MateriaPrimaBaseController extends Controller
             
             // Calcular stock actual
             $calculated = $materia->rawMaterials
-                ->where('receipt_conformity', true)
-                ->sum('available_quantity') ?? 0;
+                ->where('conformidad_recepcion', true)
+                ->sum('cantidad_disponible') ?? 0;
             
             if ($calculated == 0 && $materia->rawMaterials->count() == 0) {
-                $calculated = $materia->available_quantity ?? 0;
+                $calculated = $materia->cantidad_disponible ?? 0;
             }
             
             return response()->json([
                 'material_id' => $materia->material_id,
-                'code' => $materia->code,
-                'name' => $materia->name,
-                'category_id' => $materia->category_id,
-                'unit_id' => $materia->unit_id,
-                'description' => $materia->description,
-                'minimum_stock' => $materia->minimum_stock,
-                'maximum_stock' => $materia->maximum_stock,
+                'code' => $materia->codigo,
+                'name' => $materia->nombre,
+                'category_id' => $materia->categoria_id,
+                'unit_id' => $materia->unidad_id,
+                'description' => $materia->descripcion,
+                'minimum_stock' => $materia->stock_minimo,
+                'maximum_stock' => $materia->stock_maximo,
                 'current_stock' => $calculated,
                 'available_quantity' => number_format($calculated, 2),
-                'active' => $materia->active,
+                'active' => $materia->activo,
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Materia prima no encontrada'], 404);
@@ -224,13 +224,13 @@ class MateriaPrimaBaseController extends Controller
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:100',
-            'category_id' => 'required|integer|exists:raw_material_category,category_id',
-            'unit_id' => 'required|integer|exists:unit_of_measure,unit_id',
-            'description' => 'nullable|string|max:255',
-            'minimum_stock' => 'nullable|numeric|min:0',
-            'maximum_stock' => 'nullable|numeric|min:0',
-            'active' => 'nullable|boolean',
+            'nombre' => 'required|string|max:100',
+            'categoria_id' => 'required|integer|exists:categoria_materia_prima,categoria_id',
+            'unidad_id' => 'required|integer|exists:unidad_medida,unidad_id',
+            'descripcion' => 'nullable|string|max:255',
+            'stock_minimo' => 'nullable|numeric|min:0',
+            'stock_maximo' => 'nullable|numeric|min:0',
+            'activo' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -242,11 +242,15 @@ class MateriaPrimaBaseController extends Controller
         try {
             $materia = RawMaterialBase::findOrFail($id);
             
-            $updateData = $request->only([
-                'name', 'category_id', 'unit_id', 'description', 'minimum_stock', 'maximum_stock', 'active'
+            $materia->update([
+                'nombre' => $request->nombre,
+                'categoria_id' => $request->categoria_id,
+                'unidad_id' => $request->unidad_id,
+                'descripcion' => $request->descripcion,
+                'stock_minimo' => $request->stock_minimo,
+                'stock_maximo' => $request->stock_maximo,
+                'activo' => $request->activo,
             ]);
-            
-            $materia->update($updateData);
 
             return redirect()->route('materia-prima-base')
                 ->with('success', 'Materia prima base actualizada exitosamente');

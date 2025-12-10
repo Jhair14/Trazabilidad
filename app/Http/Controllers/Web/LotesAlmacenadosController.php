@@ -15,15 +15,15 @@ class LotesAlmacenadosController extends Controller
                 'batch.latestFinalEvaluation',
                 'batch.processMachineRecords.processMachine.machine'
             ])
-            ->orderBy('storage_date', 'desc')
+            ->orderBy('fecha_almacenaje', 'desc')
             ->paginate(15);
 
         // Estadísticas
         $stats = [
             'total' => Storage::count(),
-            'buen_estado' => Storage::whereRaw("LOWER(condition) LIKE '%buen%' OR LOWER(condition) LIKE '%excelente%'")->count(),
-            'regular' => Storage::whereRaw("LOWER(condition) LIKE '%regular%' OR LOWER(condition) LIKE '%aceptable%'")->count(),
-            'total_cantidad' => Storage::sum('quantity'),
+            'buen_estado' => Storage::whereRaw("LOWER(condicion) LIKE '%buen%' OR LOWER(condicion) LIKE '%excelente%'")->count(),
+            'regular' => Storage::whereRaw("LOWER(condicion) LIKE '%regular%' OR LOWER(condicion) LIKE '%aceptable%'")->count(),
+            'total_cantidad' => Storage::sum('cantidad'),
         ];
 
         return view('lotes-almacenados', compact('lotes_almacenados', 'stats'));
@@ -31,9 +31,28 @@ class LotesAlmacenadosController extends Controller
 
     public function obtenerAlmacenajesPorLote($batchId)
     {
-        $almacenajes = Storage::where('batch_id', $batchId)
-            ->orderBy('storage_date', 'desc')
-            ->get();
+        $almacenajes = Storage::with(['batch.order.customer'])
+            ->where('lote_id', $batchId)
+            ->orderBy('fecha_almacenaje', 'desc')
+            ->get()
+            ->map(function($almacenaje) {
+                return [
+                    'almacenaje_id' => $almacenaje->almacenaje_id,
+                    'lote_id' => $almacenaje->lote_id,
+                    'codigo_lote' => $almacenaje->batch->codigo_lote ?? null,
+                    'nombre_lote' => $almacenaje->batch->nombre ?? null,
+                    'ubicacion' => $almacenaje->ubicacion ?? 'N/A',
+                    'condicion' => $almacenaje->condicion ?? 'N/A',
+                    'cantidad' => $almacenaje->cantidad ?? 0,
+                    'observaciones' => $almacenaje->observaciones ?? null,
+                    'fecha_almacenaje' => $almacenaje->fecha_almacenaje ? $almacenaje->fecha_almacenaje->format('Y-m-d H:i:s') : null,
+                    'fecha_retiro' => $almacenaje->fecha_retiro ? $almacenaje->fecha_retiro->format('Y-m-d H:i:s') : null,
+                    'direccion_recojo' => $almacenaje->direccion_recojo ?? null,
+                    'referencia_recojo' => $almacenaje->referencia_recojo ?? null,
+                    'latitud_recojo' => $almacenaje->latitud_recojo ?? null,
+                    'longitud_recojo' => $almacenaje->longitud_recojo ?? null,
+                ];
+            });
 
         return response()->json($almacenajes);
     }

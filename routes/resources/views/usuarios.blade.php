@@ -47,7 +47,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>{{ $usuarios->where('active', true)->count() }}</h3>
+                                <h3>{{ $usuarios->where('activo', true)->count() }}</h3>
                                 <p>Activos</p>
                             </div>
                             <div class="icon">
@@ -69,7 +69,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-danger">
                             <div class="inner">
-                                <h3>{{ $usuarios->where('active', false)->count() }}</h3>
+                                <h3>{{ $usuarios->where('activo', false)->count() }}</h3>
                                 <p>Inactivos</p>
                             </div>
                             <div class="icon">
@@ -85,7 +85,7 @@
                         <select class="form-control" id="filtroRol">
                             <option value="">Todos los roles</option>
                             @foreach($roles as $rol)
-                                <option value="{{ $rol->role_id }}">{{ $rol->name }}</option>
+                                <option value="{{ $rol->name }}">{{ $rol->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -117,34 +117,37 @@
                                 <th>Email</th>
                                 <th>Rol</th>
                                 <th>Estado</th>
-                                <th>Último Acceso</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($usuarios as $usuario)
+                            @forelse($usuarios as $usuarioItem)
                             <tr>
-                                <td>#{{ $usuario->operator_id }}</td>
-                                <td>{{ $usuario->first_name }} {{ $usuario->last_name }}</td>
-                                <td>{{ $usuario->email ?? 'N/A' }}</td>
-                                <td><span class="badge badge-primary">{{ $usuario->role->name ?? 'N/A' }}</span></td>
+                                <td>#{{ $usuarioItem->operador_id }}</td>
+                                <td>{{ $usuarioItem->nombre }} {{ $usuarioItem->apellido }}</td>
+                                <td>{{ $usuarioItem->email ?? 'N/A' }}</td>
+                                <td><span class="badge badge-primary">{{ $usuarioItem->roles->first()->name ?? 'N/A' }}</span></td>
                                 <td>
-                                    @if($usuario->active)
+                                    @if($usuarioItem->activo)
                                         <span class="badge badge-success">Activo</span>
                                     @else
                                         <span class="badge badge-danger">Inactivo</span>
                                     @endif
                                 </td>
-                                <td>N/A</td>
                                 <td>
-                                    <button class="btn btn-warning btn-sm" title="Editar" onclick="editarUsuario({{ $usuario->operator_id }})">
+                                    <a href="{{ route('usuarios.edit', $usuarioItem->operador_id) }}" 
+                                       class="btn btn-warning btn-sm" title="Editar">
                                         <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-danger btn-sm" title="Eliminar"
+                                            onclick="abrirModalEliminar({{ $usuarioItem->operador_id }}, {{ json_encode($usuarioItem->nombre . ' ' . $usuarioItem->apellido) }})">
+                                        <i class="fas fa-trash"></i>
                                     </button>
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="7" class="text-center">No hay usuarios registrados</td>
+                                <td colspan="6" class="text-center">No hay usuarios registrados</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -192,22 +195,22 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="first_name">Nombre <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control @error('first_name') is-invalid @enderror" 
-                                       id="first_name" name="first_name" value="{{ old('first_name') }}" 
+                                <label for="nombre">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('nombre') is-invalid @enderror" 
+                                       id="nombre" name="nombre" value="{{ old('nombre') }}" 
                                        placeholder="Ej: Juan" required>
-                                @error('first_name')
+                                @error('nombre')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="last_name">Apellido <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control @error('last_name') is-invalid @enderror" 
-                                       id="last_name" name="last_name" value="{{ old('last_name') }}" 
+                                <label for="apellido">Apellido <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('apellido') is-invalid @enderror" 
+                                       id="apellido" name="apellido" value="{{ old('apellido') }}" 
                                        placeholder="Ej: Pérez" required>
-                                @error('last_name')
+                                @error('apellido')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -217,11 +220,11 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="username">Usuario <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control @error('username') is-invalid @enderror" 
-                                       id="username" name="username" value="{{ old('username') }}" 
+                                <label for="usuario">Usuario <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('usuario') is-invalid @enderror" 
+                                       id="usuario" name="usuario" value="{{ old('usuario') }}" 
                                        placeholder="Ej: juan.perez" required>
-                                @error('username')
+                                @error('usuario')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -252,17 +255,17 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="role_id">Rol <span class="text-danger">*</span></label>
-                                <select class="form-control @error('role_id') is-invalid @enderror" 
-                                        id="role_id" name="role_id" required>
+                                <label for="rol">Rol <span class="text-danger">*</span></label>
+                                <select class="form-control @error('rol') is-invalid @enderror" 
+                                        id="rol" name="rol" required>
                                     <option value="">Seleccionar rol...</option>
                                     @foreach($roles as $rol)
-                                        <option value="{{ $rol->role_id }}" {{ old('role_id') == $rol->role_id ? 'selected' : '' }}>
-                                            {{ $rol->name }}
+                                        <option value="{{ $rol->name }}" {{ old('rol') == $rol->name ? 'selected' : '' }}>
+                                            {{ ucfirst($rol->name) }}
                                         </option>
                                     @endforeach
                                 </select>
-                                @error('role_id')
+                                @error('rol')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -278,13 +281,206 @@
     </div>
 </div>
 
+<!-- Modal Editar Usuario -->
+@if(isset($usuario) && isset($editing) && $editing)
+<div class="modal fade show" id="editarUsuarioModal" tabindex="-1" role="dialog" style="display: block;">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Editar Usuario</h4>
+                <button type="button" class="close" onclick="cerrarModalEdicion()">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+                <form method="POST" action="{{ route('usuarios.update', $usuario->operador_id) }}" id="editarUsuarioForm">
+                    @csrf
+                    @method('PUT')
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_nombre">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('nombre') is-invalid @enderror" 
+                                       id="edit_nombre" name="nombre" value="{{ old('nombre', $usuario->nombre) }}" 
+                                       placeholder="Ej: Juan" required>
+                                @error('nombre')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_apellido">Apellido <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('apellido') is-invalid @enderror" 
+                                       id="edit_apellido" name="apellido" value="{{ old('apellido', $usuario->apellido) }}" 
+                                       placeholder="Ej: Pérez" required>
+                                @error('apellido')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_usuario">Usuario <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('usuario') is-invalid @enderror" 
+                                       id="edit_usuario" name="usuario" value="{{ old('usuario', $usuario->usuario) }}" 
+                                       placeholder="Ej: juan.perez" required>
+                                @error('usuario')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_email">Email</label>
+                                <input type="email" class="form-control @error('email') is-invalid @enderror" 
+                                       id="edit_email" name="email" value="{{ old('email', $usuario->email ?? '') }}" 
+                                       placeholder="juan.perez@empresa.com">
+                                @error('email')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_password">Contraseña</label>
+                                <input type="password" class="form-control @error('password') is-invalid @enderror" 
+                                       id="edit_password" name="password" placeholder="Dejar en blanco para no cambiar">
+                                <small class="form-text text-muted">Dejar en blanco si no desea cambiar la contraseña</small>
+                                @error('password')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_rol">Rol <span class="text-danger">*</span></label>
+                                <select class="form-control @error('rol') is-invalid @enderror" 
+                                        id="edit_rol" name="rol" required>
+                                    <option value="">Seleccionar rol...</option>
+                                    @php
+                                        $rolActual = old('rol');
+                                        if ($rolActual === null) {
+                                            $rolActual = $usuario->roles->first()->name ?? '';
+                                        }
+                                    @endphp
+                                    @foreach($roles as $rol)
+                                        <option value="{{ $rol->name }}" 
+                                                {{ $rolActual == $rol->name ? 'selected' : '' }}>
+                                            {{ ucfirst($rol->name) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('rol')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <div class="form-check">
+                                    @php
+                                        $activoValue = old('activo');
+                                        if ($activoValue === null) {
+                                            $activoValue = $usuario->activo ?? false;
+                                        } else {
+                                            $activoValue = (bool)$activoValue;
+                                        }
+                                    @endphp
+                                    <input type="checkbox" class="form-check-input" id="edit_activo" name="activo" value="1" 
+                                           {{ $activoValue ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="edit_activo">
+                                        Usuario Activo
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="cerrarModalEdicion()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Actualizar Usuario</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show"></div>
+@endif
+
+<!-- Modal Eliminar Usuario -->
+<div class="modal fade" id="eliminarUsuarioModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h4 class="modal-title text-white">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación
+                </h4>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>¡Advertencia!</strong> Esta acción no se puede deshacer.
+                </div>
+                <p>¿Está seguro de que desea eliminar al usuario <strong id="nombreUsuarioEliminar"></strong>?</p>
+                <p class="text-muted">Se eliminarán todos los datos asociados a este usuario.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <form id="formEliminarUsuario" method="POST" style="display: inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Sí, Eliminar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
 <script>
-function editarUsuario(id) {
-    // Implementar edición
-    window.location.href = '{{ route("usuarios") }}/' + id + '/edit';
+function cerrarModalEdicion() {
+    window.location.href = '{{ route("usuarios") }}';
+}
+
+function abrirModalEliminar(id, nombre) {
+    // Establecer el nombre del usuario en el modal
+    document.getElementById('nombreUsuarioEliminar').textContent = nombre;
+    
+    // Establecer la acción del formulario
+    const form = document.getElementById('formEliminarUsuario');
+    form.action = '{{ url("usuarios") }}/' + id;
+    
+    // Abrir el modal
+    $('#eliminarUsuarioModal').modal('show');
 }
 
 function aplicarFiltros() {
@@ -298,6 +494,29 @@ function aplicarFiltros() {
     if (buscar) url.searchParams.set('buscar', buscar);
     window.location = url;
 }
+
+// Limpiar formulario cuando se cierra el modal
+$(document).ready(function() {
+    // Limpiar formulario cuando se cierra el modal
+    $('#crearUsuarioModal').on('hidden.bs.modal', function () {
+        $('#crearUsuarioForm')[0].reset();
+        // Limpiar mensajes de error
+        $('#crearUsuarioForm .is-invalid').removeClass('is-invalid');
+        $('#crearUsuarioForm .invalid-feedback').remove();
+        $('.alert-danger').remove();
+    });
+
+    // Si hay un mensaje de éxito, cerrar el modal y limpiar el formulario
+    @if(session('success'))
+        $('#crearUsuarioModal').modal('hide');
+        $('#crearUsuarioForm')[0].reset();
+    @endif
+
+    // Si hay errores, mantener el modal abierto
+    @if($errors->any())
+        $('#crearUsuarioModal').modal('show');
+    @endif
+});
 </script>
 @endpush
 
