@@ -33,7 +33,7 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-warning">
             <div class="inner">
-                <h3>{{ $pedidos->where('estado', 'pendiente')->count() }}</h3>
+                <h3>{{ $stats['pendientes'] ?? 0 }}</h3>
                 <p>Pendientes</p>
             </div>
             <div class="icon">
@@ -45,7 +45,7 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-primary">
             <div class="inner">
-                <h3>{{ $pedidos->where('estado', 'en_produccion')->count() }}</h3>
+                <h3>{{ $stats['en_proceso'] ?? 0 }}</h3>
                 <p>En Proceso</p>
             </div>
             <div class="icon">
@@ -57,7 +57,7 @@
     <div class="col-lg-3 col-6">
         <div class="small-box bg-success">
         <div class="inner">
-                <h3>{{ $pedidos->where('estado', 'completado')->count() }}</h3>
+                <h3>{{ $stats['completados'] ?? 0 }}</h3>
                 <p>Completados</p>
             </div>
             <div class="icon">
@@ -95,20 +95,24 @@
                 </thead>
                 <tbody>
                     @forelse($pedidos as $pedido)
+                    @php
+                        // Usar estado_real si está disponible, sino usar estado
+                        $estadoMostrar = $pedido->estado_real ?? $pedido->estado;
+                    @endphp
                     <tr>
                         <td><strong>{{ $pedido->nombre ?? 'Sin nombre' }}</strong></td>
                         <td>{{ $pedido->descripcion ?? 'Sin descripción' }}</td>
                         <td>{{ \Carbon\Carbon::parse($pedido->fecha_creacion)->format('d/m/Y') }}</td>
                         <td>
-                            @if($pedido->estado == 'completado')
+                            @if($estadoMostrar == 'completado')
                                 <span class="badge badge-success">Completado</span>
-                            @elseif($pedido->estado == 'aprobado')
+                            @elseif($estadoMostrar == 'aprobado')
                                 <span class="badge badge-info">Aprobado</span>
-                            @elseif($pedido->estado == 'rechazado')
+                            @elseif($estadoMostrar == 'rechazado')
                                 <span class="badge badge-danger">Rechazado</span>
-                            @elseif($pedido->estado == 'en_produccion')
-                                <span class="badge badge-primary">En Producción</span>
-                            @elseif($pedido->estado == 'cancelado')
+                            @elseif($estadoMostrar == 'en_proceso')
+                                <span class="badge badge-primary">En Proceso</span>
+                            @elseif($estadoMostrar == 'cancelado')
                                 <span class="badge badge-secondary">Cancelado</span>
                             @else
                                 <span class="badge badge-warning">Pendiente</span>
@@ -118,25 +122,25 @@
                             <div class="progress progress-sm">
                                 @php
                                     $progreso = 0;
-                                    if($pedido->estado == 'completado') {
+                                    if($estadoMostrar == 'completado') {
                                         $progreso = 100;
-                                    } elseif($pedido->estado == 'en_produccion') {
+                                    } elseif($estadoMostrar == 'en_proceso') {
                                         $progreso = 80;
-                                    } elseif($pedido->estado == 'aprobado') {
+                                    } elseif($estadoMostrar == 'aprobado') {
                                         $progreso = 50;
-                                    } elseif($pedido->estado == 'pendiente') {
+                                    } elseif($estadoMostrar == 'pendiente') {
                                         $progreso = 20;
-                                    } elseif($pedido->estado == 'cancelado' || $pedido->estado == 'rechazado') {
+                                    } elseif($estadoMostrar == 'cancelado' || $estadoMostrar == 'rechazado') {
                                         $progreso = 0;
                                     }
                                 @endphp
-                                @if($pedido->estado == 'completado')
+                                @if($estadoMostrar == 'completado')
                                     <div class="progress-bar bg-success" style="width: {{ $progreso }}%"></div>
-                                @elseif($pedido->estado == 'en_produccion')
+                                @elseif($estadoMostrar == 'en_proceso')
                                     <div class="progress-bar bg-primary" style="width: {{ $progreso }}%"></div>
-                                @elseif($pedido->estado == 'aprobado')
+                                @elseif($estadoMostrar == 'aprobado')
                                     <div class="progress-bar bg-info" style="width: {{ $progreso }}%"></div>
-                                @elseif($pedido->estado == 'pendiente')
+                                @elseif($estadoMostrar == 'pendiente')
                                     <div class="progress-bar bg-warning" style="width: {{ $progreso }}%"></div>
                                 @else
                                     <div class="progress-bar bg-danger" style="width: {{ $progreso }}%"></div>

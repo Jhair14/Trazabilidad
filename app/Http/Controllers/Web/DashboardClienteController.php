@@ -65,6 +65,7 @@ class DashboardClienteController extends Controller
             $pedidos = collect([]);
             $ultimoPedido = null;
         } else {
+            // Obtener todos los pedidos del cliente ordenados por fecha de creación descendente
             $pedidos = CustomerOrder::where('cliente_id', $customerId)
                 ->with([
                     'batches.latestFinalEvaluation',
@@ -73,21 +74,36 @@ class DashboardClienteController extends Controller
                     'materialRequests'
                 ])
                 ->orderBy('fecha_creacion', 'desc')
+                ->orderBy('pedido_id', 'desc') // Ordenar también por ID para asegurar consistencia
                 ->get();
             
-            // Obtener el último pedido para seguimiento
+            // Obtener el último pedido (el más reciente) para seguimiento
+            // Usar first() ya que está ordenado por fecha_creacion desc
             $ultimoPedido = $pedidos->first();
             
-            // Si hay último pedido, cargar más información
+            // Si hay último pedido, cargar más información completa
             if ($ultimoPedido) {
-                $ultimoPedido->load([
-                    'batches.latestFinalEvaluation.inspector',
-                    'batches.processMachineRecords.processMachine.machine',
-                    'batches.processMachineRecords.processMachine.process',
-                    'batches.processMachineRecords.operator',
-                    'batches.storage',
-                    'materialRequests.details.material'
-                ]);
+                // Recargar con todas las relaciones necesarias para el timeline
+                $ultimoPedido = CustomerOrder::where('pedido_id', $ultimoPedido->pedido_id)
+                    ->with([
+                        'customer',
+                        'orderProducts.product.unit',
+                        'batches.latestFinalEvaluation.inspector',
+                        'batches.processMachineRecords.processMachine.machine',
+                        'batches.processMachineRecords.processMachine.process',
+                        'batches.processMachineRecords.processMachine.variables.standardVariable',
+                        'batches.processMachineRecords.operator',
+                        'batches.storage',
+                        'batches.rawMaterials.rawMaterial.materialBase',
+                        'materialRequests.details.material',
+                        'destinations'
+                    ])
+                    ->first();
+                
+                // Ordenar lotes por fecha de creación para mostrar el más reciente primero
+                if ($ultimoPedido && $ultimoPedido->batches) {
+                    $ultimoPedido->batches = $ultimoPedido->batches->sortByDesc('fecha_creacion')->values();
+                }
             }
         }
 

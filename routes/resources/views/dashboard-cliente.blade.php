@@ -78,17 +78,34 @@
                     </div>
                     <div class="col-md-6">
                         @php
-                            $ultimoLote = $ultimoPedido->batches->first();
+                            // Calcular estado del pedido considerando TODOS los lotes, no solo el primero
                             $estadoPedido = 'Pendiente';
-                            if ($ultimoLote) {
-                                if ($ultimoLote->latestFinalEvaluation) {
-                                    $eval = $ultimoLote->latestFinalEvaluation;
-                                    if (str_contains(strtolower($eval->razon ?? ''), 'falló')) {
-                                        $estadoPedido = 'No Certificado';
-                                    } else {
-                                        $estadoPedido = 'Certificado';
-                                    }
-                                } elseif ($ultimoLote->processMachineRecords->isNotEmpty()) {
+                            $tieneLotes = $ultimoPedido->batches && $ultimoPedido->batches->isNotEmpty();
+                            $ultimoLote = $tieneLotes ? $ultimoPedido->batches->first() : null;
+                            
+                            if ($tieneLotes) {
+                                // Verificar si algún lote está certificado
+                                $loteCertificado = $ultimoPedido->batches->some(function($batch) {
+                                    $eval = $batch->latestFinalEvaluation;
+                                    return $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló');
+                                });
+                                
+                                // Verificar si algún lote está en proceso
+                                $loteEnProceso = $ultimoPedido->batches->some(function($batch) {
+                                    return $batch->processMachineRecords->isNotEmpty() && !$batch->latestFinalEvaluation;
+                                });
+                                
+                                // Verificar si algún lote está almacenado
+                                $loteAlmacenado = $ultimoPedido->batches->some(function($batch) {
+                                    return $batch->storage->isNotEmpty();
+                                });
+                                
+                                // Determinar estado basado en el más avanzado
+                                if ($loteAlmacenado) {
+                                    $estadoPedido = 'Almacenado';
+                                } elseif ($loteCertificado) {
+                                    $estadoPedido = 'Certificado';
+                                } elseif ($loteEnProceso) {
                                     $estadoPedido = 'En Proceso';
                                 } else {
                                     $estadoPedido = 'Lote Creado';
@@ -98,17 +115,25 @@
                         <p><strong>Estado actual:</strong> 
                             @if($estadoPedido === 'Certificado')
                                 <span class="badge badge-success">{{ $estadoPedido }}</span>
+                            @elseif($estadoPedido === 'Almacenado')
+                                <span class="badge badge-success">{{ $estadoPedido }}</span>
                             @elseif($estadoPedido === 'No Certificado')
                                 <span class="badge badge-danger">{{ $estadoPedido }}</span>
                             @elseif($estadoPedido === 'En Proceso')
                                 <span class="badge badge-primary">{{ $estadoPedido }}</span>
-                            @else
+                            @elseif($estadoPedido === 'Lote Creado')
                                 <span class="badge badge-info">{{ $estadoPedido }}</span>
+                            @else
+                                <span class="badge badge-warning">{{ $estadoPedido }}</span>
                             @endif
                         </p>
+                        @if($tieneLotes)
+                        <p><strong>Total de Lotes:</strong> {{ $ultimoPedido->batches->count() }}</p>
                         @if($ultimoLote)
-                        <p><strong>Lote asociado:</strong> #{{ $ultimoLote->codigo_lote ?? $ultimoLote->lote_id }}</p>
-                        <p><strong>Nombre del lote:</strong> {{ $ultimoLote->nombre ?? 'N/A' }}</p>
+                        <p><strong>Último Lote:</strong> #{{ $ultimoLote->codigo_lote ?? $ultimoLote->lote_id }} - {{ $ultimoLote->nombre ?? 'Sin nombre' }}</p>
+                        @endif
+                        @else
+                        <p><strong>Lotes:</strong> <span class="badge badge-secondary">Sin lotes</span></p>
                         @endif
                     </div>
                 </div>
@@ -163,24 +188,42 @@
                     @endif
                     
                     <!-- 3. Lote Creado -->
-                    @if($ultimoLote)
+                    @if($tieneLotes)
+                    @php
+                        // Mostrar todos los lotes, ordenados por fecha
+                        $lotesOrdenados = $ultimoPedido->batches->sortByDesc('fecha_creacion');
+                    @endphp
+                    @foreach($lotesOrdenados as $lote)
                     <div>
                         <i class="fas fa-check bg-green"></i>
                         <div class="timeline-item">
-                            <span class="time"><i class="fas fa-clock"></i> {{ $ultimoLote->fecha_creacion ? \Carbon\Carbon::parse($ultimoLote->fecha_creacion)->format('d/m/Y') : 'N/A' }}</span>
+                            <span class="time"><i class="fas fa-clock"></i> {{ $lote->fecha_creacion ? \Carbon\Carbon::parse($lote->fecha_creacion)->format('d/m/Y') : 'N/A' }}</span>
                             <h3 class="timeline-header">Lote de Producción Creado</h3>
                             <div class="timeline-body">
-                                Lote #{{ $ultimoLote->codigo_lote ?? $ultimoLote->lote_id }} - {{ $ultimoLote->nombre ?? 'Sin nombre' }}
+                                Lote #{{ $lote->codigo_lote ?? $lote->lote_id }} - {{ $lote->nombre ?? 'Sin nombre' }}
+                                @if($lote->cantidad_objetivo)
+                                    <br><small>Cantidad Objetivo: {{ number_format($lote->cantidad_objetivo, 2) }}</small>
+                                @endif
                             </div>
                         </div>
                     </div>
+                    @endforeach
+                    @endif
                     
                     <!-- 4. Proceso de Transformación -->
-                    @if($ultimoLote->processMachineRecords->isNotEmpty())
+                    @php
+                        // Buscar el lote más avanzado en proceso de transformación
+                        $loteEnProceso = $ultimoPedido->batches->filter(function($batch) {
+                            return $batch->processMachineRecords->isNotEmpty();
+                        })->sortByDesc(function($batch) {
+                            return $batch->processMachineRecords->max('fecha_registro');
+                        })->first();
+                    @endphp
+                    @if($loteEnProceso)
                     @php 
-                        $totalMaquinas = $ultimoLote->processMachineRecords->count();
-                        $maquinasCompletadas = $ultimoLote->processMachineRecords->where('cumple_estandar', true)->count();
-                        $ultimoRegistro = $ultimoLote->processMachineRecords->sortByDesc('fecha_registro')->first();
+                        $totalMaquinas = $loteEnProceso->processMachineRecords->count();
+                        $maquinasCompletadas = $loteEnProceso->processMachineRecords->where('cumple_estandar', true)->count();
+                        $ultimoRegistro = $loteEnProceso->processMachineRecords->sortByDesc('fecha_registro')->first();
                     @endphp
                     <div>
                         <i class="fas fa-cog bg-blue"></i>
@@ -188,7 +231,8 @@
                             <span class="time"><i class="fas fa-clock"></i> {{ $ultimoRegistro->fecha_registro ? \Carbon\Carbon::parse($ultimoRegistro->fecha_registro)->format('d/m/Y H:i') : 'En proceso' }}</span>
                             <h3 class="timeline-header">Proceso de Transformación</h3>
                             <div class="timeline-body">
-                                Progreso: {{ $maquinasCompletadas }} de {{ $totalMaquinas }} máquinas completadas
+                                Lote #{{ $loteEnProceso->codigo_lote ?? $loteEnProceso->lote_id }}
+                                <br>Progreso: {{ $maquinasCompletadas }} de {{ $totalMaquinas }} máquinas completadas
                                 @if($maquinasCompletadas == $totalMaquinas)
                                     <span class="badge badge-success">Completado</span>
                                 @else
@@ -211,14 +255,28 @@
                     @endif
                     
                     <!-- 5. Certificación -->
-                    @if($ultimoLote && $ultimoLote->latestFinalEvaluation)
-                    @php $eval = $ultimoLote->latestFinalEvaluation; @endphp
+                    @php
+                        // Buscar el lote más reciente certificado
+                        $loteCertificado = $ultimoPedido->batches->filter(function($batch) {
+                            $eval = $batch->latestFinalEvaluation;
+                            return $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló');
+                        })->sortByDesc('fecha_creacion')->first();
+                        
+                        // O buscar cualquier lote con evaluación
+                        $loteConEvaluacion = $ultimoPedido->batches->filter(function($batch) {
+                            return $batch->latestFinalEvaluation;
+                        })->sortByDesc('fecha_creacion')->first();
+                    @endphp
+                    @if($loteConEvaluacion)
+                    @php $eval = $loteConEvaluacion->latestFinalEvaluation; @endphp
                     <div>
                         <i class="fas {{ str_contains(strtolower($eval->razon ?? ''), 'falló') ? 'fa-times' : 'fa-check' }} bg-{{ str_contains(strtolower($eval->razon ?? ''), 'falló') ? 'red' : 'green' }}"></i>
                         <div class="timeline-item">
                             <span class="time"><i class="fas fa-clock"></i> {{ $eval->fecha_evaluacion ? \Carbon\Carbon::parse($eval->fecha_evaluacion)->format('d/m/Y H:i') : 'N/A' }}</span>
                             <h3 class="timeline-header">Certificación</h3>
                             <div class="timeline-body">
+                                Lote #{{ $loteConEvaluacion->codigo_lote ?? $loteConEvaluacion->lote_id }}
+                                <br>
                                 @if(str_contains(strtolower($eval->razon ?? ''), 'falló'))
                                     <span class="badge badge-danger">No Certificado</span> - {{ $eval->razon }}
                                 @else
@@ -230,7 +288,7 @@
                             </div>
                         </div>
                     </div>
-                    @elseif($ultimoLote && $ultimoLote->processMachineRecords->isNotEmpty())
+                    @elseif($loteEnProceso)
                     <div>
                         <i class="fas fa-clock bg-gray"></i>
                         <div class="timeline-item">
@@ -255,19 +313,31 @@
                     @endif
                     
                     <!-- 6. Almacenamiento -->
-                    @if($ultimoLote && $ultimoLote->storage->isNotEmpty())
-                    @php $almacen = $ultimoLote->storage->first(); @endphp
+                    @php
+                        // Buscar lotes almacenados
+                        $lotesAlmacenados = $ultimoPedido->batches->filter(function($batch) {
+                            return $batch->storage->isNotEmpty();
+                        });
+                    @endphp
+                    @if($lotesAlmacenados->isNotEmpty())
+                    @foreach($lotesAlmacenados as $loteAlm)
+                    @php $almacen = $loteAlm->storage->first(); @endphp
                     <div>
                         <i class="fas fa-check bg-green"></i>
                         <div class="timeline-item">
                             <span class="time"><i class="fas fa-clock"></i> {{ $almacen->fecha_almacenaje ? \Carbon\Carbon::parse($almacen->fecha_almacenaje)->format('d/m/Y H:i') : 'N/A' }}</span>
                             <h3 class="timeline-header">Almacenado</h3>
                             <div class="timeline-body">
-                                Ubicación: {{ $almacen->ubicacion }} - Condición: {{ $almacen->condicion }}
+                                Lote #{{ $loteAlm->codigo_lote ?? $loteAlm->lote_id }}
+                                <br>Ubicación: {{ $almacen->ubicacion }} - Condición: {{ $almacen->condicion }}
                                 <br>Cantidad: {{ number_format($almacen->cantidad, 2) }}
+                                @if($almacen->direccion_recojo)
+                                    <br><small><strong>Dirección de Recojo:</strong> {{ $almacen->direccion_recojo }}</small>
+                                @endif
                             </div>
                         </div>
                     </div>
+                    @endforeach
                     @else
                     <div>
                         <i class="fas fa-clock bg-gray"></i>
@@ -279,7 +349,6 @@
                             </div>
                         </div>
                     </div>
-                    @endif
                     @endif
                 </div>
             </div>

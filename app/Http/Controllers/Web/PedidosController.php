@@ -73,17 +73,31 @@ class PedidosController extends Controller
             $pedidos = CustomerOrder::whereRaw('1 = 0')->paginate(15);
         } else {
             $pedidos = CustomerOrder::where('cliente_id', $customerId)
-                ->with(['customer', 'orderProducts.product', 'batches'])
+                ->with([
+                    'customer', 
+                    'orderProducts.product', 
+                    'batches.latestFinalEvaluation',
+                    'batches.processMachineRecords',
+                    'batches.storage'
+                ])
                 ->orderBy('fecha_creacion', 'desc')
                 ->paginate(15);
+            
+            // Calcular estado real para cada pedido basándose en sus lotes
+            $pedidos->getCollection()->transform(function($pedido) {
+                $estadoReal = $this->calcularEstadoRealPedido($pedido);
+                $pedido->estado_real = $estadoReal;
+                return $pedido;
+            });
         }
 
-        // Estadísticas
+        // Calcular estadísticas basadas en el estado real
+        $pedidosCollection = $pedidos->getCollection();
         $stats = [
             'total' => $pedidos->total(),
-            'pendientes' => $pedidos->where('estado', 'pendiente')->count(),
-            'en_proceso' => $pedidos->where('estado', 'en_produccion')->count(),
-            'completados' => $pedidos->where('estado', 'completado')->count(),
+            'pendientes' => $pedidosCollection->where('estado_real', 'pendiente')->count(),
+            'en_proceso' => $pedidosCollection->where('estado_real', 'en_proceso')->count(),
+            'completados' => $pedidosCollection->where('estado_real', 'completado')->count(),
         ];
 
         return view('mis-pedidos', compact('pedidos', 'stats'));
@@ -322,6 +336,58 @@ class PedidosController extends Controller
                 ->with('error', 'Error al crear pedido: ' . $e->getMessage())
                 ->withInput();
         }
+    }
+
+    /**
+     * Calcula el estado real de un pedido basándose en sus lotes asociados
+     */
+    private function calcularEstadoRealPedido($pedido)
+    {
+        $tieneLotes = $pedido->batches && $pedido->batches->isNotEmpty();
+        
+        if (!$tieneLotes) {
+            // Si no tiene lotes, el estado depende del estado del pedido
+            if ($pedido->estado === 'cancelado' || $pedido->estado === 'rechazado') {
+                return $pedido->estado;
+            }
+            return 'pendiente';
+        }
+        
+        // Verificar si algún lote está almacenado
+        $loteAlmacenado = $pedido->batches->some(function($batch) {
+            return $batch->storage && $batch->storage->isNotEmpty();
+        });
+        
+        if ($loteAlmacenado) {
+            return 'completado';
+        }
+        
+        // Verificar si algún lote está certificado
+        $loteCertificado = $pedido->batches->some(function($batch) {
+            $eval = $batch->latestFinalEvaluation;
+            return $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló');
+        });
+        
+        if ($loteCertificado) {
+            return 'completado';
+        }
+        
+        // Verificar si algún lote está en proceso
+        $loteEnProceso = $pedido->batches->some(function($batch) {
+            return $batch->processMachineRecords && $batch->processMachineRecords->isNotEmpty() && !$batch->latestFinalEvaluation;
+        });
+        
+        if ($loteEnProceso) {
+            return 'en_proceso';
+        }
+        
+        // Si tiene lotes pero no están en proceso, está aprobado
+        if ($pedido->estado === 'aprobado') {
+            return 'aprobado';
+        }
+        
+        // Si tiene lotes creados pero no están en proceso aún
+        return 'aprobado';
     }
 
     private function getOrCreateCustomerId($user)
