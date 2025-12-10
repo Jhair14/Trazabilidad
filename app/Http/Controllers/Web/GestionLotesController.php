@@ -247,10 +247,12 @@ class GestionLotesController extends Controller
                 ]);
             }
 
-            // Cambiar estado del pedido si existe
+            // Actualizar estado del pedido a "en_proceso" cuando se crea un lote
             if ($request->pedido_id) {
-                // El estado se maneja por el campo estado del pedido
-                // Podrías agregar lógica aquí si necesitas cambiar el estado
+                $pedido = \App\Models\CustomerOrder::find($request->pedido_id);
+                if ($pedido && $pedido->estado == 'pendiente') {
+                    $pedido->update(['estado' => 'en_proceso']);
+                }
             }
 
             DB::commit();

@@ -118,6 +118,20 @@ class CertificarLoteController extends Controller
                 ]);
             }
 
+            // Actualizar estado del pedido si el lote fue certificado
+            if ($status === 'Certificado') {
+                $batch = ProductionBatch::findOrFail($loteId);
+                if ($batch->pedido_id) {
+                    $pedido = \App\Models\CustomerOrder::find($batch->pedido_id);
+                    if ($pedido) {
+                        // Solo actualizar si no está ya en un estado más avanzado
+                        if (in_array($pedido->estado, ['pendiente', 'en_proceso'])) {
+                            $pedido->update(['estado' => 'produccion_finalizada']);
+                        }
+                    }
+                }
+            }
+
             DB::commit();
 
             return redirect()->route('certificados')

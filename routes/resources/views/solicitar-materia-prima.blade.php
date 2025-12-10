@@ -36,7 +36,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
                             <div class="inner">
-                                <h3>{{ $solicitudes->total() }}</h3>
+                                <h3>{{ $stats['total'] ?? 0 }}</h3>
                                 <p>Total Solicitudes</p>
                             </div>
                             <div class="icon">
@@ -47,7 +47,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>{{ $solicitudes->where('estado', '!=', 'completada')->count() }}</h3>
+                                <h3>{{ $stats['pendientes'] ?? 0 }}</h3>
                                 <p>Pendientes</p>
                             </div>
                             <div class="icon">
@@ -58,7 +58,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>{{ $solicitudes->where('estado', 'completada')->count() }}</h3>
+                                <h3>{{ $stats['completadas'] ?? 0 }}</h3>
                                 <p>Completadas</p>
                             </div>
                             <div class="icon">
@@ -69,11 +69,11 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-primary">
                             <div class="inner">
-                                <h3>0</h3>
-                                <p>Urgentes</p>
+                                <h3>{{ $pedidos->count() }}</h3>
+                                <p>Pedidos Sin Solicitud</p>
                             </div>
                             <div class="icon">
-                                <i class="fas fa-exclamation"></i>
+                                <i class="fas fa-list"></i>
                             </div>
                         </div>
                     </div>

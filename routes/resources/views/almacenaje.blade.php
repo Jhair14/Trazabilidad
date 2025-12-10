@@ -663,43 +663,122 @@ function verAlmacenaje(batchId) {
         .then(data => {
             if (data.length > 0) {
                 const almacenaje = data[0];
+                
+                // Formatear fecha
+                const fechaAlmacenaje = almacenaje.fecha_almacenaje 
+                    ? new Date(almacenaje.fecha_almacenaje).toLocaleString('es-ES', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })
+                    : 'N/A';
+                
+                const fechaRetiro = almacenaje.fecha_retiro 
+                    ? new Date(almacenaje.fecha_retiro).toLocaleString('es-ES', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })
+                    : null;
+                
+                // Información de envíos
+                let enviosHtml = '';
+                if (almacenaje.envios && almacenaje.envios.length > 0) {
+                    enviosHtml = '<div class="mt-3"><h5>Envíos Creados en PlantaCruds</h5><ul class="list-group">';
+                    almacenaje.envios.forEach(function(envio) {
+                        enviosHtml += `<li class="list-group-item">
+                            <strong>Código:</strong> ${envio.codigo_envio || 'N/A'}<br>
+                            <strong>ID Envío:</strong> ${envio.envio_id || 'N/A'}<br>
+                            <strong>Estado:</strong> <span class="badge badge-success">Creado</span>
+                        </li>`;
+                    });
+                    enviosHtml += '</ul></div>';
+                }
+                
                 const content = `
                     <div class="row">
                         <div class="col-md-12">
+                            <h5 class="mb-3">Información del Almacenaje</h5>
                             <table class="table table-bordered">
                                 <tr>
                                     <th style="width: 30%;">Lote</th>
-                                    <td>#${almacenaje.batch_id}</td>
+                                    <td>#${almacenaje.codigo_lote || almacenaje.lote_id || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <th>Nombre del Lote</th>
+                                    <td>${almacenaje.nombre_lote || 'Sin nombre'}</td>
                                 </tr>
                                 <tr>
                                     <th>Ubicación</th>
-                                    <td>${almacenaje.location || 'N/A'}</td>
+                                    <td>${almacenaje.ubicacion || 'N/A'}</td>
                                 </tr>
                                 <tr>
                                     <th>Condición</th>
-                                    <td>${almacenaje.condition || 'N/A'}</td>
+                                    <td>${almacenaje.condicion || 'N/A'}</td>
                                 </tr>
                                 <tr>
                                     <th>Cantidad Almacenada</th>
-                                    <td><strong>${parseFloat(almacenaje.quantity || 0).toFixed(2)}</strong></td>
+                                    <td><strong>${parseFloat(almacenaje.cantidad || 0).toFixed(2)}</strong></td>
                                 </tr>
                                 <tr>
                                     <th>Fecha de Almacenaje</th>
-                                    <td>${almacenaje.storage_date ? new Date(almacenaje.storage_date).toLocaleDateString('es-ES') : 'N/A'}</td>
+                                    <td>${fechaAlmacenaje}</td>
                                 </tr>
-                                ${almacenaje.retrieval_date ? `
+                                ${fechaRetiro ? `
                                 <tr>
                                     <th>Fecha de Retiro</th>
-                                    <td>${new Date(almacenaje.retrieval_date).toLocaleDateString('es-ES')}</td>
+                                    <td>${fechaRetiro}</td>
                                 </tr>
                                 ` : ''}
-                                ${almacenaje.observations ? `
+                                ${almacenaje.observaciones ? `
                                 <tr>
                                     <th>Observaciones</th>
-                                    <td>${almacenaje.observations}</td>
+                                    <td>${almacenaje.observaciones}</td>
                                 </tr>
                                 ` : ''}
                             </table>
+                            
+                            <h5 class="mt-4 mb-3">Información del Pedido</h5>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th style="width: 30%;">Número de Pedido</th>
+                                    <td>#${almacenaje.numero_pedido || almacenaje.pedido_id || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <th>Nombre del Pedido</th>
+                                    <td>${almacenaje.nombre_pedido || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <td>${almacenaje.cliente || 'N/A'}</td>
+                                </tr>
+                            </table>
+                            
+                            <h5 class="mt-4 mb-3">Información de Transporte (Ubicación de Recojo)</h5>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th style="width: 30%;">Dirección de Recojo</th>
+                                    <td>${almacenaje.direccion_recojo || 'N/A'}</td>
+                                </tr>
+                                ${almacenaje.referencia_recojo ? `
+                                <tr>
+                                    <th>Referencia</th>
+                                    <td>${almacenaje.referencia_recojo}</td>
+                                </tr>
+                                ` : ''}
+                                ${almacenaje.latitud_recojo && almacenaje.longitud_recojo ? `
+                                <tr>
+                                    <th>Coordenadas</th>
+                                    <td>${almacenaje.latitud_recojo}, ${almacenaje.longitud_recojo}</td>
+                                </tr>
+                                ` : ''}
+                            </table>
+                            
+                            ${enviosHtml}
                         </div>
                     </div>
                 `;

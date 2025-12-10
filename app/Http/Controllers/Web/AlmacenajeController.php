@@ -89,9 +89,46 @@ class AlmacenajeController extends Controller
 
     public function obtenerAlmacenajesPorLote($batchId)
     {
-        $almacenajes = Storage::where('lote_id', $batchId)
+        $almacenajes = Storage::with(['batch.order.customer'])
+            ->where('lote_id', $batchId)
             ->orderBy('fecha_almacenaje', 'desc')
-            ->get();
+            ->get()
+            ->map(function($almacenaje) {
+                return [
+                    'almacenaje_id' => $almacenaje->almacenaje_id,
+                    'lote_id' => $almacenaje->lote_id,
+                    'codigo_lote' => $almacenaje->batch->codigo_lote ?? null,
+                    'nombre_lote' => $almacenaje->batch->nombre ?? null,
+                    'ubicacion' => $almacenaje->ubicacion ?? 'N/A',
+                    'condicion' => $almacenaje->condicion ?? 'N/A',
+                    'cantidad' => $almacenaje->cantidad ?? 0,
+                    'observaciones' => $almacenaje->observaciones ?? null,
+                    'fecha_almacenaje' => $almacenaje->fecha_almacenaje ? $almacenaje->fecha_almacenaje->format('Y-m-d H:i:s') : null,
+                    'fecha_retiro' => $almacenaje->fecha_retiro ? $almacenaje->fecha_retiro->format('Y-m-d H:i:s') : null,
+                    // Información de transporte (ubicación de recojo)
+                    'direccion_recojo' => $almacenaje->direccion_recojo ?? null,
+                    'referencia_recojo' => $almacenaje->referencia_recojo ?? null,
+                    'latitud_recojo' => $almacenaje->latitud_recojo ?? null,
+                    'longitud_recojo' => $almacenaje->longitud_recojo ?? null,
+                    // Información del pedido
+                    'pedido_id' => $almacenaje->batch->pedido_id ?? null,
+                    'numero_pedido' => $almacenaje->batch->order->numero_pedido ?? null,
+                    'nombre_pedido' => $almacenaje->batch->order->nombre ?? null,
+                    'cliente' => $almacenaje->batch->order->customer->razon_social ?? null,
+                    // Información de envíos creados en PlantaCruds
+                    'envios' => $almacenaje->batch->order ? 
+                        \App\Models\OrderEnvioTracking::where('pedido_id', $almacenaje->batch->order->pedido_id)
+                            ->where('estado', 'success')
+                            ->get()
+                            ->map(function($envio) {
+                                return [
+                                    'envio_id' => $envio->envio_id,
+                                    'codigo_envio' => $envio->codigo_envio,
+                                    'destino_id' => $envio->destino_id,
+                                ];
+                            }) : collect(),
+                ];
+            });
 
         return response()->json($almacenajes);
     }
@@ -155,6 +192,14 @@ class AlmacenajeController extends Controller
                 'referencia_recojo' => $request->pickup_reference,
                 'fecha_almacenaje' => now(),
             ]);
+
+            // Actualizar estado del pedido a "almacenado" cuando se almacena el lote
+            if ($batch->pedido_id) {
+                $pedido = CustomerOrder::find($batch->pedido_id);
+                if ($pedido) {
+                    $pedido->update(['estado' => 'almacenado']);
+                }
+            }
 
             DB::commit();
 

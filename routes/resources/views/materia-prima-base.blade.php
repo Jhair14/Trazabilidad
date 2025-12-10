@@ -47,11 +47,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
-                                <h3>{{ $materias_primas->filter(function($mp) { 
-                                    $available = $mp->calculated_available_quantity ?? ($mp->available_quantity ?? 0);
-                                    $minimum = $mp->minimum_stock ?? 0;
-                                    return $available > 0 && ($minimum == 0 || $available > $minimum);
-                                })->count() }}</h3>
+                                <h3>{{ $stats['disponibles'] ?? 0 }}</h3>
                                 <p>Disponibles</p>
                             </div>
                             <div class="icon">
@@ -62,11 +58,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-warning">
                             <div class="inner">
-                                <h3>{{ $materias_primas->filter(function($mp) { 
-                                    $available = $mp->calculated_available_quantity ?? ($mp->available_quantity ?? 0);
-                                    $minimum = $mp->minimum_stock ?? 0;
-                                    return $available > 0 && $minimum > 0 && $available <= $minimum;
-                                })->count() }}</h3>
+                                <h3>{{ $stats['bajo_stock'] ?? 0 }}</h3>
                                 <p>Bajo Stock</p>
                             </div>
                             <div class="icon">
@@ -77,10 +69,7 @@
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-danger">
                             <div class="inner">
-                                <h3>{{ $materias_primas->filter(function($mp) { 
-                                    $available = $mp->calculated_available_quantity ?? ($mp->available_quantity ?? 0);
-                                    return $available <= 0;
-                                })->count() }}</h3>
+                                <h3>{{ $stats['agotadas'] ?? 0 }}</h3>
                                 <p>Agotadas</p>
                             </div>
                             <div class="icon">

@@ -26,6 +26,31 @@ class DashboardController extends Controller
         $totalPedidos = CustomerOrder::count();
         $pedidosPendientes = CustomerOrder::where('estado', 'pendiente')->count();
         
+        // Calcular estadísticas de materia prima correctamente
+        $allMaterias = RawMaterialBase::with('rawMaterials')
+            ->where('activo', true)
+            ->get()
+            ->map(function ($mp) {
+                // Calcular cantidad disponible desde materias primas recibidas
+                $calculated = $mp->rawMaterials
+                    ->where('conformidad_recepcion', true)
+                    ->sum('cantidad_disponible') ?? 0;
+                
+                // Si no hay materias primas recibidas, usar el valor almacenado
+                if ($calculated == 0 && $mp->rawMaterials->count() == 0) {
+                    $mp->calculated_available_quantity = $mp->cantidad_disponible ?? 0;
+                } else {
+                    $mp->calculated_available_quantity = $calculated;
+                }
+                return $mp;
+            });
+        
+        $materiasConStockBajo = $allMaterias->filter(function($mp) {
+            $available = $mp->calculated_available_quantity ?? 0;
+            $minimum = $mp->stock_minimo ?? 0;
+            return $minimum > 0 && $available > 0 && $available <= $minimum;
+        })->count();
+        
         $stats = [
             'total_lotes' => $totalLotes,
             'lotes_pendientes' => $lotesPendientes,
@@ -34,31 +59,60 @@ class DashboardController extends Controller
             'lotes_certificados' => $lotesCertificados,
             'total_pedidos' => $totalPedidos,
             'pedidos_pendientes' => $pedidosPendientes,
-            'materias_primas' => RawMaterialBase::where('activo', true)->count(),
-            'stock_bajo' => RawMaterialBase::whereColumn('cantidad_disponible', '<=', 'stock_minimo')
-                ->where('activo', true)->count(),
+            'materias_primas' => $allMaterias->count(),
+            'stock_bajo' => $materiasConStockBajo,
         ];
 
         // Lotes recientes
-        $lotes_recientes = ProductionBatch::with(['order.customer', 'latestFinalEvaluation'])
+        $lotes_recientes = ProductionBatch::with([
+            'order.customer', 
+            'latestFinalEvaluation',
+            'processMachineRecords'
+        ])
             ->orderBy('fecha_creacion', 'desc')
             ->limit(5)
             ->get();
 
-        // Pedidos recientes
-        $pedidos_recientes = CustomerOrder::with('customer')
+        // Pedidos recientes con sus lotes
+        $pedidos_recientes = CustomerOrder::with([
+            'customer',
+            'batches.latestFinalEvaluation',
+            'batches.processMachineRecords'
+        ])
             ->orderBy('fecha_creacion', 'desc')
             ->limit(5)
             ->get();
+
+        // Calcular estados de pedidos basados en lotes
+        $pedidosPendientesCount = CustomerOrder::where('estado', 'pendiente')
+            ->whereDoesntHave('batches')
+            ->count();
+        
+        $pedidosConLoteEnProceso = CustomerOrder::whereHas('batches', function($query) {
+            $query->whereHas('processMachineRecords')
+                ->whereDoesntHave('finalEvaluation');
+        })->count();
+        
+        $pedidosCertificados = CustomerOrder::whereHas('batches', function($query) {
+            $query->whereHas('finalEvaluation', function($q) {
+                $q->whereRaw("LOWER(razon) NOT LIKE '%falló%'");
+            });
+        })->count();
+        
+        $pedidosConLotes = CustomerOrder::whereHas('batches')->count();
+        
+        $pedidosAlmacenados = CustomerOrder::whereHas('batches.storage')->count();
+        
+        $pedidosCancelados = CustomerOrder::where('estado', 'cancelado')->count();
 
         // Estadísticas para gráficas
         $pedidosPorEstado = [
-            'pendiente' => CustomerOrder::where('estado', 'pendiente')->count(),
-            'materia_prima_solicitada' => 0, // Necesitarías un campo de estado
-            'en_proceso' => ProductionBatch::whereNotNull('hora_inicio')->whereNull('hora_fin')->count(),
-            'produccion_finalizada' => ProductionBatch::whereNotNull('hora_fin')->count(),
-            'almacenado' => ProductionBatch::whereHas('storage')->count(),
-            'cancelado' => 0,
+            'pendiente' => $pedidosPendientesCount,
+            'materia_prima_solicitada' => CustomerOrder::whereHas('materialRequests')->count(),
+            'en_proceso' => $pedidosConLoteEnProceso,
+            'produccion_finalizada' => $pedidosCertificados,
+            'almacenado' => $pedidosAlmacenados,
+            'cancelado' => $pedidosCancelados,
         ];
 
         $lotesPorEstado = [

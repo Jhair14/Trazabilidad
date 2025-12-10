@@ -108,7 +108,7 @@ class DashboardClienteController extends Controller
             // Completado si tiene al menos un lote certificado
             return $pedido->batches->some(function($batch) {
                 $eval = $batch->latestFinalEvaluation;
-                return $eval && !str_contains(strtolower($eval->reason ?? ''), 'falló');
+                return $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló');
             });
         })->count();
         
@@ -162,8 +162,9 @@ class DashboardClienteController extends Controller
             'pedido' => [
                 'order_id' => $pedido->pedido_id,
                 'order_number' => $pedido->numero_pedido,
+                'name' => $pedido->nombre,
                 'description' => $pedido->descripcion,
-                'creation_date' => $pedido->fecha_creacion->format('d/m/Y'),
+                'creation_date' => $pedido->fecha_creacion ? $pedido->fecha_creacion->format('d/m/Y') : null,
                 'delivery_date' => $pedido->fecha_entrega ? $pedido->fecha_entrega->format('d/m/Y') : null,
                 'observations' => $pedido->observaciones,
             ],
@@ -190,7 +191,7 @@ class DashboardClienteController extends Controller
                         return [
                             'nombre' => $record->processMachine->nombre ?? 'N/A',
                             'maquina' => $record->processMachine->machine->nombre ?? 'N/A',
-                            'cumple_estandar' => $record->cumple_estandar,
+                            'cumple_estandar' => $record->cumple_estandar ?? false,
                             'fecha' => $record->fecha_registro ? $record->fecha_registro->format('d/m/Y H:i') : null,
                         ];
                     }),
@@ -199,7 +200,7 @@ class DashboardClienteController extends Controller
                             'location' => $st->ubicacion,
                             'condition' => $st->condicion,
                             'quantity' => $st->cantidad,
-                            'storage_date' => $st->fecha_almacenaje->format('d/m/Y H:i'),
+                            'storage_date' => $st->fecha_almacenaje ? $st->fecha_almacenaje->format('d/m/Y H:i') : null,
                         ];
                     }),
                 ];
