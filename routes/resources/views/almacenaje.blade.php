@@ -421,6 +421,7 @@
 
 @push('scripts')
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 let currentBatchId = null;
 let map = null;
@@ -758,6 +759,30 @@ function verAlmacenaje(batchId) {
                                 </tr>
                             </table>
                             
+                            ${almacenaje.productos && almacenaje.productos.length > 0 ? `
+                            <h5 class="mt-4 mb-3">Productos del Pedido</h5>
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 5%;">#</th>
+                                        <th style="width: 20%;">Código</th>
+                                        <th style="width: 50%;">Producto</th>
+                                        <th style="width: 25%;">Cantidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${almacenaje.productos.map((producto, index) => `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td>${producto.codigo || 'N/A'}</td>
+                                        <td>${producto.nombre || 'N/A'}</td>
+                                        <td><strong>${parseFloat(producto.cantidad || 0).toFixed(2)} ${producto.unidad || ''}</strong></td>
+                                    </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                            ` : ''}
+                            
                             <h5 class="mt-4 mb-3">Información de Transporte (Ubicación de Recojo)</h5>
                             <table class="table table-bordered">
                                 <tr>
@@ -801,6 +826,10 @@ function verAlmacenaje(batchId) {
                                     <div class="modal-body" id="verAlmacenajeContent">
                                     </div>
                                     <div class="modal-footer">
+                                        <button type="button" class="btn btn-danger" id="btnDescargarPDF" onclick="descargarPDF()">
+                                            <i class="fas fa-file-pdf mr-1"></i>
+                                            Descargar PDF
+                                        </button>
                                         <button type="button" class="btn btn-secondary" data-dismiss="modal">
                                             <i class="fas fa-times mr-1"></i>
                                             Cerrar
@@ -814,6 +843,9 @@ function verAlmacenaje(batchId) {
                 
                 $('#verAlmacenajeContent').html(content);
                 $('#verAlmacenajeModal').modal('show');
+                
+                // Guardar datos del almacenaje para el PDF
+                window.almacenajeData = almacenaje;
             } else {
                 alert('No se encontró información de almacenaje para este lote');
             }
@@ -822,6 +854,255 @@ function verAlmacenaje(batchId) {
             console.error('Error:', error);
             alert('Error al cargar los detalles del almacenaje');
         });
+}
+
+function descargarPDF() {
+    if (!window.almacenajeData) {
+        alert('No hay datos disponibles para generar el PDF');
+        return;
+    }
+    
+    const almacenaje = window.almacenajeData;
+    
+    // Formatear fecha
+    const fechaAlmacenaje = almacenaje.fecha_almacenaje 
+        ? new Date(almacenaje.fecha_almacenaje).toLocaleString('es-ES', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        })
+        : 'N/A';
+    
+    const fechaRetiro = almacenaje.fecha_retiro 
+        ? new Date(almacenaje.fecha_retiro).toLocaleString('es-ES', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        })
+        : null;
+    
+    // Información de envíos
+    let enviosHtml = '';
+    if (almacenaje.envios && almacenaje.envios.length > 0) {
+        enviosHtml = '<div style="margin-top: 20px;"><h4 style="color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px;">Envíos Creados en PlantaCruds</h4><ul style="list-style: none; padding: 0;">';
+        almacenaje.envios.forEach(function(envio) {
+            enviosHtml += `<li style="background: #f8f9fa; padding: 10px; margin-bottom: 10px; border-left: 4px solid #007bff;">
+                <strong>Código:</strong> ${envio.codigo_envio || 'N/A'}<br>
+                <strong>ID Envío:</strong> ${envio.envio_id || 'N/A'}
+            </li>`;
+        });
+        enviosHtml += '</ul></div>';
+    }
+    
+    // Crear contenido HTML para el PDF
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    padding: 20px;
+                    color: #333;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 3px solid #007bff;
+                    padding-bottom: 15px;
+                    margin-bottom: 30px;
+                }
+                .header h1 {
+                    color: #007bff;
+                    margin: 0;
+                    font-size: 24px;
+                }
+                .header p {
+                    margin: 5px 0;
+                    color: #666;
+                }
+                .section {
+                    margin-bottom: 25px;
+                }
+                .section h3 {
+                    color: #007bff;
+                    border-bottom: 2px solid #007bff;
+                    padding-bottom: 5px;
+                    margin-bottom: 15px;
+                    font-size: 18px;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 20px;
+                }
+                table th, table td {
+                    padding: 10px;
+                    text-align: left;
+                    border: 1px solid #ddd;
+                }
+                table th {
+                    background-color: #007bff;
+                    color: white;
+                    font-weight: bold;
+                    width: 30%;
+                }
+                table td {
+                    background-color: #f8f9fa;
+                }
+                .footer {
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 2px solid #ddd;
+                    text-align: center;
+                    color: #666;
+                    font-size: 12px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Detalles del Almacenaje</h1>
+                <p>Sistema de Trazabilidad y Producción</p>
+                <p>Fecha de generación: ${new Date().toLocaleString('es-ES')}</p>
+            </div>
+            
+            <div class="section">
+                <h3>Información del Almacenaje</h3>
+                <table>
+                    <tr>
+                        <th>Lote</th>
+                        <td>#${almacenaje.codigo_lote || almacenaje.lote_id || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                        <th>Nombre del Lote</th>
+                        <td>${almacenaje.nombre_lote || 'Sin nombre'}</td>
+                    </tr>
+                    <tr>
+                        <th>Ubicación</th>
+                        <td>${almacenaje.ubicacion || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                        <th>Condición</th>
+                        <td>${almacenaje.condicion || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                        <th>Cantidad Almacenada</th>
+                        <td><strong>${parseFloat(almacenaje.cantidad || 0).toFixed(2)}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Fecha de Almacenaje</th>
+                        <td>${fechaAlmacenaje}</td>
+                    </tr>
+                    ${fechaRetiro ? `
+                    <tr>
+                        <th>Fecha de Retiro</th>
+                        <td>${fechaRetiro}</td>
+                    </tr>
+                    ` : ''}
+                    ${almacenaje.observaciones ? `
+                    <tr>
+                        <th>Observaciones</th>
+                        <td>${almacenaje.observaciones}</td>
+                    </tr>
+                    ` : ''}
+                </table>
+            </div>
+            
+            <div class="section">
+                <h3>Información del Pedido</h3>
+                <table>
+                    <tr>
+                        <th>Número de Pedido</th>
+                        <td>#${almacenaje.numero_pedido || almacenaje.pedido_id || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                        <th>Nombre del Pedido</th>
+                        <td>${almacenaje.nombre_pedido || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                        <th>Cliente</th>
+                        <td>${almacenaje.cliente || 'N/A'}</td>
+                    </tr>
+                </table>
+            </div>
+            
+            ${almacenaje.productos && almacenaje.productos.length > 0 ? `
+            <div class="section">
+                <h3>Productos del Pedido</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">#</th>
+                            <th style="width: 30%;">Código</th>
+                            <th style="width: 40%;">Producto</th>
+                            <th style="width: 20%;">Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${almacenaje.productos.map((producto, index) => `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${producto.codigo || 'N/A'}</td>
+                            <td>${producto.nombre || 'N/A'}</td>
+                            <td><strong>${parseFloat(producto.cantidad || 0).toFixed(2)} ${producto.unidad || ''}</strong></td>
+                        </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            ` : ''}
+            
+            <div class="section">
+                <h3>Información de Transporte (Ubicación de Recojo)</h3>
+                <table>
+                    <tr>
+                        <th>Dirección de Recojo</th>
+                        <td>${almacenaje.direccion_recojo || 'N/A'}</td>
+                    </tr>
+                    ${almacenaje.referencia_recojo ? `
+                    <tr>
+                        <th>Referencia</th>
+                        <td>${almacenaje.referencia_recojo}</td>
+                    </tr>
+                    ` : ''}
+                    ${almacenaje.latitud_recojo && almacenaje.longitud_recojo ? `
+                    <tr>
+                        <th>Coordenadas</th>
+                        <td>${almacenaje.latitud_recojo}, ${almacenaje.longitud_recojo}</td>
+                    </tr>
+                    ` : ''}
+                </table>
+            </div>
+            
+            ${enviosHtml}
+            
+            <div class="footer">
+                <p>Documento generado automáticamente por el Sistema de Trazabilidad y Producción</p>
+            </div>
+        </body>
+        </html>
+    `;
+    
+    // Crear un elemento temporal para el contenido
+    const element = document.createElement('div');
+    element.innerHTML = htmlContent;
+    
+    // Configuración para html2pdf
+    const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `almacenaje_lote_${almacenaje.codigo_lote || almacenaje.lote_id}_${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    // Generar y descargar el PDF
+    html2pdf().set(opt).from(element).save();
 }
 </script>
 @endpush

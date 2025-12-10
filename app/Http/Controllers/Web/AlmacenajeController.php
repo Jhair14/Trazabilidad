@@ -89,11 +89,28 @@ class AlmacenajeController extends Controller
 
     public function obtenerAlmacenajesPorLote($batchId)
     {
-        $almacenajes = Storage::with(['batch.order.customer'])
+        $almacenajes = Storage::with([
+                'batch.order.customer',
+                'batch.order.orderProducts.product.unit'
+            ])
             ->where('lote_id', $batchId)
             ->orderBy('fecha_almacenaje', 'desc')
             ->get()
             ->map(function($almacenaje) {
+                // Obtener productos del pedido
+                $productos = [];
+                if ($almacenaje->batch->order && $almacenaje->batch->order->orderProducts) {
+                    $productos = $almacenaje->batch->order->orderProducts->map(function($orderProduct) {
+                        return [
+                            'producto_id' => $orderProduct->producto_id,
+                            'nombre' => $orderProduct->product->nombre ?? 'N/A',
+                            'cantidad' => $orderProduct->cantidad ?? 0,
+                            'unidad' => $orderProduct->product->unit->nombre ?? 'N/A',
+                            'codigo' => $orderProduct->product->codigo ?? null,
+                        ];
+                    })->toArray();
+                }
+                
                 return [
                     'almacenaje_id' => $almacenaje->almacenaje_id,
                     'lote_id' => $almacenaje->lote_id,
@@ -115,6 +132,8 @@ class AlmacenajeController extends Controller
                     'numero_pedido' => $almacenaje->batch->order->numero_pedido ?? null,
                     'nombre_pedido' => $almacenaje->batch->order->nombre ?? null,
                     'cliente' => $almacenaje->batch->order->customer->razon_social ?? null,
+                    // Productos del pedido
+                    'productos' => $productos,
                     // Información de envíos creados en PlantaCruds
                     'envios' => $almacenaje->batch->order ? 
                         \App\Models\OrderEnvioTracking::where('pedido_id', $almacenaje->batch->order->pedido_id)
