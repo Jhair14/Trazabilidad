@@ -18,6 +18,13 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 // Crear pedido sin autenticación (crea cliente automáticamente)
 // El token es opcional: si hay token usa el cliente del usuario, si no hay token usa datos del body
 Route::post('/customer-orders', [CustomerOrderController::class, 'store'])->withoutMiddleware(['auth:api']);
+// Ver pedidos por nombre de usuario (público, sin token)
+Route::get('/customer-orders/by-user', [CustomerOrderController::class, 'getOrdersByUserName'])->withoutMiddleware(['auth:api']);
+// Actualizar pedido sin autenticación (valida nombre_usuario)
+Route::put('/customer-orders/{id}/public', [CustomerOrderController::class, 'updatePublic'])->withoutMiddleware(['auth:api']);
+// Obtener productos disponibles (token opcional)
+Route::get('/products', [\App\Http\Controllers\Api\ProductController::class, 'index'])->withoutMiddleware(['auth:api']);
+Route::get('/products/{id}', [\App\Http\Controllers\Api\ProductController::class, 'show'])->withoutMiddleware(['auth:api']);
 
 // Protected routes
 Route::middleware('auth:api')->group(function () {
@@ -45,7 +52,10 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/customer-orders/{id}', [CustomerOrderController::class, 'update']);
     Route::delete('/customer-orders/{id}', [CustomerOrderController::class, 'destroy']);
     Route::post('/customer-orders/{id}/cancel', [CustomerOrderController::class, 'cancel']);
-    Route::apiResource('products', \App\Http\Controllers\Api\ProductController::class);
+    // Products - solo las rutas que requieren autenticación (index y show ya están fuera)
+    Route::post('/products', [\App\Http\Controllers\Api\ProductController::class, 'store']);
+    Route::put('/products/{id}', [\App\Http\Controllers\Api\ProductController::class, 'update']);
+    Route::delete('/products/{id}', [\App\Http\Controllers\Api\ProductController::class, 'destroy']);
     // Order Approval Routes
     Route::prefix('order-approval')->group(function () {
         Route::get('/pending', [\App\Http\Controllers\Api\OrderApprovalController::class, 'pendingOrders']);
