@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use App\Services\AlmacenSyncService;
 
 class PedidosController extends Controller
 {
@@ -96,25 +97,41 @@ class PedidosController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        // Obtener almacenes destino desde plantaCruds
-        $almacenesDestino = [];
-
-        try {
+        // Obtener almacenes destino desde plantaCruds usando el servicio
+        $almacenSyncService = new AlmacenSyncService();
+        
+        // Limpiar cache primero para asegurar datos frescos
+        $almacenSyncService->clearCache();
+        
+        $almacenesDestino = $almacenSyncService->getDestinoAlmacenes();
+        
+        // Si no hay almacenes, loggear el error para debugging
+        if (empty($almacenesDestino)) {
             $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
-            $resp = Http::timeout(5)->get("{$apiUrl}/almacenes");
-            if ($resp->successful()) {
-                $almacenes = $resp->json('data', []);
-                foreach ($almacenes as $alm) {
-                    // Solo almacenes destino (no plantas)
-                    if (empty($alm['es_planta']) || !$alm['es_planta']) {
-                        $almacenesDestino[] = $alm;
-                    }
-                }
+            \Log::warning('No se pudieron obtener almacenes destino desde plantaCruds', [
+                'api_url' => $apiUrl,
+                'count' => 0,
+                'full_url' => rtrim($apiUrl, '/') . '/almacenes'
+            ]);
+            
+            // Intentar una vez más sin cache
+            try {
+                $almacenesDestino = $almacenSyncService->getAlmacenes(true);
+                $almacenesDestino = array_filter($almacenesDestino, function($alm) {
+                    return !($alm['es_planta'] ?? false);
+                });
+                $almacenesDestino = array_values($almacenesDestino); // Reindexar
+            } catch (\Exception $e) {
+                \Log::error('Error al obtener almacenes en segundo intento', [
+                    'error' => $e->getMessage()
+                ]);
             }
-        } catch (\Exception $e) {
-            \Log::warning('No se pudieron obtener almacenes de plantaCruds: ' . $e->getMessage());
+        } else {
+            \Log::info('Almacenes destino obtenidos exitosamente', [
+                'count' => count($almacenesDestino)
+            ]);
         }
-
+        
         return view('crear-pedido', compact('products', 'almacenesDestino'));
     }
 

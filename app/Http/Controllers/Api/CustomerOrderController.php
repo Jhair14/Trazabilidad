@@ -93,6 +93,8 @@ class CustomerOrderController extends Controller
             'destinations.*.nombre_contacto' => 'nullable|string|max:200',
             'destinations.*.telefono_contacto' => 'nullable|string|max:20',
             'destinations.*.instrucciones_entrega' => 'nullable|string',
+            'destinations.*.almacen_destino_id' => 'nullable|integer', // ID del almacén destino desde plantaCruds
+            'destinations.*.almacen_destino_nombre' => 'nullable|string|max:200', // Nombre del almacén destino
             'destinations.*.products' => 'required|array|min:1',
             'destinations.*.products.*.order_product_index' => 'required|integer|min:0',
             'destinations.*.products.*.cantidad' => 'required|numeric|min:0.0001',
@@ -175,6 +177,8 @@ class CustomerOrderController extends Controller
                     'nombre_contacto' => $destData['nombre_contacto'] ?? null,
                     'telefono_contacto' => $destData['telefono_contacto'] ?? null,
                     'instrucciones_entrega' => $destData['instrucciones_entrega'] ?? null,
+                    'almacen_destino_id' => $destData['almacen_destino_id'] ?? null,
+                    'almacen_destino_nombre' => $destData['almacen_destino_nombre'] ?? null,
                 ]);
 
                 // Asignar productos a este destino

@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class GestionPedidosController extends Controller
 {
@@ -147,10 +148,90 @@ class GestionPedidosController extends Controller
 
             DB::commit();
 
-            // NOTA: El envío a plantaCruds ahora se realiza al almacenar el lote, no al aprobar el pedido
+            // Recargar el pedido con todas las relaciones necesarias
+            $order->refresh();
+            $order->load([
+                'customer',
+                'orderProducts.product.unit',
+                'destinations.destinationProducts.orderProduct.product'
+            ]);
+
+            // Integración con plantaCruds - Crear envíos al aprobar el pedido
+            $integrationService = new PlantaCrudsIntegrationService();
+            $enviosCreated = [];
+            $integrationErrors = [];
+            
+            try {
+                // Verificar que el pedido tenga destinos
+                if ($order->destinations->isEmpty()) {
+                    Log::warning('Pedido aprobado sin destinos', [
+                        'order_id' => $order->pedido_id,
+                        'order_number' => $order->numero_pedido,
+                    ]);
+                    return redirect()->route('gestion-pedidos.show', $orderId)
+                        ->with('warning', 'Pedido aprobado exitosamente, pero no tiene destinos configurados. No se pueden crear envíos.');
+                }
+                
+                $results = $integrationService->sendOrderToShipping($order);
+                foreach ($results as $result) {
+                    if ($result['success']) {
+                        $enviosCreated[] = [
+                            'destination_id' => $result['destination_id'],
+                            'envio_codigo' => $result['envio_codigo'] ?? null,
+                            'envio_id' => $result['envio_id'] ?? null,
+                        ];
+                        
+                        // Guardar tracking en Trazabilidad
+                        OrderEnvioTracking::create([
+                            'order_id' => $order->pedido_id,
+                            'destination_id' => $result['destination_id'],
+                            'envio_id' => $result['envio_id'],
+                            'envio_codigo' => $result['envio_codigo'],
+                            'status' => 'success',
+                            'request_data' => json_encode($result['response']['request_data'] ?? []),
+                            'response_data' => json_encode($result['response']['data'] ?? []),
+                        ]);
+                    } else {
+                        $integrationErrors[] = [
+                            'destination_id' => $result['destination_id'],
+                            'error' => $result['error'] ?? 'Error desconocido',
+                        ];
+                        
+                        // Guardar tracking de error
+                        OrderEnvioTracking::create([
+                            'order_id' => $order->pedido_id,
+                            'destination_id' => $result['destination_id'],
+                            'envio_id' => null,
+                            'envio_codigo' => null,
+                            'status' => 'failed',
+                            'error_message' => $result['error'] ?? 'Error desconocido',
+                            'request_data' => json_encode($result['request_data'] ?? []),
+                            'response_data' => null,
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Error en integración con plantaCruds al aprobar pedido', [
+                    'order_id' => $order->pedido_id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                $integrationErrors[] = ['error' => $e->getMessage()];
+            }
+
+            // Preparar mensaje de éxito
+            $successMessage = 'Pedido aprobado exitosamente.';
+            if (!empty($enviosCreated)) {
+                $successMessage .= ' Se crearon ' . count($enviosCreated) . ' envío(s) en plantaCruds.';
+            }
+            if (!empty($integrationErrors)) {
+                $successMessage .= ' Hubo ' . count($integrationErrors) . ' error(es) al crear algunos envíos.';
+            }
 
             return redirect()->route('gestion-pedidos.show', $orderId)
-                ->with('success', 'Pedido aprobado exitosamente. El envío se creará cuando se almacene el lote.');
+                ->with('success', $successMessage)
+                ->with('envios_created', $enviosCreated)
+                ->with('integration_errors', $integrationErrors);
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()

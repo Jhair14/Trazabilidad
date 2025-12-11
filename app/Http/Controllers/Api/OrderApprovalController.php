@@ -100,6 +100,10 @@ class OrderApprovalController extends Controller
                 ->where('status', 'pendiente')
                 ->count();
 
+            $enviosCreated = [];
+            $integrationErrors = [];
+            $pedidoCompletado = false;
+
             if ($pendingProducts === 0) {
                 // Todos los productos están aprobados, aprobar el pedido completo
                 $order = CustomerOrder::findOrFail($orderId);
@@ -108,14 +112,57 @@ class OrderApprovalController extends Controller
                     'approved_by' => Auth::id(),
                     'approved_at' => now(),
                 ]);
+
+                $pedidoCompletado = true;
+
+                // Integración con plantaCruds cuando se aprueba el último producto
+                $integrationService = new PlantaCrudsIntegrationService();
+                
+                try {
+                    $results = $integrationService->sendOrderToShipping($order);
+                    foreach ($results as $result) {
+                        if ($result['success']) {
+                            $enviosCreated[] = [
+                                'destination_id' => $result['destination_id'],
+                                'envio_codigo' => $result['envio_codigo'] ?? null,
+                                'envio_id' => $result['envio_id'] ?? null,
+                            ];
+                        } else {
+                            $integrationErrors[] = [
+                                'destination_id' => $result['destination_id'],
+                                'error' => $result['error'] ?? 'Error desconocido',
+                            ];
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Error en integración con plantaCruds', [
+                        'order_id' => $order->pedido_id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $integrationErrors[] = ['error' => $e->getMessage()];
+                }
             }
 
             DB::commit();
 
-            return response()->json([
+            $response = [
                 'message' => 'Producto aprobado exitosamente',
                 'order_product' => $orderProduct->load('product', 'approver')
-            ]);
+            ];
+
+            // Si se completó la aprobación del pedido, incluir información de envíos
+            if ($pedidoCompletado) {
+                $response['pedido_completado'] = true;
+                if (!empty($enviosCreated)) {
+                    $response['envios_created'] = $enviosCreated;
+                    $response['integration_success'] = true;
+                }
+                if (!empty($integrationErrors)) {
+                    $response['integration_errors'] = $integrationErrors;
+                }
+            }
+
+            return response()->json($response);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -214,7 +261,34 @@ class OrderApprovalController extends Controller
 
             DB::commit();
 
-            // NOTA: El envío a plantaCruds ahora se realiza al almacenar el lote, no al aprobar el pedido
+            // Integración con plantaCruds
+            $integrationService = new PlantaCrudsIntegrationService();
+            $enviosCreated = [];
+            $integrationErrors = [];
+            
+            try {
+                $results = $integrationService->sendOrderToShipping($order);
+                foreach ($results as $result) {
+                    if ($result['success']) {
+                        $enviosCreated[] = [
+                            'destination_id' => $result['destination_id'],
+                            'envio_codigo' => $result['envio_codigo'] ?? null,
+                            'envio_id' => $result['envio_id'] ?? null,
+                        ];
+                    } else {
+                        $integrationErrors[] = [
+                            'destination_id' => $result['destination_id'],
+                            'error' => $result['error'] ?? 'Error desconocido',
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Error en integración con plantaCruds', [
+                    'order_id' => $order->pedido_id,
+                    'error' => $e->getMessage(),
+                ]);
+                $integrationErrors[] = ['error' => $e->getMessage()];
+            }
 
             $response = [
                 'message' => 'Pedido aprobado exitosamente',

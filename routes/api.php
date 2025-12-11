@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\RawMaterialController;
 use App\Http\Controllers\Api\RawMaterialBaseController;
 use App\Http\Controllers\Api\MaterialMovementLogController;
 use App\Http\Controllers\Api\UnitOfMeasureController;
+use App\Http\Controllers\Api\AlmacenController;
 
 // Public routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -46,6 +47,15 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/{orderId}/approve', [\App\Http\Controllers\Api\OrderApprovalController::class, 'approveOrder']);
         Route::post('/{orderId}/product/{productId}/approve', [\App\Http\Controllers\Api\OrderApprovalController::class, 'approveProduct']);
         Route::post('/{orderId}/product/{productId}/reject', [\App\Http\Controllers\Api\OrderApprovalController::class, 'rejectProduct']);
+    });
+
+    // Almacenes Routes (sincronizados desde plantaCruds)
+    Route::prefix('almacenes')->group(function () {
+        Route::get('/', [AlmacenController::class, 'index']);
+        Route::get('/planta', [AlmacenController::class, 'planta']);
+        Route::get('/destinos', [AlmacenController::class, 'destinos']);
+        Route::get('/nearest', [AlmacenController::class, 'nearest']);
+        Route::post('/clear-cache', [AlmacenController::class, 'clearCache']);
     });
           
     Route::apiResource('production-batches', ProductionBatchController::class);

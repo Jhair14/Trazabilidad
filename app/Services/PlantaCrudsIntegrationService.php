@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CustomerOrder;
 use App\Models\OrderDestination;
+use App\Services\AlmacenSyncService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -87,25 +88,25 @@ class PlantaCrudsIntegrationService
      */
     private function buildEnvioData(CustomerOrder $order, OrderDestination $destination, ?\App\Models\Storage $storage = null): array
     {
-        // Prioridad: almacen_destino_id (seleccionado en UI) > almacen_origen_id (legacy) > buscar/crear
+        $almacenSyncService = new AlmacenSyncService();
+        
+        // Prioridad: almacen_destino_id (seleccionado en UI) > buscar por coordenadas > usar default
         if (!empty($destination->almacen_destino_id)) {
-            // Nuevo: Usar el almacén destino seleccionado directamente desde la UI
+            // Usar el almacén destino seleccionado directamente desde la UI
             $almacenId = $destination->almacen_destino_id;
-        } elseif (!empty($destination->almacen_origen_id)) {
-            // Legacy: almacen_origen_id si fue seteado
-            $almacenId = $destination->almacen_origen_id;
-        } else {
-            // Fallback: buscar o crear almacén basado en la ubicación
-            // Si hay storage con ubicación de recojo, usar esa ubicación
-            if ($storage && $storage->latitud_recojo && $storage->longitud_recojo) {
-                $almacenId = $this->findOrCreateAlmacenByCoordinates(
-                    $storage->latitud_recojo,
-                    $storage->longitud_recojo,
-                    $storage->direccion_recojo
-                );
-            } else {
-            $almacenId = $this->findOrCreateAlmacen($destination);
+            
+            // Verificar que el almacén existe
+            $almacen = $almacenSyncService->findAlmacenById($almacenId);
+            if (!$almacen) {
+                Log::warning('Almacén destino no encontrado, buscando alternativo', [
+                    'almacen_id' => $almacenId,
+                    'destination_id' => $destination->destino_id
+                ]);
+                $almacenId = $this->findAlmacenForDestination($destination, $almacenSyncService);
             }
+        } else {
+            // Buscar almacén basado en la ubicación del destino
+            $almacenId = $this->findAlmacenForDestination($destination, $almacenSyncService);
         }
 
         // Build products array
@@ -130,6 +131,9 @@ class PlantaCrudsIntegrationService
             'hora_estimada' => '14:00', // Default time
             'observaciones' => $this->buildObservations($order, $destination, $storage),
             'productos' => $productos,
+            'origen' => 'trazabilidad',
+            'pedido_trazabilidad_id' => $order->pedido_id,
+            'numero_pedido_trazabilidad' => $order->numero_pedido,
         ];
     }
 
@@ -152,7 +156,7 @@ class PlantaCrudsIntegrationService
 
         // Agregar información de ubicación de recojo si está disponible
         if ($storage && $storage->direccion_recojo) {
-            $obs .= "\n📍 UBICACIÓN DE RECOJO:\n";
+            $obs .= "\nUBICACIÓN DE RECOJO:\n";
             $obs .= "Dirección: {$storage->direccion_recojo}\n";
             if ($storage->referencia_recojo) {
                 $obs .= "Referencia: {$storage->referencia_recojo}\n";
@@ -185,174 +189,69 @@ class PlantaCrudsIntegrationService
     }
 
     /**
-     * Find almacen by coordinates
-     * 
-     * @param float $latitude
-     * @param float $longitude
-     * @param string|null $address
-     * @return int
-     * @throws \Exception
-     */
-    private function findOrCreateAlmacenByCoordinates(float $latitude, float $longitude, ?string $address = null): int
-    {
-        try {
-            $response = Http::timeout(10)->get("{$this->apiUrl}/almacenes");
-
-            if ($response->successful()) {
-                $almacenes = $response->json('data', []);
-
-                // Try to find by coordinates
-                foreach ($almacenes as $almacen) {
-                    if (
-                        isset($almacen['latitud']) && isset($almacen['longitud']) &&
-                        $this->coordinatesMatch(
-                            $almacen['latitud'],
-                            $almacen['longitud'],
-                            $latitude,
-                            $longitude
-                        )
-                    ) {
-                        Log::info('Found almacen by pickup coordinates', [
-                            'almacen_id' => $almacen['id'],
-                            'almacen_nombre' => $almacen['nombre'],
-                        ]);
-                        return $almacen['id'];
-                    }
-                }
-
-                // Try to find by address match
-                if ($address) {
-                    foreach ($almacenes as $almacen) {
-                        $almacenAddress = $almacen['direccion_completa'] ?? $almacen['nombre'] ?? '';
-                        if (
-                            stripos($almacenAddress, $address) !== false ||
-                            stripos($address, $almacenAddress) !== false
-                        ) {
-                            Log::info('Found almacen by pickup address match', [
-                                'almacen_id' => $almacen['id'],
-                                'almacen_nombre' => $almacen['nombre'],
-                            ]);
-                            return $almacen['id'];
-                        }
-                    }
-                }
-
-                // Use first active non-plant almacen
-                foreach ($almacenes as $almacen) {
-                    if (($almacen['activo'] ?? true) && !($almacen['es_planta'] ?? false)) {
-                        Log::warning('No matching almacen found for pickup location, using default', [
-                            'almacen_id' => $almacen['id'],
-                            'pickup_address' => $address,
-                        ]);
-                        return $almacen['id'];
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            Log::warning('Failed to fetch almacenes list for pickup location', ['error' => $e->getMessage()]);
-        }
-
-        throw new \Exception("No hay almacenes disponibles en plantaCruds para la ubicación de recojo: {$address}");
-    }
-
-    /**
-     * Find existing almacen or return default
+     * Buscar almacén para un destino
      * 
      * @param OrderDestination $destination
+     * @param AlmacenSyncService $almacenSyncService
      * @return int
      * @throws \Exception
      */
-    private function findOrCreateAlmacen(OrderDestination $destination): int
+    private function findAlmacenForDestination(OrderDestination $destination, AlmacenSyncService $almacenSyncService): int
     {
-        // First, try to get list of almacenes from plantaCruds
-        try {
-            $response = Http::timeout(10)->get("{$this->apiUrl}/almacenes");
+        // Si el destino tiene coordenadas, buscar el almacén más cercano
+        if ($destination->latitud && $destination->longitud) {
+            $nearestAlmacen = $almacenSyncService->findNearestAlmacen(
+                $destination->latitud,
+                $destination->longitud,
+                true // Solo almacenes de destino (no plantas)
+            );
 
-            if ($response->successful()) {
-                $almacenes = $response->json('data', []);
-
-                // Try to find by coordinates if available
-                if ($destination->latitud && $destination->longitud) {
-                    foreach ($almacenes as $almacen) {
-                        if (
-                            isset($almacen['latitud']) && isset($almacen['longitud']) &&
-                            $this->coordinatesMatch(
-                                $almacen['latitud'],
-                                $almacen['longitud'],
-                                $destination->latitud,
-                                $destination->longitud
-                            )
-                        ) {
-                            Log::info('Found almacen by coordinates', [
-                                'almacen_id' => $almacen['id'],
-                                'almacen_nombre' => $almacen['nombre'],
-                            ]);
-                            return $almacen['id'];
-                        }
-                    }
-                }
-
-                // Try to find by address match
-                foreach ($almacenes as $almacen) {
-                    $almacenAddress = $almacen['direccion_completa'] ?? $almacen['nombre'] ?? '';
-                    if (
-                        stripos($almacenAddress, $destination->direccion) !== false ||
-                        stripos($destination->direccion, $almacenAddress) !== false
-                    ) {
-                        Log::info('Found almacen by address match', [
-                            'almacen_id' => $almacen['id'],
-                            'almacen_nombre' => $almacen['nombre'],
-                        ]);
-                        return $almacen['id'];
-                    }
-                }
-
-                // If no match found, use first active almacen that is NOT the plant (es_planta=false)
-                foreach ($almacenes as $almacen) {
-                    // Exclude plant from default destination
-                    if (($almacen['activo'] ?? true) && !($almacen['es_planta'] ?? false)) {
-                        Log::warning('No matching almacen found, using default (non-plant)', [
-                            'almacen_id' => $almacen['id'],
-                            'almacen_nombre' => $almacen['nombre'],
-                            'destination_address' => $destination->direccion,
-                        ]);
-                        return $almacen['id'];
-                    }
-                }
-
-                // If no active non-plant almacen, use first non-plant one
-                foreach ($almacenes as $almacen) {
-                    if (!($almacen['es_planta'] ?? false)) {
-                        Log::warning('No active non-plant almacen found, using first non-plant', [
-                            'almacen_id' => $almacen['id'],
-                            'destination_address' => $destination->direccion,
-                        ]);
-                        return $almacen['id'];
-                    }
-                }
+            if ($nearestAlmacen) {
+                Log::info('Almacén encontrado por proximidad', [
+                    'almacen_id' => $nearestAlmacen['id'],
+                    'almacen_nombre' => $nearestAlmacen['nombre'],
+                    'destination_id' => $destination->destino_id,
+                ]);
+                return $nearestAlmacen['id'];
             }
-        } catch (\Exception $e) {
-            Log::warning('Failed to fetch almacenes list', ['error' => $e->getMessage()]);
         }
 
-        // If no almacen found at all, throw exception
-        throw new \Exception("No hay almacenes disponibles en plantaCruds para el destino: {$destination->direccion}");
+        // Si no hay coordenadas o no se encontró, buscar por dirección
+        if ($destination->direccion) {
+            $almacenes = $almacenSyncService->getDestinoAlmacenes();
+            
+            foreach ($almacenes as $almacen) {
+                $almacenAddress = $almacen['direccion'] ?? $almacen['nombre'] ?? '';
+                if (
+                    stripos($almacenAddress, $destination->direccion) !== false ||
+                    stripos($destination->direccion, $almacenAddress) !== false
+                ) {
+                    Log::info('Almacén encontrado por coincidencia de dirección', [
+                        'almacen_id' => $almacen['id'],
+                        'almacen_nombre' => $almacen['nombre'],
+                        'destination_id' => $destination->destino_id,
+                    ]);
+                    return $almacen['id'];
+                }
+            }
+        }
+
+        // Si no se encontró, usar el primer almacén de destino disponible
+        $almacenes = $almacenSyncService->getDestinoAlmacenes();
+        if (!empty($almacenes)) {
+            $firstAlmacen = reset($almacenes);
+            Log::warning('No se encontró almacén específico, usando almacén por defecto', [
+                'almacen_id' => $firstAlmacen['id'],
+                'almacen_nombre' => $firstAlmacen['nombre'],
+                'destination_id' => $destination->destino_id,
+                'destination_address' => $destination->direccion,
+            ]);
+            return $firstAlmacen['id'];
+        }
+
+        throw new \Exception("No hay almacenes de destino disponibles en plantaCruds para el destino: {$destination->direccion}");
     }
 
-    /**
-     * Check if coordinates match within tolerance
-     * 
-     * @param float $lat1
-     * @param float $lng1
-     * @param float $lat2
-     * @param float $lng2
-     * @param float $tolerance
-     * @return bool
-     */
-    private function coordinatesMatch($lat1, $lng1, $lat2, $lng2, $tolerance = 0.001): bool
-    {
-        return abs($lat1 - $lat2) < $tolerance && abs($lng1 - $lng2) < $tolerance;
-    }
 
     /**
      * Send POST request to create Envio
