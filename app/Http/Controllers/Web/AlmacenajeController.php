@@ -231,11 +231,12 @@ class AlmacenajeController extends Controller
                 ])->findOrFail($request->lote_id)->order;
                 
                 if ($order && $order->destinations && $order->destinations->count() > 0) {
-                    Log::info('Enviando pedido a PlantaCruds para crear envíos', [
+                    Log::info('Iniciando integración con PlantaCruds para crear envíos', [
                         'pedido_id' => $order->pedido_id,
                         'numero_pedido' => $order->numero_pedido,
                         'destinos_count' => $order->destinations->count(),
                         'storage_id' => $storage->almacenaje_id,
+                        'api_url' => config('services.plantacruds.api_url'),
                     ]);
                     
                     $integration = new PlantaCrudsIntegrationService();
@@ -255,11 +256,23 @@ class AlmacenajeController extends Controller
                         ]);
                     }
                     
+                    $successful = collect($results)->where('success', true)->count();
+                    $failed = collect($results)->where('success', false)->count();
+                    
                     Log::info('Integración con PlantaCruds completada', [
                         'pedido_id' => $order->pedido_id,
                         'results_count' => count($results),
-                        'successful' => collect($results)->where('success', true)->count(),
+                        'successful' => $successful,
+                        'failed' => $failed,
                     ]);
+                    
+                    if ($failed > 0) {
+                        Log::warning('Algunos envíos fallaron al crear en PlantaCruds', [
+                            'pedido_id' => $order->pedido_id,
+                            'failed_count' => $failed,
+                            'errors' => collect($results)->where('success', false)->pluck('error')->toArray(),
+                        ]);
+                    }
                 } else {
                     Log::warning('No se pudo enviar pedido a PlantaCruds: pedido sin destinos', [
                         'lote_id' => $request->lote_id,
@@ -269,9 +282,12 @@ class AlmacenajeController extends Controller
                     ]);
                 }
             } catch (\Exception $e) {
-                Log::error('Error integrando con plantaCruds al almacenar lote: ' . $e->getMessage(), [
+                Log::error('Error integrando con plantaCruds al almacenar lote', [
                     'lote_id' => $request->lote_id,
                     'almacenaje_id' => $nextId,
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
                     'trace' => $e->getTraceAsString(),
                 ]);
                 // No fallar el almacenamiento si falla la integración

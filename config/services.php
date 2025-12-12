@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'plantacruds' => [
+        'api_url' => env('PLANTACRUDS_API_URL', 'http://localhost:8001/api'),
+    ],
+
 ];

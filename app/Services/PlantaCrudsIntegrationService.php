@@ -13,7 +13,20 @@ class PlantaCrudsIntegrationService
 
     public function __construct()
     {
-        $this->apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
+        // Usar config() en lugar de env() directamente para mejor rendimiento
+        $this->apiUrl = config('services.plantacruds.api_url');
+        
+        // Validar que la URL esté configurada
+        if (empty($this->apiUrl) || $this->apiUrl === 'http://localhost:8001/api') {
+            Log::warning('PLANTACRUDS_API_URL no está configurada correctamente en .env', [
+                'current_url' => $this->apiUrl,
+                'env_value' => env('PLANTACRUDS_API_URL'),
+            ]);
+        }
+        
+        Log::info('PlantaCrudsIntegrationService inicializado', [
+            'api_url' => $this->apiUrl,
+        ]);
     }
 
     /**
