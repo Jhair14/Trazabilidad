@@ -40,8 +40,8 @@ services:
     image: postgres:latest
     container_name: trazabilidad-db
     restart: unless-stopped
-    ports:
-      - "5434:5432"
+    # ports:
+    #   - "5434:5432"
     environment:
       POSTGRES_DB: trazabilidad_db
       POSTGRES_USER: admin
