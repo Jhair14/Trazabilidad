@@ -91,7 +91,8 @@ class AlmacenajeController extends Controller
     {
         $almacenajes = Storage::with([
                 'batch.order.customer',
-                'batch.order.orderProducts.product.unit'
+                'batch.order.orderProducts.product.unit',
+                'batch.order.destinations.destinationProducts.orderProduct.product'
             ])
             ->where('lote_id', $batchId)
             ->orderBy('fecha_almacenaje', 'desc')
@@ -103,10 +104,42 @@ class AlmacenajeController extends Controller
                     $productos = $almacenaje->batch->order->orderProducts->map(function($orderProduct) {
                         return [
                             'producto_id' => $orderProduct->producto_id,
+                            'producto_pedido_id' => $orderProduct->producto_pedido_id,
                             'nombre' => $orderProduct->product->nombre ?? 'N/A',
                             'cantidad' => $orderProduct->cantidad ?? 0,
                             'unidad' => $orderProduct->product->unit->nombre ?? 'N/A',
                             'codigo' => $orderProduct->product->codigo ?? null,
+                            'precio' => $orderProduct->precio ?? 0,
+                            'estado' => $orderProduct->estado ?? null,
+                            'observaciones' => $orderProduct->observaciones ?? null,
+                        ];
+                    })->toArray();
+                }
+                
+                // Obtener destinos del pedido
+                $destinos = [];
+                if ($almacenaje->batch->order && $almacenaje->batch->order->destinations) {
+                    $destinos = $almacenaje->batch->order->destinations->map(function($destino) {
+                        $productosDestino = [];
+                        if ($destino->destinationProducts) {
+                            $productosDestino = $destino->destinationProducts->map(function($destProd) {
+                                return [
+                                    'producto_nombre' => $destProd->orderProduct->product->nombre ?? 'N/A',
+                                    'cantidad' => $destProd->cantidad ?? 0,
+                                ];
+                            })->toArray();
+                        }
+                        
+                        return [
+                            'destino_id' => $destino->destino_id,
+                            'direccion' => $destino->direccion ?? null,
+                            'referencia' => $destino->referencia ?? null,
+                            'latitud' => $destino->latitud ?? null,
+                            'longitud' => $destino->longitud ?? null,
+                            'nombre_contacto' => $destino->nombre_contacto ?? null,
+                            'telefono_contacto' => $destino->telefono_contacto ?? null,
+                            'instrucciones_entrega' => $destino->instrucciones_entrega ?? null,
+                            'productos' => $productosDestino,
                         ];
                     })->toArray();
                 }
@@ -116,6 +149,8 @@ class AlmacenajeController extends Controller
                     'lote_id' => $almacenaje->lote_id,
                     'codigo_lote' => $almacenaje->batch->codigo_lote ?? null,
                     'nombre_lote' => $almacenaje->batch->nombre ?? null,
+                    'cantidad_producida' => $almacenaje->batch->cantidad_producida ?? 0,
+                    'cantidad_objetivo' => $almacenaje->batch->cantidad_objetivo ?? 0,
                     'ubicacion' => $almacenaje->ubicacion ?? 'N/A',
                     'condicion' => $almacenaje->condicion ?? 'N/A',
                     'cantidad' => $almacenaje->cantidad ?? 0,
@@ -131,9 +166,24 @@ class AlmacenajeController extends Controller
                     'pedido_id' => $almacenaje->batch->pedido_id ?? null,
                     'numero_pedido' => $almacenaje->batch->order->numero_pedido ?? null,
                     'nombre_pedido' => $almacenaje->batch->order->nombre ?? null,
-                    'cliente' => $almacenaje->batch->order->customer->razon_social ?? null,
+                    'descripcion_pedido' => $almacenaje->batch->order->descripcion ?? null,
+                    'observaciones_pedido' => $almacenaje->batch->order->observaciones ?? null,
+                    'fecha_creacion_pedido' => $almacenaje->batch->order->fecha_creacion ? $almacenaje->batch->order->fecha_creacion->format('Y-m-d') : null,
+                    'fecha_entrega_pedido' => $almacenaje->batch->order->fecha_entrega ? $almacenaje->batch->order->fecha_entrega->format('Y-m-d') : null,
+                    'estado_pedido' => $almacenaje->batch->order->estado ?? null,
+                    // Información del cliente
+                    'cliente_id' => $almacenaje->batch->order->customer->cliente_id ?? null,
+                    'cliente_razon_social' => $almacenaje->batch->order->customer->razon_social ?? null,
+                    'cliente_nombre_comercial' => $almacenaje->batch->order->customer->nombre_comercial ?? null,
+                    'cliente_nit' => $almacenaje->batch->order->customer->nit ?? null,
+                    'cliente_direccion' => $almacenaje->batch->order->customer->direccion ?? null,
+                    'cliente_telefono' => $almacenaje->batch->order->customer->telefono ?? null,
+                    'cliente_email' => $almacenaje->batch->order->customer->email ?? null,
+                    'cliente_contacto' => $almacenaje->batch->order->customer->contacto ?? null,
                     // Productos del pedido
                     'productos' => $productos,
+                    // Destinos del pedido
+                    'destinos' => $destinos,
                     // Información de envíos creados en PlantaCruds
                     'envios' => $almacenaje->batch->order ? 
                         \App\Models\OrderEnvioTracking::where('pedido_id', $almacenaje->batch->order->pedido_id)

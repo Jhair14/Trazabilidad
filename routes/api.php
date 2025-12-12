@@ -18,6 +18,8 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 // Crear pedido sin autenticación (crea cliente automáticamente)
 // El token es opcional: si hay token usa el cliente del usuario, si no hay token usa datos del body
 Route::post('/customer-orders', [CustomerOrderController::class, 'store'])->withoutMiddleware(['auth:api']);
+// Obtener pedidos por nombre_usuario sin autenticación
+Route::get('/customer-orders/by-user', [CustomerOrderController::class, 'byUser'])->withoutMiddleware(['auth:api']);
 // Actualizar pedido sin autenticación (valida nombre_usuario)
 Route::put('/customer-orders/{id}/public', [CustomerOrderController::class, 'updatePublic'])->withoutMiddleware(['auth:api']);
 // Obtener productos disponibles (token opcional)

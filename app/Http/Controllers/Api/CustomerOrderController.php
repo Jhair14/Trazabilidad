@@ -616,6 +616,97 @@ class CustomerOrderController extends Controller
     }
 
     /**
+     * Obtener pedidos por nombre de usuario (sin autenticación)
+     * Busca el cliente por nombre_usuario y devuelve sus pedidos
+     */
+    public function byUser(Request $request): JsonResponse
+    {
+        try {
+            // Validar que se proporcione nombre_usuario
+            $nombreUsuario = $request->get('nombre_usuario');
+            
+            if (!$nombreUsuario) {
+                return response()->json([
+                    'message' => 'El parámetro nombre_usuario es requerido',
+                    'error' => 'MissingParameter'
+                ], 400);
+            }
+
+            // Buscar cliente por nombre_usuario
+            // El nombre_usuario puede estar en contacto o al inicio de razon_social
+            $nombreUsuarioTrimmed = trim($nombreUsuario);
+            
+            $customer = Customer::where(function($query) use ($nombreUsuarioTrimmed) {
+                // Buscar en contacto que empiece con el nombre_usuario (case-insensitive)
+                $query->whereRaw('LOWER(contacto) LIKE LOWER(?)', [$nombreUsuarioTrimmed . '%'])
+                      // O buscar en razon_social que empiece con el nombre_usuario (case-insensitive)
+                      ->orWhereRaw('LOWER(razon_social) LIKE LOWER(?)', [$nombreUsuarioTrimmed . '%']);
+            })
+            ->where('activo', true)
+            ->first();
+
+            if (!$customer) {
+                return response()->json([
+                    'message' => 'No se encontró un cliente con ese nombre de usuario',
+                    'error' => 'CustomerNotFound'
+                ], 404);
+            }
+
+            // Obtener pedidos del cliente
+            $orders = CustomerOrder::where('cliente_id', $customer->cliente_id)
+                ->with([
+                    'customer',
+                    'orderProducts.product.unit',
+                    'destinations.destinationProducts.orderProduct.product'
+                ])
+                ->orderBy('fecha_creacion', 'desc')
+                ->orderBy('pedido_id', 'desc')
+                ->get();
+
+            // Transformar para asegurar estructura consistente
+            $ordersData = $orders->map(function($order) {
+                $data = $order->toArray();
+                $data['orderProducts'] = $order->orderProducts->map(function($op) {
+                    return [
+                        'producto_pedido_id' => $op->producto_pedido_id,
+                        'producto_id' => $op->producto_id,
+                        'cantidad' => $op->cantidad,
+                        'estado' => $op->estado,
+                        'observaciones' => $op->observaciones,
+                        'razon_rechazo' => $op->razon_rechazo,
+                        'product' => [
+                            'producto_id' => $op->product->producto_id,
+                            'nombre' => $op->product->nombre ?? 'N/A',
+                            'codigo' => $op->product->codigo ?? 'N/A',
+                            'unit' => [
+                                'nombre' => $op->product->unit->nombre ?? 'N/A',
+                                'abbreviation' => $op->product->unit->codigo ?? 'N/A',
+                            ]
+                        ]
+                    ];
+                });
+                return $data;
+            });
+
+            return response()->json([
+                'message' => 'Pedidos obtenidos exitosamente',
+                'customer' => [
+                    'cliente_id' => $customer->cliente_id,
+                    'razon_social' => $customer->razon_social,
+                    'contacto' => $customer->contacto,
+                    'email' => $customer->email,
+                ],
+                'orders' => $ordersData
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al obtener pedidos',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Obtiene o crea un cliente basado en el usuario autenticado
      */
     private function getOrCreateCustomerIdFromUser($user): ?int
