@@ -39,11 +39,42 @@ class RecepcionMateriaPrimaController extends Controller
             ->orderBy('razon_social', 'asc')
             ->get();
 
+        // Calcular estadísticas correctas
+        $totalRecepciones = RawMaterial::count();
+        
+        // Solicitudes completadas: todas las cantidades aprobadas >= solicitadas
+        $allSolicitudes = MaterialRequest::with('details')->get();
+        $solicitudesCompletadas = 0;
+        $solicitudesPendientes = 0;
+        
+        foreach ($allSolicitudes as $solicitud) {
+            $todosCompletos = true;
+            if ($solicitud->details->isEmpty()) {
+                $solicitudesPendientes++;
+                continue;
+            }
+            
+            foreach ($solicitud->details as $detail) {
+                $cantidadAprobada = $detail->cantidad_aprobada ?? 0;
+                $cantidadSolicitada = $detail->cantidad_solicitada ?? 0;
+                if ($cantidadAprobada < $cantidadSolicitada) {
+                    $todosCompletos = false;
+                    break;
+                }
+            }
+            
+            if ($todosCompletos) {
+                $solicitudesCompletadas++;
+            } else {
+                $solicitudesPendientes++;
+            }
+        }
+        
         // Estadísticas
         $stats = [
-            'total_recepciones' => RawMaterial::count(),
-            'completadas' => RawMaterial::whereNotNull('fecha_recepcion')->count(),
-            'pendientes' => MaterialRequest::count(),
+            'total_recepciones' => $totalRecepciones,
+            'completadas' => $solicitudesCompletadas,
+            'pendientes' => $solicitudesPendientes,
         ];
 
         // Preparar datos de solicitudes para JavaScript

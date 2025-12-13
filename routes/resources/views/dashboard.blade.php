@@ -112,19 +112,42 @@
                         </thead>
                         <tbody>
                             @forelse($pedidos_recientes as $pedido)
+                            @php
+                                $estadoPedido = $pedido->estado ?? 'pendiente';
+                                if ($pedido->batches && $pedido->batches->isNotEmpty()) {
+                                    $loteCertificado = $pedido->batches->some(function($batch) {
+                                        $eval = $batch->latestFinalEvaluation;
+                                        return $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló');
+                                    });
+                                    $loteEnProceso = $pedido->batches->some(function($batch) {
+                                        return $batch->processMachineRecords->isNotEmpty() && !$batch->latestFinalEvaluation;
+                                    });
+                                    if ($loteCertificado) {
+                                        $estadoPedido = 'certificado';
+                                    } elseif ($loteEnProceso) {
+                                        $estadoPedido = 'en_proceso';
+                                    } elseif ($pedido->batches->isNotEmpty()) {
+                                        $estadoPedido = 'lote_creado';
+                                    }
+                                }
+                            @endphp
                             <tr>
-                                <td>#{{ $pedido->order_number ?? $pedido->order_id }}</td>
-                                <td>{{ $pedido->customer->business_name ?? 'N/A' }}</td>
+                                <td>#{{ $pedido->numero_pedido ?? $pedido->pedido_id }}</td>
+                                <td>{{ $pedido->customer->razon_social ?? 'N/A' }}</td>
                                 <td>
-                                    @if($pedido->estado == 'pendiente')
+                                    @if($estadoPedido == 'pendiente')
                                         <span class="badge badge-warning">Pendiente</span>
-                                    @elseif($pedido->estado == 'completado')
-                                        <span class="badge badge-success">Completado</span>
+                                    @elseif($estadoPedido == 'certificado')
+                                        <span class="badge badge-success">Certificado</span>
+                                    @elseif($estadoPedido == 'en_proceso')
+                                        <span class="badge badge-primary">En Proceso</span>
+                                    @elseif($estadoPedido == 'lote_creado')
+                                        <span class="badge badge-info">Lote Creado</span>
                                     @else
-                                        <span class="badge badge-info">{{ ucfirst($pedido->estado) }}</span>
+                                        <span class="badge badge-info">{{ ucfirst($estadoPedido) }}</span>
                                     @endif
                                 </td>
-                                <td>{{ \Carbon\Carbon::parse($pedido->creation_date)->format('Y-m-d') }}</td>
+                                <td>{{ $pedido->fecha_creacion ? \Carbon\Carbon::parse($pedido->fecha_creacion)->format('Y-m-d') : 'N/A' }}</td>
                             </tr>
                             @empty
                             <tr>
@@ -166,22 +189,24 @@
                         <tbody>
                             @forelse($lotes_recientes as $lote)
                             <tr>
-                                <td>#{{ $lote->batch_code ?? $lote->batch_id }}</td>
-                                <td>{{ $lote->name ?? 'Sin nombre' }}</td>
+                                <td>#{{ $lote->codigo_lote ?? $lote->lote_id }}</td>
+                                <td>{{ $lote->nombre ?? 'Sin nombre' }}</td>
                                 <td>
                                     @if($lote->latestFinalEvaluation)
-                                        @if(str_contains(strtolower($lote->latestFinalEvaluation->reason ?? ''), 'falló'))
+                                        @if(str_contains(strtolower($lote->latestFinalEvaluation->razon ?? ''), 'falló'))
                                             <span class="badge badge-danger">No Certificado</span>
                                         @else
                                             <span class="badge badge-success">Certificado</span>
                                         @endif
-                                    @elseif($lote->start_time && !$lote->end_time)
+                                    @elseif($lote->hora_inicio && !$lote->hora_fin)
                                         <span class="badge badge-warning">En Proceso</span>
+                                    @elseif($lote->processMachineRecords && $lote->processMachineRecords->isNotEmpty())
+                                        <span class="badge badge-primary">En Transformación</span>
                                     @else
                                         <span class="badge badge-info">Pendiente</span>
                                     @endif
                                 </td>
-                                <td>{{ \Carbon\Carbon::parse($lote->creation_date)->format('Y-m-d') }}</td>
+                                <td>{{ $lote->fecha_creacion ? \Carbon\Carbon::parse($lote->fecha_creacion)->format('Y-m-d') : 'N/A' }}</td>
                             </tr>
                             @empty
                             <tr>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\RawMaterial;
+use App\Http\Resources\RawMaterialResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -15,10 +16,10 @@ class RawMaterialController extends Controller
     {
         try {
             $materials = RawMaterial::with(['materialBase.unit', 'supplier'])
-                ->orderBy('receipt_date', 'desc')
+                ->orderBy('fecha_recepcion', 'desc')
                 ->paginate($request->get('per_page', 15));
 
-            return response()->json($materials);
+            return response()->json(RawMaterialResource::collection($materials)->response()->getData());
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al obtener materias primas',

@@ -104,6 +104,21 @@
         visibility: visible !important;
         opacity: 1 !important;
     }
+    
+    /* Estilos para botón deshabilitado durante el envío */
+    #submitBtn.disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    #submitBtn:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .btn-spinner {
+        display: inline-block;
+    }
 </style>
 @endpush
 
@@ -408,8 +423,13 @@
                     </div>
 
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Registrar Almacenaje</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal" id="cancelBtn">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <span class="btn-text">Registrar Almacenaje</span>
+                            <span class="btn-spinner" style="display: none;">
+                                <i class="fas fa-spinner fa-spin mr-1"></i> Procesando...
+                            </span>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -421,6 +441,7 @@
 
 @push('scripts')
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 let currentBatchId = null;
 let map = null;
@@ -657,50 +678,256 @@ $('#registrarAlmacenajeModal').on('hidden.bs.modal', function () {
     $('#pickup_reference').val('');
 });
 
+let almacenajeDataGlobal = null;
+
 function verAlmacenaje(batchId) {
     fetch(`{{ url('almacenaje') }}/lote/${batchId}`)
         .then(response => response.json())
         .then(data => {
             if (data.length > 0) {
-                const almacenaje = data[0];
-                const content = `
-                    <div class="row">
-                        <div class="col-md-12">
-                            <table class="table table-bordered">
-                                <tr>
-                                    <th style="width: 30%;">Lote</th>
-                                    <td>#${almacenaje.batch_id}</td>
-                                </tr>
-                                <tr>
-                                    <th>Ubicación</th>
-                                    <td>${almacenaje.location || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <th>Condición</th>
-                                    <td>${almacenaje.condition || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <th>Cantidad Almacenada</th>
-                                    <td><strong>${parseFloat(almacenaje.quantity || 0).toFixed(2)}</strong></td>
-                                </tr>
-                                <tr>
-                                    <th>Fecha de Almacenaje</th>
-                                    <td>${almacenaje.storage_date ? new Date(almacenaje.storage_date).toLocaleDateString('es-ES') : 'N/A'}</td>
-                                </tr>
-                                ${almacenaje.retrieval_date ? `
-                                <tr>
-                                    <th>Fecha de Retiro</th>
-                                    <td>${new Date(almacenaje.retrieval_date).toLocaleDateString('es-ES')}</td>
-                                </tr>
-                                ` : ''}
-                                ${almacenaje.observations ? `
-                                <tr>
-                                    <th>Observaciones</th>
-                                    <td>${almacenaje.observations}</td>
-                                </tr>
-                                ` : ''}
+                almacenajeDataGlobal = data[0];
+                const almacenaje = almacenajeDataGlobal;
+                
+                // Formatear fechas
+                const fechaAlmacenaje = almacenaje.fecha_almacenaje 
+                    ? new Date(almacenaje.fecha_almacenaje).toLocaleDateString('es-ES', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })
+                    : 'N/A';
+                
+                const fechaRetiro = almacenaje.fecha_retiro 
+                    ? new Date(almacenaje.fecha_retiro).toLocaleDateString('es-ES', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })
+                    : null;
+                
+                const fechaCreacionPedido = almacenaje.fecha_creacion_pedido 
+                    ? new Date(almacenaje.fecha_creacion_pedido).toLocaleDateString('es-ES')
+                    : 'N/A';
+                
+                const fechaEntregaPedido = almacenaje.fecha_entrega_pedido 
+                    ? new Date(almacenaje.fecha_entrega_pedido).toLocaleDateString('es-ES')
+                    : 'N/A';
+                
+                // Construir tabla de productos
+                let productosHtml = '<p class="text-muted">No hay productos registrados</p>';
+                if (almacenaje.productos && almacenaje.productos.length > 0) {
+                    productosHtml = `
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Código</th>
+                                        <th>Cantidad</th>
+                                        <th>Unidad</th>
+                                        <th>Precio</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${almacenaje.productos.map(prod => `
+                                        <tr>
+                                            <td>${prod.nombre || 'N/A'}</td>
+                                            <td>${prod.codigo || '-'}</td>
+                                            <td>${parseFloat(prod.cantidad || 0).toFixed(2)}</td>
+                                            <td>${prod.unidad || 'N/A'}</td>
+                                            <td>${parseFloat(prod.precio || 0).toFixed(2)}</td>
+                                            <td><span class="badge badge-info">${prod.estado || 'N/A'}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
                             </table>
                         </div>
+                    `;
+                }
+                
+                // Construir tabla de destinos
+                let destinosHtml = '<p class="text-muted">No hay destinos registrados</p>';
+                if (almacenaje.destinos && almacenaje.destinos.length > 0) {
+                    destinosHtml = `
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Dirección</th>
+                                        <th>Referencia</th>
+                                        <th>Contacto</th>
+                                        <th>Teléfono</th>
+                                        <th>Instrucciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${almacenaje.destinos.map(dest => `
+                                        <tr>
+                                            <td>${dest.direccion || 'N/A'}</td>
+                                            <td>${dest.referencia || '-'}</td>
+                                            <td>${dest.nombre_contacto || '-'}</td>
+                                            <td>${dest.telefono_contacto || '-'}</td>
+                                            <td>${dest.instrucciones_entrega || '-'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                const content = `
+                    <div id="almacenaje-pdf-content">
+                        <div class="row mb-3">
+                            <div class="col-md-12 text-center">
+                                <h4 class="mb-0"><i class="fas fa-warehouse mr-2"></i>Información de Almacenaje</h4>
+                            </div>
+                        </div>
+                        
+                        <!-- Información del Lote -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0"><i class="fas fa-box mr-2"></i>Información del Lote</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Código de Lote:</strong> ${almacenaje.codigo_lote || almacenaje.lote_id || 'N/A'}</p>
+                                        <p><strong>Nombre del Lote:</strong> ${almacenaje.nombre_lote || 'N/A'}</p>
+                                        <p><strong>Cantidad Objetivo:</strong> ${parseFloat(almacenaje.cantidad_objetivo || 0).toFixed(2)}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Ubicación:</strong> ${almacenaje.ubicacion || 'N/A'}</p>
+                                        <p><strong>Condición:</strong> ${almacenaje.condicion || 'N/A'}</p>
+                                        <p><strong>Cantidad Almacenada:</strong> <strong class="text-success">${parseFloat(almacenaje.cantidad || 0).toFixed(2)}</strong></p>
+                                        <p><strong>Fecha de Almacenaje:</strong> ${fechaAlmacenaje}</p>
+                                        ${fechaRetiro ? `<p><strong>Fecha de Retiro:</strong> ${fechaRetiro}</p>` : ''}
+                                    </div>
+                                </div>
+                                ${almacenaje.observaciones ? `
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <p><strong>Observaciones:</strong></p>
+                                        <p class="text-muted">${almacenaje.observaciones}</p>
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <!-- Información de Recojo -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0"><i class="fas fa-map-marker-alt mr-2"></i>Ubicación de Recojo</h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Dirección:</strong> ${almacenaje.direccion_recojo || 'N/A'}</p>
+                                ${almacenaje.referencia_recojo ? `<p><strong>Referencia:</strong> ${almacenaje.referencia_recojo}</p>` : ''}
+                                ${almacenaje.latitud_recojo && almacenaje.longitud_recojo ? `
+                                <p><strong>Coordenadas:</strong> ${parseFloat(almacenaje.latitud_recojo).toFixed(6)}, ${parseFloat(almacenaje.longitud_recojo).toFixed(6)}</p>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <!-- Información del Pedido -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0"><i class="fas fa-shopping-cart mr-2"></i>Información del Pedido</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Número de Pedido:</strong> ${almacenaje.numero_pedido || 'N/A'}</p>
+                                        <p><strong>Nombre del Pedido:</strong> ${almacenaje.nombre_pedido || 'N/A'}</p>
+                                        <p><strong>Estado:</strong> <span class="badge badge-info">${almacenaje.estado_pedido || 'N/A'}</span></p>
+                                        <p><strong>Fecha de Creación:</strong> ${fechaCreacionPedido}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Fecha de Entrega:</strong> ${fechaEntregaPedido}</p>
+                                        ${almacenaje.descripcion_pedido ? `<p><strong>Descripción:</strong> ${almacenaje.descripcion_pedido}</p>` : ''}
+                                        ${almacenaje.observaciones_pedido ? `<p><strong>Observaciones:</strong> ${almacenaje.observaciones_pedido}</p>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Información del Cliente -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="mb-0"><i class="fas fa-user mr-2"></i>Información del Cliente</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Razón Social:</strong> ${almacenaje.cliente_razon_social || 'N/A'}</p>
+                                        <p><strong>Nombre Comercial:</strong> ${almacenaje.cliente_nombre_comercial || 'N/A'}</p>
+                                        ${almacenaje.cliente_nit ? `<p><strong>NIT:</strong> ${almacenaje.cliente_nit}</p>` : ''}
+                                        <p><strong>Contacto:</strong> ${almacenaje.cliente_contacto || 'N/A'}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        ${almacenaje.cliente_direccion ? `<p><strong>Dirección:</strong> ${almacenaje.cliente_direccion}</p>` : ''}
+                                        ${almacenaje.cliente_telefono ? `<p><strong>Teléfono:</strong> ${almacenaje.cliente_telefono}</p>` : ''}
+                                        ${almacenaje.cliente_email ? `<p><strong>Email:</strong> ${almacenaje.cliente_email}</p>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Productos del Pedido -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0"><i class="fas fa-boxes mr-2"></i>Productos del Pedido</h5>
+                            </div>
+                            <div class="card-body">
+                                ${productosHtml}
+                            </div>
+                        </div>
+                        
+                        <!-- Destinos del Pedido -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-dark text-white">
+                                <h5 class="mb-0"><i class="fas fa-truck mr-2"></i>Destinos del Pedido</h5>
+                            </div>
+                            <div class="card-body">
+                                ${destinosHtml}
+                            </div>
+                        </div>
+                        
+                        ${almacenaje.envios && almacenaje.envios.length > 0 ? `
+                        <!-- Información de Envíos -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0"><i class="fas fa-shipping-fast mr-2"></i>Envíos Creados</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>Código de Envío</th>
+                                                <th>ID Envío</th>
+                                                <th>ID Destino</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${almacenaje.envios.map(envio => `
+                                                <tr>
+                                                    <td>${envio.codigo_envio || 'N/A'}</td>
+                                                    <td>${envio.envio_id || 'N/A'}</td>
+                                                    <td>${envio.destino_id || 'N/A'}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
                 `;
                 
@@ -708,7 +935,7 @@ function verAlmacenaje(batchId) {
                 if ($('#verAlmacenajeModal').length === 0) {
                     $('body').append(`
                         <div class="modal fade" id="verAlmacenajeModal" tabindex="-1" role="dialog">
-                            <div class="modal-dialog modal-lg" role="document">
+                            <div class="modal-dialog modal-xl" role="document">
                                 <div class="modal-content">
                                     <div class="modal-header">
                                         <h4 class="modal-title">
@@ -719,9 +946,13 @@ function verAlmacenaje(batchId) {
                                             <span>&times;</span>
                                         </button>
                                     </div>
-                                    <div class="modal-body" id="verAlmacenajeContent">
+                                    <div class="modal-body" id="verAlmacenajeContent" style="max-height: calc(100vh - 200px); overflow-y: auto;">
                                     </div>
                                     <div class="modal-footer">
+                                        <button type="button" class="btn btn-danger" onclick="descargarPDFAlmacenaje()">
+                                            <i class="fas fa-file-pdf mr-1"></i>
+                                            Descargar PDF
+                                        </button>
                                         <button type="button" class="btn btn-secondary" data-dismiss="modal">
                                             <i class="fas fa-times mr-1"></i>
                                             Cerrar
@@ -744,5 +975,291 @@ function verAlmacenaje(batchId) {
             alert('Error al cargar los detalles del almacenaje');
         });
 }
+
+function descargarPDFAlmacenaje() {
+    if (!almacenajeDataGlobal) {
+        alert('No hay datos de almacenaje para descargar');
+        return;
+    }
+    
+    try {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 15;
+        let yPos = margin;
+        
+        // Función para agregar nueva página si es necesario
+        const checkPageBreak = (requiredHeight) => {
+            if (yPos + requiredHeight > pageHeight - margin) {
+                pdf.addPage();
+                yPos = margin;
+                return true;
+            }
+            return false;
+        };
+        
+        // Título
+        pdf.setFontSize(18);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Información de Almacenaje', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 10;
+        
+        // Línea separadora
+        pdf.setDrawColor(200, 200, 200);
+        pdf.line(margin, yPos, pageWidth - margin, yPos);
+        yPos += 8;
+        
+        const almacenaje = almacenajeDataGlobal;
+        
+        // Formatear fechas
+        const fechaAlmacenaje = almacenaje.fecha_almacenaje 
+            ? new Date(almacenaje.fecha_almacenaje).toLocaleDateString('es-ES', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+            : 'N/A';
+        
+        const fechaRetiro = almacenaje.fecha_retiro 
+            ? new Date(almacenaje.fecha_retiro).toLocaleDateString('es-ES', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+            : null;
+        
+        const fechaCreacionPedido = almacenaje.fecha_creacion_pedido 
+            ? new Date(almacenaje.fecha_creacion_pedido).toLocaleDateString('es-ES')
+            : 'N/A';
+        
+        const fechaEntregaPedido = almacenaje.fecha_entrega_pedido 
+            ? new Date(almacenaje.fecha_entrega_pedido).toLocaleDateString('es-ES')
+            : 'N/A';
+        
+        // Función para agregar sección
+        const addSection = (title, data) => {
+            checkPageBreak(20);
+            pdf.setFontSize(14);
+            pdf.setFont(undefined, 'bold');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(title, margin, yPos);
+            yPos += 8;
+            
+            pdf.setFontSize(10);
+            pdf.setFont(undefined, 'normal');
+            data.forEach(item => {
+                checkPageBreak(6);
+                pdf.text(`${item.label}: ${item.value}`, margin + 5, yPos);
+                yPos += 5;
+            });
+            yPos += 3;
+        };
+        
+        // Información del Lote
+        addSection('Información del Lote', [
+            { label: 'Código de Lote', value: almacenaje.codigo_lote || almacenaje.lote_id || 'N/A' },
+            { label: 'Nombre del Lote', value: almacenaje.nombre_lote || 'N/A' },
+            { label: 'Cantidad Objetivo', value: parseFloat(almacenaje.cantidad_objetivo || 0).toFixed(2) },
+            { label: 'Ubicación', value: almacenaje.ubicacion || 'N/A' },
+            { label: 'Condición', value: almacenaje.condicion || 'N/A' },
+            { label: 'Cantidad Almacenada', value: parseFloat(almacenaje.cantidad || 0).toFixed(2) },
+            { label: 'Fecha de Almacenaje', value: fechaAlmacenaje },
+            ...(fechaRetiro ? [{ label: 'Fecha de Retiro', value: fechaRetiro }] : []),
+            ...(almacenaje.observaciones ? [{ label: 'Observaciones', value: almacenaje.observaciones }] : [])
+        ]);
+        
+        // Información de Recojo
+        addSection('Ubicación de Recojo', [
+            { label: 'Dirección', value: almacenaje.direccion_recojo || 'N/A' },
+            ...(almacenaje.referencia_recojo ? [{ label: 'Referencia', value: almacenaje.referencia_recojo }] : []),
+            ...(almacenaje.latitud_recojo && almacenaje.longitud_recojo ? [{
+                label: 'Coordenadas',
+                value: `${parseFloat(almacenaje.latitud_recojo).toFixed(6)}, ${parseFloat(almacenaje.longitud_recojo).toFixed(6)}`
+            }] : [])
+        ]);
+        
+        // Información del Pedido
+        addSection('Información del Pedido', [
+            { label: 'Número de Pedido', value: almacenaje.numero_pedido || 'N/A' },
+            { label: 'Nombre del Pedido', value: almacenaje.nombre_pedido || 'N/A' },
+            { label: 'Estado', value: almacenaje.estado_pedido || 'N/A' },
+            { label: 'Fecha de Creación', value: fechaCreacionPedido },
+            { label: 'Fecha de Entrega', value: fechaEntregaPedido },
+            ...(almacenaje.descripcion_pedido ? [{ label: 'Descripción', value: almacenaje.descripcion_pedido }] : []),
+            ...(almacenaje.observaciones_pedido ? [{ label: 'Observaciones', value: almacenaje.observaciones_pedido }] : [])
+        ]);
+        
+        // Información del Cliente
+        addSection('Información del Cliente', [
+            { label: 'Razón Social', value: almacenaje.cliente_razon_social || 'N/A' },
+            { label: 'Nombre Comercial', value: almacenaje.cliente_nombre_comercial || 'N/A' },
+            ...(almacenaje.cliente_nit ? [{ label: 'NIT', value: almacenaje.cliente_nit }] : []),
+            { label: 'Contacto', value: almacenaje.cliente_contacto || 'N/A' },
+            ...(almacenaje.cliente_direccion ? [{ label: 'Dirección', value: almacenaje.cliente_direccion }] : []),
+            ...(almacenaje.cliente_telefono ? [{ label: 'Teléfono', value: almacenaje.cliente_telefono }] : []),
+            ...(almacenaje.cliente_email ? [{ label: 'Email', value: almacenaje.cliente_email }] : [])
+        ]);
+        
+        // Productos del Pedido
+        if (almacenaje.productos && almacenaje.productos.length > 0) {
+            checkPageBreak(25);
+            pdf.setFontSize(14);
+            pdf.setFont(undefined, 'bold');
+            pdf.text('Productos del Pedido', margin, yPos);
+            yPos += 8;
+            
+            // Encabezados de tabla
+            pdf.setFontSize(9);
+            pdf.setFont(undefined, 'bold');
+            const colWidths = [60, 30, 25, 25, 25, 20];
+            const headers = ['Producto', 'Código', 'Cantidad', 'Unidad', 'Precio', 'Estado'];
+            let xPos = margin;
+            headers.forEach((header, i) => {
+                pdf.text(header, xPos, yPos);
+                xPos += colWidths[i];
+            });
+            yPos += 5;
+            
+            // Línea bajo encabezados
+            pdf.line(margin, yPos, pageWidth - margin, yPos);
+            yPos += 3;
+            
+            // Datos de productos
+            pdf.setFont(undefined, 'normal');
+            almacenaje.productos.forEach(prod => {
+                checkPageBreak(8);
+                xPos = margin;
+                const rowData = [
+                    (prod.nombre || 'N/A').substring(0, 25),
+                    (prod.codigo || '-').substring(0, 10),
+                    parseFloat(prod.cantidad || 0).toFixed(2),
+                    (prod.unidad || 'N/A').substring(0, 8),
+                    parseFloat(prod.precio || 0).toFixed(2),
+                    (prod.estado || 'N/A').substring(0, 8)
+                ];
+                rowData.forEach((data, i) => {
+                    pdf.text(String(data), xPos, yPos);
+                    xPos += colWidths[i];
+                });
+                yPos += 5;
+            });
+            yPos += 5;
+        }
+        
+        // Destinos del Pedido
+        if (almacenaje.destinos && almacenaje.destinos.length > 0) {
+            checkPageBreak(25);
+            pdf.setFontSize(14);
+            pdf.setFont(undefined, 'bold');
+            pdf.text('Destinos del Pedido', margin, yPos);
+            yPos += 8;
+            
+            almacenaje.destinos.forEach((dest, index) => {
+                checkPageBreak(30);
+                pdf.setFontSize(11);
+                pdf.setFont(undefined, 'bold');
+                pdf.text(`Destino ${index + 1}`, margin, yPos);
+                yPos += 6;
+                
+                pdf.setFontSize(9);
+                pdf.setFont(undefined, 'normal');
+                pdf.text(`Dirección: ${dest.direccion || 'N/A'}`, margin + 5, yPos);
+                yPos += 5;
+                if (dest.referencia) {
+                    pdf.text(`Referencia: ${dest.referencia}`, margin + 5, yPos);
+                    yPos += 5;
+                }
+                if (dest.nombre_contacto) {
+                    pdf.text(`Contacto: ${dest.nombre_contacto}`, margin + 5, yPos);
+                    yPos += 5;
+                }
+                if (dest.telefono_contacto) {
+                    pdf.text(`Teléfono: ${dest.telefono_contacto}`, margin + 5, yPos);
+                    yPos += 5;
+                }
+                if (dest.instrucciones_entrega) {
+                    pdf.text(`Instrucciones: ${dest.instrucciones_entrega}`, margin + 5, yPos);
+                    yPos += 5;
+                }
+                yPos += 3;
+            });
+        }
+        
+        // Envíos
+        if (almacenaje.envios && almacenaje.envios.length > 0) {
+            checkPageBreak(20);
+            pdf.setFontSize(14);
+            pdf.setFont(undefined, 'bold');
+            pdf.text('Envíos Creados', margin, yPos);
+            yPos += 8;
+            
+            almacenaje.envios.forEach(envio => {
+                checkPageBreak(8);
+                pdf.setFontSize(9);
+                pdf.setFont(undefined, 'normal');
+                pdf.text(`Código: ${envio.codigo_envio || 'N/A'} | ID: ${envio.envio_id || 'N/A'} | Destino ID: ${envio.destino_id || 'N/A'}`, margin + 5, yPos);
+                yPos += 5;
+            });
+        }
+        
+        // Guardar PDF
+        const fileName = `almacenaje-lote-${almacenaje.codigo_lote || almacenaje.lote_id || 'N/A'}-${new Date().getTime()}.pdf`;
+        pdf.save(fileName);
+    } catch (error) {
+        console.error('Error al generar PDF:', error);
+        alert('Error al generar el PDF. Por favor, intente nuevamente.');
+    }
+}
+
+// Manejar envío del formulario de almacenaje
+$(document).ready(function() {
+    $('#registrarAlmacenajeForm').on('submit', function(e) {
+        const $form = $(this);
+        const $submitBtn = $('#submitBtn');
+        const $cancelBtn = $('#cancelBtn');
+        const $btnText = $submitBtn.find('.btn-text');
+        const $btnSpinner = $submitBtn.find('.btn-spinner');
+        
+        // Validar que se haya seleccionado una ubicación en el mapa
+        const lat = $('#pickup_latitude').val();
+        const lng = $('#pickup_longitude').val();
+        
+        if (!lat || !lng) {
+            e.preventDefault();
+            alert('Por favor, seleccione una ubicación en el mapa haciendo clic en él.');
+            return false;
+        }
+        
+        // Mostrar spinner y deshabilitar botones
+        $btnText.hide();
+        $btnSpinner.show();
+        $submitBtn.prop('disabled', true).addClass('disabled');
+        $cancelBtn.prop('disabled', true).addClass('disabled');
+        
+        // El formulario se enviará normalmente
+        // Si hay un error, se restaurará el estado en el callback de error
+        // Si es exitoso, Laravel redirigirá y recargará la página automáticamente
+    });
+    
+    // Restaurar estado del botón si hay errores de validación (cuando el modal se vuelve a abrir)
+    $('#registrarAlmacenajeModal').on('show.bs.modal', function() {
+        const $submitBtn = $('#submitBtn');
+        const $cancelBtn = $('#cancelBtn');
+        const $btnText = $submitBtn.find('.btn-text');
+        const $btnSpinner = $submitBtn.find('.btn-spinner');
+        
+        // Restaurar estado inicial
+        $btnText.show();
+        $btnSpinner.hide();
+        $submitBtn.prop('disabled', false).removeClass('disabled');
+        $cancelBtn.prop('disabled', false).removeClass('disabled');
+    });
+});
 </script>
 @endpush

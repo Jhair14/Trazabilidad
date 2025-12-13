@@ -21,9 +21,14 @@ class ProductionBatchController extends Controller
      */
     public function index(Request $request)
     {
-        $batches = ProductionBatch::with(['order.customer', 'rawMaterials.rawMaterial.materialBase'])
-            ->orderBy('creation_date', 'desc')
-            ->orderBy('batch_id', 'desc')
+        $batches = ProductionBatch::with([
+            'order.customer', 
+            'rawMaterials.rawMaterial.materialBase',
+            'finalEvaluation',
+            'processMachineRecords.operator'
+        ])
+            ->orderBy('fecha_creacion', 'desc')
+            ->orderBy('lote_id', 'desc')
             ->paginate($request->get('per_page', 15));
 
         return ProductionBatchResource::collection($batches);
@@ -38,6 +43,7 @@ class ProductionBatchController extends Controller
         $productionBatch->load([
             'order.customer',
             'rawMaterials.rawMaterial.materialBase',
+            'finalEvaluation',
             // Commented out until these tables are created:
             // 'processMachineRecords.processMachine.machine',
             // 'finalEvaluation.inspector',
@@ -164,7 +170,7 @@ class ProductionBatchController extends Controller
             'processMachineRecords.processMachine.process',
            'finalEvaluation'
         ])
-            ->orderBy('creation_date', 'desc')
+            ->orderBy('fecha_creacion', 'desc')
             ->get();
 
         return response()->json(ProductionBatchResource::collection($batches));
@@ -175,8 +181,11 @@ class ProductionBatchController extends Controller
      */
     public function assignProcess(Request $request, $batchId): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'process_id' => 'required|integer|exists:process,process_id',
+        // Accept both process_id and proceso_id from frontend
+        $processId = $request->process_id ?? $request->proceso_id;
+        
+        $validator = Validator::make(['proceso_id' => $processId], [
+            'proceso_id' => 'required|integer|exists:proceso,proceso_id',
         ]);
 
         if ($validator->fails()) {
@@ -190,13 +199,13 @@ class ProductionBatchController extends Controller
             $batch = ProductionBatch::findOrFail($batchId);
             
             // Verify no records from another process exist
-            $existingRecords = \App\Models\ProcessMachineRecord::where('batch_id', $batchId)
+            $existingRecords = \App\Models\ProcessMachineRecord::where('lote_id', $batchId)
                 ->with('processMachine')
                 ->get();
             
             if ($existingRecords->isNotEmpty()) {
-                $existingProcessIds = $existingRecords->pluck('processMachine.process_id')->unique()->filter();
-                if ($existingProcessIds->isNotEmpty() && !$existingProcessIds->contains($request->process_id)) {
+                $existingProcessIds = $existingRecords->pluck('processMachine.proceso_id')->unique()->filter();
+                if ($existingProcessIds->isNotEmpty() && !$existingProcessIds->contains($processId)) {
                     return response()->json([
                         'message' => 'Este lote ya tiene registros de otro proceso'
                     ], 400);
@@ -209,8 +218,8 @@ class ProductionBatchController extends Controller
                 'variables.standardVariable',
                 'process'
             ])
-                ->where('process_id', $request->process_id)
-                ->orderBy('step_order')
+                ->where('proceso_id', $processId)
+                ->orderBy('orden_paso')
                 ->get();
                 
             if ($processMachines->isEmpty()) {
@@ -218,11 +227,18 @@ class ProductionBatchController extends Controller
                     'message' => 'El proceso seleccionado no tiene máquinas configuradas'
                 ], 400);
             }
+
+            // Update batch start time if not set
+            if (!$batch->hora_inicio) {
+                $batch->update([
+                    'hora_inicio' => now(),
+                ]);
+            }
             
             // Return success with process machines
             return response()->json([
                 'message' => 'Proceso asignado exitosamente',
-                'process_id' => $request->process_id,
+                'process_id' => $processId,
                 'process_machines' => $processMachines,
                 'completed_records' => []
             ]);
@@ -249,7 +265,7 @@ class ProductionBatchController extends Controller
             if (!$processId && $batch->processMachineRecords->isNotEmpty()) {
                 $firstRecord = $batch->processMachineRecords->first();
                 if ($firstRecord->processMachine) {
-                    $processId = $firstRecord->processMachine->process_id;
+                    $processId = $firstRecord->processMachine->proceso_id;
                 }
             }
 
@@ -266,12 +282,12 @@ class ProductionBatchController extends Controller
                 'variables.standardVariable',
                 'process'
             ])
-                ->where('process_id', $processId)
-                ->orderBy('step_order')
+                ->where('proceso_id', $processId)
+                ->orderBy('orden_paso')
                 ->get();
 
             // Get completed records
-            $completedRecords = $batch->processMachineRecords->pluck('process_machine_id')->toArray();
+            $completedRecords = $batch->processMachineRecords->pluck('proceso_maquina_id')->toArray();
 
             return response()->json([
                 'process_machines' => $processMachines,
@@ -306,7 +322,7 @@ class ProductionBatchController extends Controller
             $batch = ProductionBatch::findOrFail($batchId);
 
             // Get process records
-            $records = \App\Models\ProcessMachineRecord::where('batch_id', $batchId)
+            $records = \App\Models\ProcessMachineRecord::where('lote_id', $batchId)
                 ->with('processMachine.process')
                 ->get();
 
@@ -318,16 +334,16 @@ class ProductionBatchController extends Controller
 
             // Get process_id
             $firstRecord = $records->first();
-            if (!$firstRecord->processMachine || !$firstRecord->processMachine->process_id) {
+            if (!$firstRecord->processMachine || !$firstRecord->processMachine->proceso_id) {
                 return response()->json([
                     'message' => 'No se pudo identificar el proceso del lote'
                 ], 400);
             }
 
-            $processId = $firstRecord->processMachine->process_id;
+            $processId = $firstRecord->processMachine->proceso_id;
 
             // Verify all records are from same process
-            $processIds = $records->pluck('processMachine.process_id')->unique()->filter();
+            $processIds = $records->pluck('processMachine.proceso_id')->unique()->filter();
             if ($processIds->count() > 1) {
                 return response()->json([
                     'message' => 'El lote tiene registros de múltiples procesos'
@@ -335,8 +351,8 @@ class ProductionBatchController extends Controller
             }
 
             // Get expected machine count
-            $processMachines = \App\Models\ProcessMachine::where('process_id', $processId)
-                ->orderBy('step_order')
+            $processMachines = \App\Models\ProcessMachine::where('proceso_id', $processId)
+                ->orderBy('orden_paso')
                 ->get();
             
             $expectedCount = $processMachines->count();
@@ -349,12 +365,12 @@ class ProductionBatchController extends Controller
             }
 
             // Evaluate if any machine failed
-            $failed = $records->firstWhere('meets_standard', false);
+            $failed = $records->firstWhere('cumple_estandar', false);
             $status = $failed ? 'No Certificado' : 'Certificado';
             
             $machineName = 'N/A';
             if ($failed && $failed->processMachine) {
-                $machineName = $failed->processMachine->name;
+                $machineName = $failed->processMachine->nombre;
             }
             
             $reason = $failed 
@@ -362,28 +378,36 @@ class ProductionBatchController extends Controller
                 : 'Todas las máquinas cumplen los valores estándar';
 
             // Save final evaluation
-            $existingEvaluation = \App\Models\ProcessFinalEvaluation::where('batch_id', $batchId)->first();
+            $existingEvaluation = \App\Models\ProcessFinalEvaluation::where('lote_id', $batchId)->first();
             
             if ($existingEvaluation) {
                 $existingEvaluation->update([
                     'inspector_id' => auth()->id(),
-                    'reason' => $reason,
-                    'observations' => $request->observations,
-                    'evaluation_date' => now(),
+                    'razon' => $reason,
+                    'observaciones' => $request->observations,
+                    'fecha_evaluacion' => now(),
                 ]);
             } else {
-                $maxId = \App\Models\ProcessFinalEvaluation::max('evaluation_id') ?? 0;
+                $maxId = \App\Models\ProcessFinalEvaluation::max('evaluacion_id') ?? 0;
                 $nextId = $maxId + 1;
                 
                 \App\Models\ProcessFinalEvaluation::create([
-                    'evaluation_id' => $nextId,
-                    'batch_id' => $batchId,
+                    'evaluacion_id' => $nextId,
+                    'lote_id' => $batchId,
                     'inspector_id' => auth()->id(),
-                    'reason' => $reason,
-                    'observations' => $request->observations,
-                    'evaluation_date' => now(),
+                    'razon' => $reason,
+                    'observaciones' => $request->observations,
+                    'fecha_evaluacion' => now(),
                 ]);
             }
+
+            // Update batch status (set end time)
+            $updated = $batch->update([
+                'hora_fin' => now(),
+            ]);
+            
+            \Illuminate\Support\Facades\Log::info("Batch {$batchId} finalized. Update result: " . ($updated ? 'true' : 'false'));
+            \Illuminate\Support\Facades\Log::info("Batch {$batchId} fresh data: " . json_encode($batch->fresh()));
 
             DB::commit();
 
@@ -412,7 +436,10 @@ class ProductionBatchController extends Controller
                 'finalEvaluation.inspector'
             ])->findOrFail($batchId);
 
-            if (!$batch->finalEvaluation) {
+            // Get the final evaluation (it's a collection, so get first)
+            $finalEvaluation = $batch->finalEvaluation->first();
+            
+            if (!$finalEvaluation) {
                 return response()->json([
                     'message' => 'El lote aún no ha sido evaluado'
                 ], 404);
@@ -420,31 +447,31 @@ class ProductionBatchController extends Controller
 
             // Get records ordered by step_order
             $records = $batch->processMachineRecords->sortBy(function($record) {
-                return $record->processMachine ? $record->processMachine->step_order : 999;
+                return $record->processMachine ? $record->processMachine->orden_paso : 999;
             })->values();
 
             // Format machines
             $machines = $records->map(function($record) {
                 return [
-                    'step_number' => $record->processMachine ? $record->processMachine->step_order : null,
-                    'machine_name' => $record->processMachine ? $record->processMachine->name : 'N/A',
-                    'entered_variables' => $record->entered_variables ?? [],
-                    'meets_standard' => $record->meets_standard ?? false,
-                    'record_date' => $record->record_date ? $record->record_date->toDateTimeString() : null,
+                    'orden_paso' => $record->processMachine ? $record->processMachine->orden_paso : null,
+                    'nombre_maquina' => $record->processMachine ? $record->processMachine->nombre : 'N/A',
+                    'variables_registradas' => $record->variables_ingresadas ?? [],
+                    'cumple_estandar' => $record->cumple_estandar ?? false,
+                    'fecha_registro' => $record->fecha_registro ? $record->fecha_registro->toDateTimeString() : null,
                 ];
             });
 
             // Format final result
             $finalResult = [
-                'status' => str_contains(strtolower($batch->finalEvaluation->reason ?? ''), 'falló') 
+                'estado' => str_contains(strtolower($finalEvaluation->razon ?? ''), 'falló') 
                     ? 'No Certificado' 
                     : 'Certificado',
-                'reason' => $batch->finalEvaluation->reason ?? 'N/A',
-                'evaluation_date' => $batch->finalEvaluation->evaluation_date 
-                    ? $batch->finalEvaluation->evaluation_date->toDateTimeString() 
+                'razon' => $finalEvaluation->razon ?? 'N/A',
+                'fecha_evaluacion' => $finalEvaluation->fecha_evaluacion 
+                    ? $finalEvaluation->fecha_evaluacion->toDateTimeString() 
                     : null,
-                'inspector' => $batch->finalEvaluation->inspector 
-                    ? $batch->finalEvaluation->inspector->name 
+                'inspector' => $finalEvaluation->inspector 
+                    ? $finalEvaluation->inspector->nombre 
                     : 'N/A',
             ];
 

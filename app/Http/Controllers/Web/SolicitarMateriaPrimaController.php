@@ -19,6 +19,30 @@ class SolicitarMateriaPrimaController extends Controller
             ->orderBy('fecha_solicitud', 'desc')
             ->paginate(15);
 
+        // Calcular estadísticas correctas basadas en detalles
+        $allSolicitudes = MaterialRequest::with('details')->get();
+        
+        $totalSolicitudes = $allSolicitudes->count();
+        $completadas = 0;
+        $pendientes = 0;
+        
+        foreach ($allSolicitudes as $solicitud) {
+            $todosCompletos = true;
+            foreach ($solicitud->details as $detail) {
+                $cantidadAprobada = $detail->cantidad_aprobada ?? 0;
+                $cantidadSolicitada = $detail->cantidad_solicitada ?? 0;
+                if ($cantidadAprobada < $cantidadSolicitada) {
+                    $todosCompletos = false;
+                    break;
+                }
+            }
+            if ($todosCompletos && $solicitud->details->isNotEmpty()) {
+                $completadas++;
+            } else {
+                $pendientes++;
+            }
+        }
+
         // Obtener IDs de pedidos que ya tienen solicitudes de materia prima
         $pedidosConSolicitud = MaterialRequest::pluck('pedido_id')->unique()->toArray();
 
@@ -47,7 +71,13 @@ class SolicitarMateriaPrimaController extends Controller
             ];
         });
 
-        return view('solicitar-materia-prima', compact('solicitudes', 'pedidos', 'materias_primas', 'materias_primas_json'));
+        $stats = [
+            'total' => $totalSolicitudes,
+            'completadas' => $completadas,
+            'pendientes' => $pendientes,
+        ];
+
+        return view('solicitar-materia-prima', compact('solicitudes', 'pedidos', 'materias_primas', 'materias_primas_json', 'stats'));
     }
 
     public function store(Request $request)

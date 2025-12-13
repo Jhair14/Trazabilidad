@@ -169,36 +169,36 @@
                         <thead>
                             <tr>
                                 <th>ID Lote</th>
-                                <th>Producto</th>
-                                <th>Zona</th>
-                                <th>Posición</th>
+                                <th>Nombre Lote</th>
+                                <th>Ubicación</th>
+                                <th>Dirección Recojo</th>
                                 <th>Cantidad</th>
-                                <th>Fecha Ingreso</th>
-                                <th>Fecha Vencimiento</th>
-                                <th>Días Restantes</th>
-                                <th>Estado</th>
+                                <th>Fecha Almacenaje</th>
+                                <th>Pedido</th>
+                                <th>Cliente</th>
+                                <th>Condición</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($lotes_almacenados as $almacen)
                             <tr>
-                                <td>#{{ $almacen->batch->batch_code ?? $almacen->batch->batch_id }}</td>
-                                <td>{{ $almacen->batch->name ?? 'Sin nombre' }}</td>
-                                <td>{{ $almacen->location ?? 'N/A' }}</td>
-                                <td>{{ $almacen->location ?? 'N/A' }}</td>
-                                <td>{{ number_format($almacen->quantity, 2) }} unidades</td>
-                                <td>{{ \Carbon\Carbon::parse($almacen->storage_date)->format('Y-m-d') }}</td>
-                                <td>N/A</td>
-                                <td>N/A</td>
+                                <td>#{{ $almacen->batch->codigo_lote ?? $almacen->batch->lote_id }}</td>
+                                <td>{{ $almacen->batch->nombre ?? 'Sin nombre' }}</td>
+                                <td>{{ $almacen->ubicacion ?? 'N/A' }}</td>
+                                <td>{{ $almacen->direccion_recojo ?? 'N/A' }}</td>
+                                <td>{{ number_format($almacen->cantidad, 2) }} unidades</td>
+                                <td>{{ $almacen->fecha_almacenaje ? \Carbon\Carbon::parse($almacen->fecha_almacenaje)->format('Y-m-d') : 'N/A' }}</td>
+                                <td>{{ $almacen->batch->order->numero_pedido ?? 'N/A' }}</td>
+                                <td>{{ $almacen->batch->order->customer->razon_social ?? 'N/A' }}</td>
                                 <td>
-                                    <span class="badge badge-info">{{ $almacen->condition ?? 'N/A' }}</span>
+                                    <span class="badge badge-info">{{ $almacen->condicion ?? 'N/A' }}</span>
                                 </td>
                                 <td>
-                                    <button class="btn btn-info btn-sm" title="Ver Almacenajes" onclick="verAlmacenajes({{ $almacen->batch->batch_id }}, '{{ $almacen->batch->batch_code ?? $almacen->batch->batch_id }}')">
+                                    <button class="btn btn-info btn-sm" title="Ver Almacenajes" onclick="verAlmacenajes({{ $almacen->batch->lote_id }}, '{{ $almacen->batch->codigo_lote ?? $almacen->batch->lote_id }}')">
                                         <i class="fas fa-eye"></i> Ver
                                     </button>
-                                    <a href="{{ route('gestion-lotes.show', $almacen->batch->batch_id) }}" class="btn btn-secondary btn-sm" title="Ver Lote">
+                                    <a href="{{ route('gestion-lotes.show', $almacen->batch->lote_id) }}" class="btn btn-secondary btn-sm" title="Ver Lote">
                                         <i class="fas fa-info-circle"></i>
                                     </a>
                                 </td>
@@ -324,19 +324,21 @@ function verAlmacenajes(batchId, batchCode) {
                 html += '<thead><tr><th>Fecha</th><th>Ubicación</th><th>Condición</th><th>Cantidad</th><th>Observaciones</th></tr></thead>';
                 html += '<tbody>';
                 data.forEach(function(almacen) {
-                    const fecha = new Date(almacen.storage_date).toLocaleDateString('es-ES', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
+                    const fecha = almacen.fecha_almacenaje 
+                        ? new Date(almacen.fecha_almacenaje).toLocaleString('es-ES', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })
+                        : 'N/A';
                     html += `<tr>
                         <td>${fecha}</td>
-                        <td>${almacen.location || 'N/A'}</td>
-                        <td><span class="badge badge-info">${almacen.condition || 'N/A'}</span></td>
-                        <td>${almacen.quantity || 0}</td>
-                        <td>${almacen.observations || '-'}</td>
+                        <td>${almacen.ubicacion || 'N/A'}</td>
+                        <td><span class="badge badge-info">${almacen.condicion || 'N/A'}</span></td>
+                        <td>${parseFloat(almacen.cantidad || 0).toFixed(2)}</td>
+                        <td>${almacen.observaciones || '-'}</td>
                     </tr>`;
                 });
                 html += '</tbody></table></div>';
