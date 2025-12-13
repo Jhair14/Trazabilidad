@@ -104,6 +104,21 @@
         visibility: visible !important;
         opacity: 1 !important;
     }
+    
+    /* Estilos para botón deshabilitado durante el envío */
+    #submitBtn.disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    #submitBtn:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .btn-spinner {
+        display: inline-block;
+    }
 </style>
 @endpush
 
@@ -408,8 +423,13 @@
                     </div>
 
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Registrar Almacenaje</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal" id="cancelBtn">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <span class="btn-text">Registrar Almacenaje</span>
+                            <span class="btn-spinner" style="display: none;">
+                                <i class="fas fa-spinner fa-spin mr-1"></i> Procesando...
+                            </span>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -1196,5 +1216,50 @@ function descargarPDFAlmacenaje() {
         alert('Error al generar el PDF. Por favor, intente nuevamente.');
     }
 }
+
+// Manejar envío del formulario de almacenaje
+$(document).ready(function() {
+    $('#registrarAlmacenajeForm').on('submit', function(e) {
+        const $form = $(this);
+        const $submitBtn = $('#submitBtn');
+        const $cancelBtn = $('#cancelBtn');
+        const $btnText = $submitBtn.find('.btn-text');
+        const $btnSpinner = $submitBtn.find('.btn-spinner');
+        
+        // Validar que se haya seleccionado una ubicación en el mapa
+        const lat = $('#pickup_latitude').val();
+        const lng = $('#pickup_longitude').val();
+        
+        if (!lat || !lng) {
+            e.preventDefault();
+            alert('Por favor, seleccione una ubicación en el mapa haciendo clic en él.');
+            return false;
+        }
+        
+        // Mostrar spinner y deshabilitar botones
+        $btnText.hide();
+        $btnSpinner.show();
+        $submitBtn.prop('disabled', true).addClass('disabled');
+        $cancelBtn.prop('disabled', true).addClass('disabled');
+        
+        // El formulario se enviará normalmente
+        // Si hay un error, se restaurará el estado en el callback de error
+        // Si es exitoso, Laravel redirigirá y recargará la página automáticamente
+    });
+    
+    // Restaurar estado del botón si hay errores de validación (cuando el modal se vuelve a abrir)
+    $('#registrarAlmacenajeModal').on('show.bs.modal', function() {
+        const $submitBtn = $('#submitBtn');
+        const $cancelBtn = $('#cancelBtn');
+        const $btnText = $submitBtn.find('.btn-text');
+        const $btnSpinner = $submitBtn.find('.btn-spinner');
+        
+        // Restaurar estado inicial
+        $btnText.show();
+        $btnSpinner.hide();
+        $submitBtn.prop('disabled', false).removeClass('disabled');
+        $cancelBtn.prop('disabled', false).removeClass('disabled');
+    });
+});
 </script>
 @endpush
