@@ -25,7 +25,9 @@ class CustomerOrder extends Model
         'editable_hasta',
         'aprobado_en',
         'aprobado_por',
-        'razon_rechazo'
+        'razon_rechazo',
+        'origen_sistema',
+        'pedido_almacen_id'
     ];
 
     protected $casts = [

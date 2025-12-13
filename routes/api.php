@@ -103,6 +103,10 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/upload', [\App\Http\Controllers\Web\ImageUploadController::class, 'upload']);
 });
 
+// Rutas públicas (sin autenticación) para integración con sistema-almacen-PSIII
+Route::post('/pedidos-almacen', [\App\Http\Controllers\Api\AlmacenPedidoController::class, 'store'])
+    ->name('api.pedidos-almacen');
+
 // Legacy routes (keeping for compatibility)
 // Comentado para evitar conflicto con rutas web
 // Route::apiResource('procesos', \App\Http\Controllers\ProcesoController::class);
