@@ -15,6 +15,16 @@ use App\Http\Controllers\Api\UnitOfMeasureController;
 // Public routes
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+// Crear pedido sin autenticación (crea cliente automáticamente)
+// El token es opcional: si hay token usa el cliente del usuario, si no hay token usa datos del body
+Route::post('/customer-orders', [CustomerOrderController::class, 'store'])->withoutMiddleware(['auth:api']);
+// Obtener pedidos por nombre_usuario sin autenticación
+Route::get('/customer-orders/by-user', [CustomerOrderController::class, 'byUser'])->withoutMiddleware(['auth:api']);
+// Actualizar pedido sin autenticación (valida nombre_usuario)
+Route::put('/customer-orders/{id}/public', [CustomerOrderController::class, 'updatePublic'])->withoutMiddleware(['auth:api']);
+// Obtener productos disponibles (token opcional)
+Route::get('/products', [\App\Http\Controllers\Api\ProductController::class, 'index'])->withoutMiddleware(['auth:api']);
+Route::get('/products/{id}', [\App\Http\Controllers\Api\ProductController::class, 'show'])->withoutMiddleware(['auth:api']);
 
 // Protected routes
 Route::middleware('auth:api')->group(function () {
@@ -36,9 +46,16 @@ Route::middleware('auth:api')->group(function () {
     Route::apiResource('operators', \App\Http\Controllers\Api\OperatorController::class);
     Route::apiResource('raw-material-bases', RawMaterialBaseController::class);
     Route::apiResource('raw-materials', RawMaterialController::class);
-    Route::apiResource('customer-orders', CustomerOrderController::class);
+    // Customer orders - solo las rutas que requieren autenticación (store ya está fuera)
+    Route::get('/customer-orders', [CustomerOrderController::class, 'index']);
+    Route::get('/customer-orders/{id}', [CustomerOrderController::class, 'show']);
+    Route::put('/customer-orders/{id}', [CustomerOrderController::class, 'update']);
+    Route::delete('/customer-orders/{id}', [CustomerOrderController::class, 'destroy']);
     Route::post('/customer-orders/{id}/cancel', [CustomerOrderController::class, 'cancel']);
-    Route::apiResource('products', \App\Http\Controllers\Api\ProductController::class);
+    // Products - solo las rutas que requieren autenticación (index y show ya están fuera)
+    Route::post('/products', [\App\Http\Controllers\Api\ProductController::class, 'store']);
+    Route::put('/products/{id}', [\App\Http\Controllers\Api\ProductController::class, 'update']);
+    Route::delete('/products/{id}', [\App\Http\Controllers\Api\ProductController::class, 'destroy']);
     // Order Approval Routes
     Route::prefix('order-approval')->group(function () {
         Route::get('/pending', [\App\Http\Controllers\Api\OrderApprovalController::class, 'pendingOrders']);
