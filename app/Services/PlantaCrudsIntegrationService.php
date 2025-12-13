@@ -318,12 +318,26 @@ class PlantaCrudsIntegrationService
         $totalPeso = array_sum(array_column($productos, 'total_peso'));
         $totalPrecio = array_sum(array_column($productos, 'total_precio'));
 
+        // Usar el mismo código del pedido de almacenes (numero_pedido) como código del envío
+        // Esto mantiene el mismo código en todos los sistemas
+        $codigoEnvio = $order->numero_pedido ?? 'TRZ-' . $order->pedido_id;
+        
+        // Obtener dirección de la planta desde configuración (punto de recogida fijo)
+        $plantaConfig = config('services.planta');
+        $origenLat = (float) ($plantaConfig['latitud'] ?? -17.7833);
+        $origenLng = (float) ($plantaConfig['longitud'] ?? -63.1821);
+        $origenDireccion = $plantaConfig['direccion'] ?? $plantaConfig['nombre'] ?? 'Planta Principal';
+        
         return [
-            'codigo_origen' => $order->numero_pedido ?? 'TRZ-' . $order->pedido_id,
+            'codigo_origen' => $codigoEnvio,
+            'codigo' => $codigoEnvio, // Agregar código para que se use en plantaCruds
             'almacen_destino' => $almacenInfo['nombre'] ?? 'Almacén no especificado',
             'almacen_destino_lat' => $almacenInfo['latitud'] ?? null,
             'almacen_destino_lng' => $almacenInfo['longitud'] ?? null,
             'almacen_destino_direccion' => $almacenInfo['direccion'] ?? $almacenInfo['nombre'] ?? null,
+            'origen_lat' => $origenLat, // Latitud de la planta (punto de recogida)
+            'origen_lng' => $origenLng, // Longitud de la planta (punto de recogida)
+            'origen_direccion' => $origenDireccion, // Dirección de la planta (punto de recogida)
             'solicitante_id' => $order->customer->cliente_id ?? null,
             'solicitante_nombre' => $order->customer->razon_social ?? 'N/A',
             'solicitante_email' => $order->customer->email ?? null,

@@ -37,8 +37,9 @@ class GestionLotesController extends Controller
         ];
 
         // Datos para formularios - pedidos con estado pendiente o aprobado
+        // Cargar también los productos del pedido para mostrar información de referencia
         $pedidos = CustomerOrder::whereIn('estado', ['pendiente', 'aprobado'])
-            ->with('customer')
+            ->with(['customer', 'orderProducts.product.unit'])
             ->orderBy('fecha_creacion', 'desc')
             ->get();
 
@@ -62,7 +63,7 @@ class GestionLotesController extends Controller
                 'material_id' => $mp->material_id,
                 'name' => $mp->nombre,
                 'unit_code' => $mp->unit->codigo ?? 'N/A',
-                'available' => number_format($available, 2)
+                'available' => (float)$available // Pasar como número, no como string formateado
             ];
         });
 

@@ -84,7 +84,15 @@ class AlmacenajeController extends Controller
             'almacenados' => $lotesAlmacenados->count(),
         ];
 
-        return view('almacenaje', compact('lotes', 'stats', 'ordersData'));
+        // Pasar configuración de la planta a la vista
+        $plantaConfig = [
+            'nombre' => config('services.planta.nombre', 'Planta Principal'),
+            'direccion' => config('services.planta.direccion', 'Av. Ejemplo 123, Santa Cruz, Bolivia'),
+            'latitud' => config('services.planta.latitud', '-17.8146'),
+            'longitud' => config('services.planta.longitud', '-63.1561'),
+        ];
+
+        return view('almacenaje', compact('lotes', 'stats', 'ordersData', 'plantaConfig'));
     }
 
     public function obtenerAlmacenajesPorLote($batchId)
@@ -248,6 +256,11 @@ class AlmacenajeController extends Controller
             // Obtener el siguiente ID de la secuencia
             $nextId = DB::selectOne("SELECT nextval('almacenaje_seq') as id")->id;
 
+            // Usar ubicación de la configuración de la planta
+            $plantaDireccion = config('services.planta.direccion', 'Av. Ejemplo 123, Santa Cruz, Bolivia');
+            $plantaLat = config('services.planta.latitud', '-17.8146');
+            $plantaLng = config('services.planta.longitud', '-63.1561');
+            
             $storage = Storage::create([
                 'almacenaje_id' => $nextId,
                 'lote_id' => $request->lote_id,
@@ -255,10 +268,10 @@ class AlmacenajeController extends Controller
                 'condicion' => $request->condicion,
                 'cantidad' => $quantityToStore,
                 'observaciones' => $request->observaciones,
-                'latitud_recojo' => $request->pickup_latitude,
-                'longitud_recojo' => $request->pickup_longitude,
-                'direccion_recojo' => $request->pickup_address,
-                'referencia_recojo' => $request->pickup_reference,
+                'latitud_recojo' => $plantaLat,
+                'longitud_recojo' => $plantaLng,
+                'direccion_recojo' => $plantaDireccion,
+                'referencia_recojo' => null, // Ya no se usa referencia
                 'fecha_almacenaje' => now(),
             ]);
 

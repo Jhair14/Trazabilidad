@@ -88,7 +88,33 @@ class GestionPedidosController extends Controller
             $mostrarAprobarRechazar = $pedido->isEnvioPendienteAprobacionTrazabilidad();
         }
 
-        return view('gestion-pedidos-detalle', compact('pedido', 'trackings', 'plantaBase', 'propuestaPdfUrl', 'aprobarRechazarUrl', 'envioId', 'mostrarAprobarRechazar'));
+        // Buscar materias primas que coincidan con los productos del pedido
+        // Esto es solo para mostrar información, NO crea materias primas automáticamente
+        $nombresProductos = $pedido->orderProducts->pluck('product.nombre')->filter()->unique()->toArray();
+        
+        $materiasPrimasCreadas = collect();
+        
+        if (!empty($nombresProductos)) {
+            // Buscar materias primas existentes que coincidan con los nombres de productos
+            $materiasPrimasExistentes = \App\Models\RawMaterialBase::where('activo', true)
+                ->whereIn('nombre', $nombresProductos)
+                ->with(['category', 'unit', 'rawMaterials'])
+                ->get();
+            
+            // Mapear las materias primas con información del pedido
+            $materiasPrimasCreadas = $materiasPrimasExistentes->map(function($mp) use ($pedido) {
+                // Agregar información del producto del pedido correspondiente
+                $productoPedido = $pedido->orderProducts->first(function($op) use ($mp) {
+                    return $op->product && $op->product->nombre === $mp->nombre;
+                });
+                
+                $mp->cantidad_requerida = $productoPedido ? $productoPedido->cantidad : 0;
+                $mp->producto_pedido = $productoPedido;
+                return $mp;
+            });
+        }
+
+        return view('gestion-pedidos-detalle', compact('pedido', 'trackings', 'plantaBase', 'propuestaPdfUrl', 'aprobarRechazarUrl', 'envioId', 'mostrarAprobarRechazar', 'materiasPrimasCreadas'));
     }
 
     public function update(Request $request, $id)

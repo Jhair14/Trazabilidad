@@ -473,7 +473,14 @@ class PedidosController extends Controller
     public function show($id)
     {
         $user = Auth::user();
-        $customerId = $this->getOrCreateCustomerId($user);
+        
+        // Verificar si el usuario es admin
+        $esAdmin = false;
+        if ($user) {
+            $esAdmin = $user->hasPermissionTo('gestionar pedidos') || 
+                       $user->hasRole('admin') || 
+                       $user->hasRole('administrador');
+        }
 
         $pedido = CustomerOrder::with([
             'customer',
@@ -483,44 +490,72 @@ class PedidosController extends Controller
             'batches'
         ])->findOrFail($id);
 
-        // Verificar que el pedido pertenece al cliente del usuario
-        if ($pedido->cliente_id != $customerId) {
-            abort(403, 'No tienes permiso para ver este pedido');
+        // Si no es admin, verificar que el pedido pertenece al cliente del usuario
+        if (!$esAdmin) {
+            $customerId = $this->getOrCreateCustomerId($user);
+            if ($pedido->cliente_id != $customerId) {
+                abort(403, 'No tienes permiso para ver este pedido');
+            }
         }
 
         // Si es una petición AJAX, devolver JSON
         if (request()->ajax() || request()->wantsJson()) {
+            // Obtener nombre del almacén si el pedido viene del sistema de almacenes
+            $almacenNombre = null;
+            if ($pedido->origen_sistema === 'almacen' && $pedido->pedido_almacen_id) {
+                // Intentar obtener el nombre del almacén desde sistema-almacen-PSIII
+                try {
+                    $almacenApiUrl = env('ALMACEN_API_URL', 'http://localhost:8002/api');
+                    $response = Http::timeout(5)->get("{$almacenApiUrl}/almacenes/{$pedido->pedido_almacen_id}");
+                    if ($response->successful()) {
+                        $almacenData = $response->json('data', []);
+                        $almacenNombre = $almacenData['nombre'] ?? null;
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('No se pudo obtener nombre del almacén: ' . $e->getMessage());
+                }
+                
+                // Si no se pudo obtener, intentar desde el primer destino
+                if (!$almacenNombre && $pedido->destinations->isNotEmpty()) {
+                    $firstDest = $pedido->destinations->first();
+                    // Extraer nombre del almacén desde las instrucciones de entrega
+                    if ($firstDest->instrucciones_entrega) {
+                        if (preg_match('/Entrega en almacén:\s*(.+)/i', $firstDest->instrucciones_entrega, $matches)) {
+                            $almacenNombre = trim($matches[1]);
+                        }
+                    }
+                    // Si no, usar la dirección como nombre
+                    if (!$almacenNombre) {
+                        $almacenNombre = $firstDest->direccion;
+                    }
+                }
+            }
+            
             return response()->json([
                 'order_id' => $pedido->pedido_id,
-                'order_number' => $pedido->numero_pedido,
-                'name' => $pedido->nombre,
-                'description' => $pedido->descripcion,
+                'order_number' => $pedido->numero_pedido ?? 'PED-' . $pedido->pedido_id,
+                'name' => $pedido->nombre ?? 'Sin nombre',
+                'description' => $pedido->descripcion ?? 'Sin descripción',
                 'status' => $pedido->estado,
-                'creation_date' => $pedido->fecha_creacion->format('Y-m-d'),
-                'delivery_date' => $pedido->fecha_entrega ? $pedido->fecha_entrega->format('Y-m-d') : null,
+                'creation_date' => $pedido->fecha_creacion ? $pedido->fecha_creacion->format('d/m/Y') : 'N/A',
+                'delivery_date' => $pedido->fecha_entrega ? $pedido->fecha_entrega->format('d/m/Y') : null,
                 'observations' => $pedido->observaciones,
                 'editable_until' => $pedido->editable_hasta ? $pedido->editable_hasta->format('Y-m-d H:i:s') : null,
                 'approved_at' => $pedido->aprobado_en ? $pedido->aprobado_en->format('Y-m-d H:i:s') : null,
                 'can_be_edited' => $pedido->canBeEdited(),
-                'orderProducts' => $pedido->orderProducts->map(function ($op) {
+                'almacen_nombre' => $almacenNombre, // Nombre del almacén si viene del sistema de almacenes
+                'products' => $pedido->orderProducts->map(function ($op) {
                     return [
                         'order_product_id' => $op->producto_pedido_id,
                         'product_id' => $op->producto_id,
-                        'quantity' => $op->cantidad,
+                        'product_name' => $op->product->nombre ?? 'Producto sin nombre',
+                        'quantity' => number_format($op->cantidad, 2),
+                        'unit' => $op->product->unit->codigo ?? $op->product->unit->nombre ?? 'N/A',
                         'status' => $op->estado,
                         'observations' => $op->observaciones,
                         'rejection_reason' => $op->razon_rechazo,
-                        'product' => [
-                            'product_id' => $op->product->producto_id,
-                            'name' => $op->product->nombre ?? 'N/A',
-                            'code' => $op->product->codigo ?? 'N/A',
-                            'unit' => [
-                                'name' => $op->product->unit->nombre ?? 'N/A',
-                                'abbreviation' => $op->product->unit->codigo ?? 'N/A',
-                            ]
-                        ]
                     ];
-                }),
+                })->toArray(),
                 'destinations' => $pedido->destinations->map(function ($dest) {
                     return [
                         'address' => $dest->direccion,
@@ -529,7 +564,7 @@ class PedidosController extends Controller
                         'contact_phone' => $dest->telefono_contacto,
                         'delivery_instructions' => $dest->instrucciones_entrega,
                     ];
-                }),
+                })->toArray(),
             ]);
         }
 

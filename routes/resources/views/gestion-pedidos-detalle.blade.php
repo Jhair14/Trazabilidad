@@ -231,6 +231,130 @@
                 </div>
                 @endif
 
+                <!-- Materias Primas Necesarias para este Pedido -->
+                @if(isset($materiasPrimasCreadas) && $materiasPrimasCreadas->count() > 0)
+                <div class="card mb-4 border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-boxes mr-2"></i>
+                            Materias Primas Necesarias para este Pedido
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <strong>Información:</strong> Estas son las materias primas que coinciden con los productos de este pedido. 
+                            Verifica que tengas suficiente cantidad disponible antes de comenzar la producción.
+                            <br><small class="d-block mt-2">Nota: Las materias primas deben existir previamente en el sistema. Si no aparecen aquí, créalas manualmente en "Materias Prima Base".</small>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped table-hover">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Producto del Pedido</th>
+                                        <th>Materia Prima</th>
+                                        <th>Código MP</th>
+                                        <th>Cantidad Requerida</th>
+                                        <th>Cantidad Disponible</th>
+                                        <th>Diferencia</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($materiasPrimasCreadas as $mp)
+                                    @php
+                                        $cantidadDisponible = $mp->rawMaterials()
+                                            ->where('conformidad_recepcion', true)
+                                            ->sum('cantidad_disponible') ?? 0;
+                                        if ($cantidadDisponible == 0 && $mp->rawMaterials->count() == 0) {
+                                            $cantidadDisponible = $mp->cantidad_disponible ?? 0;
+                                        }
+                                        $cantidadRequerida = $mp->cantidad_requerida ?? 0;
+                                        $diferencia = $cantidadDisponible - $cantidadRequerida;
+                                        $tieneSuficiente = $diferencia >= 0;
+                                    @endphp
+                                    <tr class="{{ $tieneSuficiente ? '' : 'table-warning' }}">
+                                        <td>
+                                            <strong>{{ $mp->nombre }}</strong>
+                                            @if($mp->producto_pedido)
+                                                <br><small class="text-muted">
+                                                    Cantidad en pedido: {{ number_format($mp->producto_pedido->cantidad, 2) }} 
+                                                    {{ $mp->producto_pedido->product->unit->codigo ?? '' }}
+                                                </small>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <strong>{{ $mp->nombre }}</strong>
+                                            <br><small class="text-muted">{{ $mp->category->nombre ?? 'Sin categoría' }}</small>
+                                        </td>
+                                        <td><strong class="text-primary">{{ $mp->codigo }}</strong></td>
+                                        <td>
+                                            <span class="badge badge-info">
+                                                {{ number_format($cantidadRequerida, 2) }} {{ $mp->unit->codigo ?? 'KG' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="{{ $cantidadDisponible > 0 ? 'text-success' : 'text-danger' }}">
+                                                <strong>{{ number_format($cantidadDisponible, 2) }}</strong> {{ $mp->unit->codigo ?? 'KG' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @if($tieneSuficiente)
+                                                <span class="badge badge-success">
+                                                    +{{ number_format($diferencia, 2) }} {{ $mp->unit->codigo ?? 'KG' }}
+                                                </span>
+                                            @else
+                                                <span class="badge badge-danger">
+                                                    {{ number_format($diferencia, 2) }} {{ $mp->unit->codigo ?? 'KG' }}
+                                                </span>
+                                                <br><small class="text-danger">Faltan {{ number_format(abs($diferencia), 2) }}</small>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($tieneSuficiente)
+                                                <span class="badge badge-success">
+                                                    <i class="fas fa-check"></i> Suficiente
+                                                </span>
+                                            @else
+                                                <span class="badge badge-warning">
+                                                    <i class="fas fa-exclamation-triangle"></i> Insuficiente
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <a href="{{ route('materia-prima-base.show', $mp->material_id) }}" 
+                                               class="btn btn-sm btn-info" 
+                                               title="Ver detalles de la materia prima">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                @else
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <strong>Información:</strong> No se encontraron materias primas que coincidan con los productos de este pedido.
+                    @if($pedido->orderProducts->count() > 0)
+                        <br><br><strong>Productos en este pedido:</strong>
+                        <ul class="mb-0 mt-2">
+                            @foreach($pedido->orderProducts as $op)
+                                <li>
+                                    <strong>{{ $op->product->nombre ?? 'Producto sin nombre' }}</strong> - 
+                                    Cantidad requerida: {{ number_format($op->cantidad, 2) }} {{ $op->product->unit->codigo ?? '' }}
+                                </li>
+                            @endforeach
+                        </ul>
+                        <br><small>Para crear las materias primas necesarias, ve a "Materias Prima Base" y créalas manualmente con los mismos nombres que los productos del pedido.</small>
+                    @endif
+                </div>
+                @endif
+
                 <!-- Destinos de Entrega -->
                 @if($pedido->destinations->count() > 0)
                 <h5 class="mb-3 mt-4">Destinos de Entrega</h5>

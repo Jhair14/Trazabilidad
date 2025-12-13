@@ -350,6 +350,12 @@
                 @can('gestionar usuarios')
                 <li class="nav-header">Administración</li>
                 <li class="nav-item">
+                    <a href="{{ route('planta-ubicacion') }}" class="nav-link">
+                        <i class="nav-icon fas fa-map-marker-alt"></i>
+                        <p>Mi Ubicación</p>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="{{ route('usuarios') }}" class="nav-link">
                         <i class="nav-icon fas fa-user-cog"></i>
                         <p>Usuarios</p>

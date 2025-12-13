@@ -80,6 +80,82 @@ class SolicitarMateriaPrimaController extends Controller
         return view('solicitar-materia-prima', compact('solicitudes', 'pedidos', 'materias_primas', 'materias_primas_json', 'stats'));
     }
 
+    /**
+     * Obtiene las materias primas necesarias para un pedido específico
+     */
+    public function getMateriasPrimasPorPedido($pedidoId)
+    {
+        try {
+            $pedido = CustomerOrder::with(['orderProducts.product.unit'])->findOrFail($pedidoId);
+            
+            // Obtener nombres de productos del pedido
+            $nombresProductos = $pedido->orderProducts->pluck('product.nombre')->filter()->unique()->toArray();
+            
+            // Buscar materias primas que coincidan con los nombres de productos
+            $materiasPrimas = RawMaterialBase::where('activo', true)
+                ->whereIn('nombre', $nombresProductos)
+                ->with(['unit', 'rawMaterials'])
+                ->get()
+                ->map(function($mp) use ($pedido) {
+                    // Encontrar el producto del pedido correspondiente
+                    $productoPedido = $pedido->orderProducts->first(function($op) use ($mp) {
+                        return $op->product && $op->product->nombre === $mp->nombre;
+                    });
+                    
+                    // Calcular cantidad disponible
+                    $cantidadDisponible = $mp->rawMaterials()
+                        ->where('conformidad_recepcion', true)
+                        ->sum('cantidad_disponible') ?? 0;
+                    if ($cantidadDisponible == 0 && $mp->rawMaterials->count() == 0) {
+                        $cantidadDisponible = $mp->cantidad_disponible ?? 0;
+                    }
+                    
+                    // Cantidad requerida del pedido
+                    $cantidadRequerida = $productoPedido ? $productoPedido->cantidad : 0;
+                    
+                    // Cantidad mínima a solicitar (requerida - disponible, mínimo 0)
+                    $cantidadMinimaSolicitar = max(0, $cantidadRequerida - $cantidadDisponible);
+                    
+                    return [
+                        'material_id' => $mp->material_id,
+                        'nombre' => $mp->nombre,
+                        'codigo' => $mp->codigo,
+                        'cantidad_requerida' => $cantidadRequerida,
+                        'cantidad_disponible' => $cantidadDisponible,
+                        'cantidad_minima_solicitar' => $cantidadMinimaSolicitar,
+                        'unidad' => [
+                            'codigo' => $mp->unit->codigo ?? 'KG',
+                            'nombre' => $mp->unit->nombre ?? 'Kilogramo'
+                        ],
+                        'tiene_suficiente' => $cantidadDisponible >= $cantidadRequerida
+                    ];
+                })
+                ->filter(function($mp) {
+                    // Solo incluir materias primas que realmente necesiten ser solicitadas
+                    // (tienen cantidad mínima a solicitar > 0 o no tienen suficiente)
+                    return $mp['cantidad_minima_solicitar'] > 0 || !$mp['tiene_suficiente'];
+                })
+                ->values();
+            
+            return response()->json([
+                'success' => true,
+                'materias_primas' => $materiasPrimas,
+                'pedido' => [
+                    'numero_pedido' => $pedido->numero_pedido,
+                    'nombre' => $pedido->nombre,
+                    'fecha_entrega' => $pedido->fecha_entrega ? $pedido->fecha_entrega->format('Y-m-d') : null,
+                    'fecha_entrega_formatted' => $pedido->fecha_entrega ? $pedido->fecha_entrega->format('d/m/Y') : null,
+                    'fecha_creacion' => $pedido->fecha_creacion ? $pedido->fecha_creacion->format('d/m/Y') : null,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener materias primas: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [

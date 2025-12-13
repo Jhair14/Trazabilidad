@@ -21,6 +21,7 @@ use App\Http\Controllers\Web\PedidosController;
 use App\Http\Controllers\Web\GestionPedidosController;
 use App\Http\Controllers\Web\UsuariosController;
 use App\Http\Controllers\Web\ProcesoTransformacionController;
+use App\Http\Controllers\Web\PlantaUbicacionController;
 
 Route::redirect('/', '/login');
 
@@ -49,6 +50,7 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('/solicitar-materia-prima', [SolicitarMateriaPrimaController::class, 'index'])->middleware('permission:solicitar materia prima')->name('solicitar-materia-prima');
     Route::post('/solicitar-materia-prima', [SolicitarMateriaPrimaController::class, 'store'])->middleware('permission:solicitar materia prima');
+    Route::get('/solicitar-materia-prima/pedido/{pedidoId}/materias-primas', [SolicitarMateriaPrimaController::class, 'getMateriasPrimasPorPedido'])->middleware('permission:solicitar materia prima')->name('solicitar-materia-prima.get-materias-primas');
     
     Route::get('/recepcion-materia-prima', [RecepcionMateriaPrimaController::class, 'index'])->middleware('permission:recepcionar materia prima')->name('recepcion-materia-prima');
     Route::post('/recepcion-materia-prima', [RecepcionMateriaPrimaController::class, 'store'])->middleware('permission:recepcionar materia prima');
@@ -151,6 +153,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/gestion-pedidos/{orderId}/reject', [GestionPedidosController::class, 'rejectOrder'])->middleware('permission:rechazar pedidos')->name('gestion-pedidos.reject-order');
     });
 
+    // Configuración de Ubicación de la Planta
+    Route::get('/planta-ubicacion', [PlantaUbicacionController::class, 'index'])->middleware('permission:gestionar usuarios')->name('planta-ubicacion');
+    Route::put('/planta-ubicacion', [PlantaUbicacionController::class, 'update'])->middleware('permission:gestionar usuarios')->name('planta-ubicacion.update');
+    
     // Usuarios/Operadores
     Route::get('/usuarios', [UsuariosController::class, 'index'])->middleware('permission:gestionar usuarios')->name('usuarios');
     Route::post('/usuarios', [UsuariosController::class, 'store'])->middleware('permission:gestionar usuarios');
