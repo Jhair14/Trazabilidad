@@ -58,8 +58,6 @@ networks:
     external: true
   proxy-network:
     external: true
-
-
-
+    
 volumes:
   db-data:
