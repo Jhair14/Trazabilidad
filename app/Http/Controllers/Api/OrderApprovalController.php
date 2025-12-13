@@ -116,32 +116,8 @@ class OrderApprovalController extends Controller
 
                 $pedidoCompletado = true;
 
-                // Integración con plantaCruds cuando se aprueba el último producto
-                $integrationService = new PlantaCrudsIntegrationService();
-                
-                try {
-                    $results = $integrationService->sendOrderToShipping($order);
-                    foreach ($results as $result) {
-                        if ($result['success']) {
-                            $enviosCreated[] = [
-                                'destination_id' => $result['destination_id'],
-                                'envio_codigo' => $result['envio_codigo'] ?? null,
-                                'envio_id' => $result['envio_id'] ?? null,
-                            ];
-                        } else {
-                            $integrationErrors[] = [
-                                'destination_id' => $result['destination_id'],
-                                'error' => $result['error'] ?? 'Error desconocido',
-                            ];
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Error en integración con plantaCruds', [
-                        'order_id' => $order->pedido_id,
-                        'error' => $e->getMessage(),
-                    ]);
-                    $integrationErrors[] = ['error' => $e->getMessage()];
-                }
+                // NOTA: La integración con plantaCruds se hace cuando se almacena el pedido,
+                // no cuando se aprueba. Ver AlmacenajeController.
                 
                 // Notificar a almacén si el pedido viene de ahí
                 if ($order->origen_sistema === 'almacen' && $order->pedido_almacen_id) {
@@ -156,16 +132,10 @@ class OrderApprovalController extends Controller
                 'order_product' => $orderProduct->load('product', 'approver')
             ];
 
-            // Si se completó la aprobación del pedido, incluir información de envíos
+            // Si se completó la aprobación del pedido
             if ($pedidoCompletado) {
                 $response['pedido_completado'] = true;
-                if (!empty($enviosCreated)) {
-                    $response['envios_created'] = $enviosCreated;
-                    $response['integration_success'] = true;
-                }
-                if (!empty($integrationErrors)) {
-                    $response['integration_errors'] = $integrationErrors;
-                }
+                $response['message'] = 'Producto y pedido aprobados exitosamente. El envío se creará cuando se almacene el pedido.';
             }
 
             return response()->json($response);
@@ -287,56 +257,18 @@ class OrderApprovalController extends Controller
 
             DB::commit();
 
-            // Integración con plantaCruds
-            $integrationService = new PlantaCrudsIntegrationService();
-            $enviosCreated = [];
-            $integrationErrors = [];
-            
-            try {
-                $results = $integrationService->sendOrderToShipping($order);
-                foreach ($results as $result) {
-                    if ($result['success']) {
-                        $enviosCreated[] = [
-                            'destination_id' => $result['destination_id'],
-                            'envio_codigo' => $result['envio_codigo'] ?? null,
-                            'envio_id' => $result['envio_id'] ?? null,
-                        ];
-                    } else {
-                        $integrationErrors[] = [
-                            'destination_id' => $result['destination_id'],
-                            'error' => $result['error'] ?? 'Error desconocido',
-                        ];
-                    }
-                }
-            } catch (\Exception $e) {
-                Log::error('Error en integración con plantaCruds', [
-                    'order_id' => $order->pedido_id,
-                    'error' => $e->getMessage(),
-                ]);
-                $integrationErrors[] = ['error' => $e->getMessage()];
-            }
+            // NOTA: La integración con plantaCruds se hace cuando se almacena el pedido,
+            // no cuando se aprueba. Ver AlmacenajeController.
             
             // Notificar a almacén si el pedido viene de ahí
             if ($order->origen_sistema === 'almacen' && $order->pedido_almacen_id) {
                 $this->notifyAlmacen($order, 'aprobado');
             }
 
-            $response = [
+            return response()->json([
                 'message' => 'Pedido aprobado exitosamente',
                 'order' => $order->load('orderProducts.product', 'approver'),
-            ];
-            
-            if (!empty($enviosCreated)) {
-                $response['envios_created'] = $enviosCreated;
-                $response['integration_success'] = true;
-            }
-            
-            if (!empty($integrationErrors)) {
-                $response['integration_errors'] = $integrationErrors;
-                $response['integration_partial_success'] = !empty($enviosCreated);
-            }
-
-            return response()->json($response);
+            ]);
             
         } catch (\Exception $e) {
             DB::rollBack();

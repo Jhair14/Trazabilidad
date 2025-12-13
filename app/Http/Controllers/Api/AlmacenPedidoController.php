@@ -97,8 +97,13 @@ class AlmacenPedidoController extends Controller
             );
 
             // Asignar productos al destino
+            // Generar producto_destino_id manualmente (no es auto-increment)
+            $lastDestinationProduct = OrderDestinationProduct::orderBy('producto_destino_id', 'desc')->first();
+            $nextProductoDestinoId = $lastDestinationProduct ? ($lastDestinationProduct->producto_destino_id + 1) : 1;
+            
             foreach ($orderProducts as $orderProduct) {
                 OrderDestinationProduct::create([
+                    'producto_destino_id' => $nextProductoDestinoId++,
                     'destino_id' => $destination->destino_id,
                     'producto_pedido_id' => $orderProduct->producto_pedido_id,
                     'cantidad' => $orderProduct->cantidad,

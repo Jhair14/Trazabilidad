@@ -48,17 +48,79 @@ class PlantaCrudsIntegrationService
 
         $results = [];
 
+        // Verificar que el pedido tenga destinos
+        if ($order->destinations->isEmpty()) {
+            Log::warning('Pedido sin destinos, no se puede enviar a plantaCruds', [
+                'order_id' => $order->pedido_id,
+                'order_number' => $order->numero_pedido,
+            ]);
+            return [
+                [
+                    'destination_id' => null,
+                    'success' => false,
+                    'error' => 'El pedido no tiene destinos configurados',
+                ]
+            ];
+        }
+
         // Create one Envio per destination
         foreach ($order->destinations as $destination) {
             try {
                 $envioData = $this->buildEnvioData($order, $destination, $storage);
+                
+                Log::info('Enviando datos a plantaCruds', [
+                    'order_id' => $order->pedido_id,
+                    'destination_id' => $destination->destino_id,
+                ]);
+                
                 $response = $this->createEnvio($envioData);
 
+                // Log la respuesta completa para debugging
+                Log::info('Response completa de plantaCruds', [
+                    'response_keys' => array_keys($response),
+                    'response' => $response,
+                ]);
+
+                // La respuesta de /pedido-almacen devuelve envio_id y codigo directamente
+                $envioId = $response['envio_id'] ?? $response['data']['id'] ?? $response['data']['envio_id'] ?? null;
+                $envioCodigo = $response['codigo'] ?? $response['data']['codigo'] ?? null;
+                
+                // Crear registro de tracking para poder acceder al envío desde Trazabilidad
+                if ($envioId) {
+                    try {
+                        \App\Models\OrderEnvioTracking::updateOrCreate(
+                            [
+                                'pedido_id' => $order->pedido_id,
+                                'destino_id' => $destination->destino_id,
+                            ],
+                            [
+                                'envio_id' => $envioId,
+                                'codigo_envio' => $envioCodigo,
+                                'estado' => 'success',
+                                'datos_respuesta' => $response,
+                            ]
+                        );
+                        
+                        Log::info('Tracking creado/actualizado para envío', [
+                            'pedido_id' => $order->pedido_id,
+                            'destino_id' => $destination->destino_id,
+                            'envio_id' => $envioId,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('Error al crear tracking para envío', [
+                            'pedido_id' => $order->pedido_id,
+                            'destino_id' => $destination->destino_id,
+                            'envio_id' => $envioId,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+                
                 $results[] = [
                     'destination_id' => $destination->destino_id,
                     'success' => true,
-                    'envio_id' => $response['data']['id'] ?? null,
-                    'envio_codigo' => $response['data']['codigo'] ?? null,
+                    'envio_id' => $envioId,
+                    'envio_codigo' => $envioCodigo,
                     'qr_code' => $response['qr_code'] ?? null,
                     'response' => $response,
                 ];
@@ -67,8 +129,8 @@ class PlantaCrudsIntegrationService
                     'order_id' => $order->pedido_id,
                     'order_number' => $order->numero_pedido,
                     'destination_id' => $destination->destino_id,
-                    'envio_id' => $response['data']['id'] ?? null,
-                    'envio_codigo' => $response['data']['codigo'] ?? null,
+                    'envio_id' => $envioId,
+                    'envio_codigo' => $envioCodigo,
                 ]);
 
             } catch (\Exception $e) {
@@ -101,53 +163,218 @@ class PlantaCrudsIntegrationService
      */
     private function buildEnvioData(CustomerOrder $order, OrderDestination $destination, ?\App\Models\Storage $storage = null): array
     {
-        $almacenSyncService = new AlmacenSyncService();
+        // PRIORIDAD 1: Obtener información del almacén desde sistema-almacen-PSIII usando almacen_almacen_id
+        $almacenAlmacenId = $destination->almacen_almacen_id;
+        $almacenInfo = null;
         
-        // Prioridad: almacen_destino_id (seleccionado en UI) > buscar por coordenadas > usar default
-        if (!empty($destination->almacen_destino_id)) {
-            // Usar el almacén destino seleccionado directamente desde la UI
-            $almacenId = $destination->almacen_destino_id;
+        if ($almacenAlmacenId) {
+            // Buscar almacén en sistema-almacen-PSIII usando su API
+            $almacenInfo = $this->getAlmacenFromAlmacenSystem($almacenAlmacenId);
             
-            // Verificar que el almacén existe
-            $almacen = $almacenSyncService->findAlmacenById($almacenId);
-            if (!$almacen) {
-                Log::warning('Almacén destino no encontrado, buscando alternativo', [
-                    'almacen_id' => $almacenId,
+            if ($almacenInfo) {
+                Log::info('Almacén obtenido desde sistema-almacen-PSIII', [
+                    'almacen_almacen_id' => $almacenAlmacenId,
+                    'nombre' => $almacenInfo['nombre']
+                ]);
+            }
+        }
+        
+        // PRIORIDAD 2: Si no se encontró desde sistema-almacen-PSIII, extraer nombre desde instrucciones de entrega
+        if (!$almacenInfo) {
+            // Intentar extraer el nombre del almacén desde las instrucciones de entrega
+            $nombreAlmacen = null;
+            if ($destination->instrucciones_entrega) {
+                // Buscar patrón "Entrega en almacén: [nombre]"
+                if (preg_match('/Entrega en almacén:\s*(.+?)(?:\n|$)/i', $destination->instrucciones_entrega, $matches)) {
+                    $nombreAlmacen = trim($matches[1]);
+                } elseif (preg_match('/almacén:\s*(.+?)(?:\n|$)/i', $destination->instrucciones_entrega, $matches)) {
+                    $nombreAlmacen = trim($matches[1]);
+                }
+            }
+            
+            // Si se encontró el nombre, usarlo directamente (viene desde sistema-almacen-PSIII)
+            if ($nombreAlmacen) {
+                $almacenInfo = [
+                    'id' => null,
+                    'nombre' => $nombreAlmacen, // Usar el nombre exacto del almacén desde sistema-almacen-PSIII
+                    'latitud' => $destination->latitud,
+                    'longitud' => $destination->longitud,
+                    'direccion' => $destination->direccion ?? $nombreAlmacen,
+                ];
+                
+                Log::info('Almacén extraído desde instrucciones de entrega', [
+                    'nombre' => $nombreAlmacen,
                     'destination_id' => $destination->destino_id
                 ]);
+            }
+        }
+        
+        // PRIORIDAD 3: Fallback - usar método anterior (buscar en plantaCruds) solo si no hay otra opción
+        if (!$almacenInfo) {
+            $almacenSyncService = new AlmacenSyncService();
+            
+            // Prioridad: almacen_destino_id (seleccionado en UI) > buscar por coordenadas > usar default
+            if (!empty($destination->almacen_destino_id)) {
+                $almacenId = $destination->almacen_destino_id;
+                $almacen = $almacenSyncService->findAlmacenById($almacenId);
+                if (!$almacen) {
+                    $almacenId = $this->findAlmacenForDestination($destination, $almacenSyncService);
+                }
+            } else {
                 $almacenId = $this->findAlmacenForDestination($destination, $almacenSyncService);
             }
-        } else {
-            // Buscar almacén basado en la ubicación del destino
-            $almacenId = $this->findAlmacenForDestination($destination, $almacenSyncService);
+            
+            // Construir almacenInfo desde plantaCruds
+            $almacen = $almacenSyncService->findAlmacenById($almacenId);
+            if ($almacen) {
+                $almacenInfo = [
+                    'id' => $almacen['id'],
+                    'nombre' => $almacen['nombre'],
+                    'latitud' => $almacen['latitud'] ?? null,
+                    'longitud' => $almacen['longitud'] ?? null,
+                    'direccion' => $almacen['direccion'] ?? $almacen['nombre'] ?? null,
+                ];
+            }
         }
-
-        // Build products array
-        $productos = [];
-        foreach ($destination->destinationProducts as $destProduct) {
-            $orderProduct = $destProduct->orderProduct;
-            $product = $orderProduct->product;
-
-            $productos[] = [
-                'producto_id' => null, // Not used, will rely on producto_nombre
-                'producto_nombre' => $product->nombre,
-                'cantidad' => (float) $destProduct->cantidad,
-                'peso_kg' => (float) ($product->peso ?? 0),
-                'precio' => 0.00, // Default price, can be adjusted
+        
+        // ÚLTIMO RECURSO: Si aún no hay almacén, usar valores del destino
+        if (!$almacenInfo) {
+            $almacenInfo = [
+                'id' => null,
+                'nombre' => $destination->direccion ?? 'Almacén no especificado',
+                'latitud' => $destination->latitud,
+                'longitud' => $destination->longitud,
+                'direccion' => $destination->direccion ?? 'Dirección no especificada',
             ];
         }
 
+        // Build products array con todos los campos necesarios
+        $productos = [];
+        
+        if ($destination->destinationProducts->isEmpty()) {
+            Log::warning('Destino sin productos, intentando usar productos del pedido', [
+                'destination_id' => $destination->destino_id,
+                'order_id' => $order->pedido_id,
+            ]);
+            
+            // Si no hay productos en el destino, usar productos del pedido
+            foreach ($order->orderProducts as $orderProduct) {
+                $product = $orderProduct->product;
+                
+                $cantidad = (float) $orderProduct->cantidad;
+                $pesoUnitario = (float) ($product->peso ?? 0);
+                // Usar precio del OrderProduct, si es 0 usar precio_unitario del Product como fallback
+                $precioUnitario = (float) ($orderProduct->precio ?? 0);
+                if ($precioUnitario == 0 && $product && $product->precio_unitario) {
+                    $precioUnitario = (float) $product->precio_unitario;
+                }
+                $totalPeso = $cantidad * $pesoUnitario;
+                $totalPrecio = $cantidad * $precioUnitario;
+
+                $productos[] = [
+                    'producto_id' => $product->producto_id ?? null,
+                    'producto_nombre' => $product->nombre ?? 'Producto sin nombre',
+                    'cantidad' => $cantidad,
+                    'peso_unitario' => $pesoUnitario,
+                    'precio_unitario' => $precioUnitario,
+                    'total_peso' => $totalPeso,
+                    'total_precio' => $totalPrecio,
+                ];
+            }
+        } else {
+            foreach ($destination->destinationProducts as $destProduct) {
+                $orderProduct = $destProduct->orderProduct;
+                $product = $orderProduct->product;
+                
+                $cantidad = (float) $destProduct->cantidad;
+                $pesoUnitario = (float) ($product->peso ?? 0);
+                // Usar precio del OrderProduct, si es 0 usar precio_unitario del Product como fallback
+                $precioUnitario = (float) ($orderProduct->precio ?? 0);
+                if ($precioUnitario == 0 && $product && $product->precio_unitario) {
+                    $precioUnitario = (float) $product->precio_unitario;
+                }
+                $totalPeso = $cantidad * $pesoUnitario;
+                $totalPrecio = $cantidad * $precioUnitario;
+
+                $productos[] = [
+                    'producto_id' => $product->producto_id ?? null, // ID del producto en Trazabilidad
+                    'producto_nombre' => $product->nombre ?? 'Producto sin nombre',
+                    'cantidad' => $cantidad,
+                    'peso_unitario' => $pesoUnitario,
+                    'precio_unitario' => $precioUnitario,
+                    'total_peso' => $totalPeso,
+                    'total_precio' => $totalPrecio,
+                ];
+            }
+        }
+        
+        // Validar que hay productos
+        if (empty($productos)) {
+            throw new \Exception("El destino no tiene productos asignados");
+        }
+
+        // Calcular totales
+        $totalCantidad = array_sum(array_column($productos, 'cantidad'));
+        $totalPeso = array_sum(array_column($productos, 'total_peso'));
+        $totalPrecio = array_sum(array_column($productos, 'total_precio'));
+
         return [
-            'almacen_destino_id' => $almacenId,
-            'categoria' => 'general',
-            'fecha_estimada_entrega' => $order->fecha_entrega ?? now()->addDays(3)->format('Y-m-d'),
-            'hora_estimada' => '14:00', // Default time
+            'codigo_origen' => $order->numero_pedido ?? 'TRZ-' . $order->pedido_id,
+            'almacen_destino' => $almacenInfo['nombre'] ?? 'Almacén no especificado',
+            'almacen_destino_lat' => $almacenInfo['latitud'] ?? null,
+            'almacen_destino_lng' => $almacenInfo['longitud'] ?? null,
+            'almacen_destino_direccion' => $almacenInfo['direccion'] ?? $almacenInfo['nombre'] ?? null,
+            'solicitante_id' => $order->customer->cliente_id ?? null,
+            'solicitante_nombre' => $order->customer->razon_social ?? 'N/A',
+            'solicitante_email' => $order->customer->email ?? null,
+            'fecha_requerida' => $order->fecha_entrega ?? now()->addDays(3)->format('Y-m-d'),
+            'hora_requerida' => '14:00',
             'observaciones' => $this->buildObservations($order, $destination, $storage),
+            'total_cantidad' => $totalCantidad,
+            'total_peso' => $totalPeso,
+            'total_precio' => $totalPrecio,
             'productos' => $productos,
             'origen' => 'trazabilidad',
             'pedido_trazabilidad_id' => $order->pedido_id,
             'numero_pedido_trazabilidad' => $order->numero_pedido,
+            'webhook_url' => $this->buildWebhookUrl($order),
         ];
+    }
+
+    /**
+     * Obtiene información del almacén desde sistema-almacen-PSIII
+     * 
+     * @param int $almacenId ID del almacén en sistema-almacen-PSIII
+     * @return array|null
+     */
+    private function getAlmacenFromAlmacenSystem(int $almacenId): ?array
+    {
+        $almacenApiUrl = env('ALMACEN_API_URL', 'http://localhost:8002/api');
+        
+        try {
+            $response = Http::timeout(10)
+                ->get("{$almacenApiUrl}/almacenes/{$almacenId}");
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                $almacen = $data['data'] ?? $data;
+                
+                return [
+                    'id' => $almacen['id'] ?? $almacenId,
+                    'nombre' => $almacen['nombre'] ?? 'Almacén',
+                    'latitud' => $almacen['latitud'] ?? null,
+                    'longitud' => $almacen['longitud'] ?? null,
+                    'direccion' => $almacen['ubicacion'] ?? $almacen['direccion'] ?? $almacen['nombre'] ?? null,
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::warning('Error al obtener almacén desde sistema-almacen-PSIII', [
+                'almacen_id' => $almacenId,
+                'error' => $e->getMessage()
+            ]);
+        }
+        
+        return null;
     }
 
     /**
@@ -160,7 +387,14 @@ class PlantaCrudsIntegrationService
      */
     private function buildObservations(CustomerOrder $order, OrderDestination $destination, ?\App\Models\Storage $storage = null): string
     {
-        $obs = "Pedido: {$order->numero_pedido}\n";
+        $obs = "ORIGEN: TRAZABILIDAD\n";
+        $obs .= "Pedido: {$order->numero_pedido}\n";
+        
+        // Agregar información del pedido de almacenes si existe
+        if ($order->pedido_almacen_id) {
+            $obs .= "pedido_almacen_id: {$order->pedido_almacen_id}\n";
+        }
+        
         $obs .= "Cliente: {$order->customer->razon_social}\n";
 
         if ($order->observaciones) {
@@ -199,6 +433,22 @@ class PlantaCrudsIntegrationService
         }
 
         return trim($obs);
+    }
+
+    /**
+     * Construir URL del webhook para notificar a almacenes
+     * 
+     * @param CustomerOrder $order
+     * @return string|null
+     */
+    private function buildWebhookUrl(CustomerOrder $order): ?string
+    {
+        if ($order->origen_sistema !== 'almacen' || !$order->pedido_almacen_id) {
+            return null;
+        }
+
+        $almacenApiUrl = env('ALMACEN_API_URL', 'http://localhost:8002/api');
+        return "{$almacenApiUrl}/pedidos/{$order->pedido_almacen_id}/asignacion-envio";
     }
 
     /**
@@ -275,29 +525,77 @@ class PlantaCrudsIntegrationService
      */
     private function createEnvio(array $data): array
     {
+        $url = "{$this->apiUrl}/pedido-almacen";
+        
         Log::info('Sending envio data to plantaCruds', [
-            'url' => "{$this->apiUrl}/envios",
-            'data' => $data,
+            'url' => $url,
+            'api_url' => $this->apiUrl,
+            'data_keys' => array_keys($data),
+            'productos_count' => count($data['productos'] ?? []),
         ]);
 
-        $response = Http::timeout(30)
-            ->post("{$this->apiUrl}/envios", $data);
+        try {
+            // Usar la ruta /pedido-almacen que recibe pedidos desde sistemas externos
+            $response = Http::timeout(30)
+                ->post($url, $data);
 
-        if (!$response->successful()) {
-            $errorBody = $response->body();
-            Log::error('plantaCruds API request failed', [
+            Log::info('Response from plantaCruds', [
                 'status' => $response->status(),
-                'body' => $errorBody,
+                'successful' => $response->successful(),
+                'body_preview' => substr($response->body(), 0, 500),
             ]);
-            throw new \Exception("Error al crear envío en plantaCruds (HTTP {$response->status()}): {$errorBody}");
+
+            if (!$response->successful()) {
+                $errorBody = $response->body();
+                Log::error('plantaCruds API request failed', [
+                    'url' => $url,
+                    'status' => $response->status(),
+                    'body' => $errorBody,
+                    'data_sent' => $data,
+                ]);
+                throw new \Exception("Error al crear envío en plantaCruds (HTTP {$response->status()}): {$errorBody}");
+            }
+
+            $result = $response->json();
+
+            // Log detallado de la respuesta
+            Log::info('Respuesta JSON de plantaCruds', [
+                'result' => $result,
+                'result_keys' => is_array($result) ? array_keys($result) : 'not_array',
+                'has_envio_id' => isset($result['envio_id']),
+                'has_codigo' => isset($result['codigo']),
+                'envio_id_value' => $result['envio_id'] ?? 'NOT_SET',
+                'codigo_value' => $result['codigo'] ?? 'NOT_SET',
+            ]);
+
+            if (!($result['success'] ?? false)) {
+                Log::error('plantaCruds API returned unsuccessful response', [
+                    'result' => $result,
+                    'data_sent' => $data,
+                ]);
+                throw new \Exception($result['message'] ?? 'Error desconocido al crear envío');
+            }
+
+            Log::info('Envio created successfully in plantaCruds (createEnvio method)', [
+                'envio_id' => $result['envio_id'] ?? null,
+                'codigo' => $result['codigo'] ?? null,
+                'full_result' => $result,
+            ]);
+
+            return $result;
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::error('Connection error to plantaCruds', [
+                'url' => $url,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \Exception("No se pudo conectar con plantaCruds en {$url}: {$e->getMessage()}");
+        } catch (\Exception $e) {
+            Log::error('Exception sending to plantaCruds', [
+                'url' => $url,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
         }
-
-        $result = $response->json();
-
-        if (!($result['success'] ?? false)) {
-            throw new \Exception($result['message'] ?? 'Error desconocido al crear envío');
-        }
-
-        return $result;
     }
 }

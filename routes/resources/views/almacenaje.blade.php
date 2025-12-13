@@ -268,9 +268,36 @@
                                                 <i class="fas fa-warehouse"></i> Almacenar
                                             </button>
                                         @else
-                                            <button class="btn btn-info btn-sm" title="Ver Detalles" onclick="verAlmacenaje({{ $lote->lote_id }})">
-                                                <i class="fas fa-eye"></i> Ver
-                                            </button>
+                                            @php
+                                                $pedido = $lote->order;
+                                                $envioId = $pedido ? $pedido->getPlantaCrudsEnvioId() : null;
+                                                $propuestaPdfUrl = $pedido ? $pedido->getPropuestaVehiculosPdfUrl() : null;
+                                                $aprobarRechazarUrl = $pedido ? $pedido->getAprobarRechazarUrl() : null;
+                                                
+                                                // Solo mostrar los botones si el estado es realmente "pendiente_aprobacion_trazabilidad"
+                                                $mostrarAprobarRechazar = false;
+                                                if ($envioId && $aprobarRechazarUrl && $pedido) {
+                                                    $mostrarAprobarRechazar = $pedido->isEnvioPendienteAprobacionTrazabilidad();
+                                                }
+                                            @endphp
+                                            <div class="btn-group-vertical btn-group-sm" role="group">
+                                                <button class="btn btn-info btn-sm" title="Ver Detalles" onclick="verAlmacenaje({{ $lote->lote_id }})">
+                                                    <i class="fas fa-eye"></i> Ver
+                                                </button>
+                                                @if($envioId && $propuestaPdfUrl)
+                                                    <a href="{{ $propuestaPdfUrl }}" target="_blank" class="btn btn-danger btn-sm" title="Descargar PDF Propuesta">
+                                                        <i class="fas fa-file-pdf"></i> PDF Propuesta
+                                                    </a>
+                                                @endif
+                                                @if($envioId && $aprobarRechazarUrl && $mostrarAprobarRechazar)
+                                                    <button class="btn btn-success btn-sm" title="Aprobar Propuesta" onclick="abrirModalAprobarAlmacenaje('{{ $aprobarRechazarUrl }}', {{ $envioId }})">
+                                                        <i class="fas fa-check"></i> Aprobar
+                                                    </button>
+                                                    <button class="btn btn-warning btn-sm" title="Rechazar Propuesta" onclick="abrirModalRechazarAlmacenaje('{{ $aprobarRechazarUrl }}', {{ $envioId }})">
+                                                        <i class="fas fa-times"></i> Rechazar
+                                                    </button>
+                                                @endif
+                                            </div>
                                         @endif
                                     @else
                                         <span class="text-muted">Requiere certificación</span>
@@ -432,6 +459,139 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modales para aprobar/rechazar propuesta desde almacenaje -->
+<!-- Modal Aprobar Propuesta -->
+<div class="modal fade" id="aprobarPropuestaAlmacenajeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="aprobarPropuestaAlmacenajeForm">
+                @csrf
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-check-circle"></i> Aprobar Propuesta de Vehículos
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de aprobar la propuesta de vehículos para el envío <strong id="envioIdAprobarAlmacenaje"></strong>?</p>
+                    <p class="text-muted">Al aprobar, el envío cambiará su estado a "pendiente" y podrá proceder con la asignación del transportista.</p>
+                    <div class="form-group">
+                        <label>Observaciones (opcional)</label>
+                        <textarea class="form-control" name="observaciones" id="aprobarObservacionesAlmacenaje" rows="3" placeholder="Comentarios sobre la aprobación..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> Aprobar Propuesta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Rechazar Propuesta -->
+<div class="modal fade" id="rechazarPropuestaAlmacenajeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="rechazarPropuestaAlmacenajeForm">
+                @csrf
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-times-circle"></i> Rechazar Propuesta de Vehículos
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de rechazar la propuesta de vehículos para el envío <strong id="envioIdRechazarAlmacenaje"></strong>?</p>
+                    <p class="text-muted">Al rechazar, el envío será cancelado.</p>
+                    <div class="form-group">
+                        <label>Observaciones <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="observaciones" id="rechazarObservacionesAlmacenaje" rows="3" required placeholder="Razón del rechazo..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-times"></i> Rechazar Propuesta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Mensaje de Éxito -->
+<div class="modal fade" id="mensajeExitoAlmacenajeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle"></i> Éxito
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" data-dismiss="modal">Aceptar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Mensaje de Error -->
+<div class="modal fade" id="mensajeErrorAlmacenajeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-circle"></i> Error
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Mensaje de Advertencia -->
+<div class="modal fade" id="mensajeAdvertenciaAlmacenajeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> Advertencia
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-warning" data-dismiss="modal">Aceptar</button>
             </div>
         </div>
     </div>
@@ -1259,6 +1419,204 @@ $(document).ready(function() {
         $btnSpinner.hide();
         $submitBtn.prop('disabled', false).removeClass('disabled');
         $cancelBtn.prop('disabled', false).removeClass('disabled');
+    });
+});
+
+// Variables globales para evitar múltiples envíos
+let procesandoAprobacionAlmacenaje = false;
+let procesandoRechazoAlmacenaje = false;
+let urlAprobarActual = null;
+let urlRechazarActual = null;
+let envioIdActual = null;
+
+// Funciones para abrir modales desde almacenaje
+function abrirModalAprobarAlmacenaje(url, envioId) {
+    if (procesandoAprobacionAlmacenaje) {
+        return; // Ya hay una solicitud en proceso
+    }
+    urlAprobarActual = url;
+    envioIdActual = envioId;
+    $('#envioIdAprobarAlmacenaje').text('#' + envioId);
+    $('#aprobarPropuestaAlmacenajeModal').modal('show');
+}
+
+function abrirModalRechazarAlmacenaje(url, envioId) {
+    if (procesandoRechazoAlmacenaje) {
+        return; // Ya hay una solicitud en proceso
+    }
+    urlRechazarActual = url;
+    envioIdActual = envioId;
+    $('#envioIdRechazarAlmacenaje').text('#' + envioId);
+    $('#rechazarPropuestaAlmacenajeModal').modal('show');
+}
+
+// Manejar aprobación desde almacenaje
+$(document).ready(function() {
+    $('#aprobarPropuestaAlmacenajeForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        if (procesandoAprobacionAlmacenaje || !urlAprobarActual) {
+            return false;
+        }
+        
+        procesandoAprobacionAlmacenaje = true;
+        const observaciones = $('#aprobarObservacionesAlmacenaje').val();
+        const btnSubmit = $(this).find('button[type="submit"]');
+        const btnCancel = $(this).closest('.modal').find('button[data-dismiss="modal"]');
+        const originalText = btnSubmit.html();
+        
+        // Deshabilitar todos los botones del modal
+        btnSubmit.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Procesando...');
+        btnCancel.prop('disabled', true);
+        
+        const csrfToken = $('meta[name="csrf-token"]').attr('content');
+        
+        $.ajax({
+            url: urlAprobarActual,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify({
+                accion: 'aprobar',
+                observaciones: observaciones || null
+            }),
+            success: function(response) {
+                if (response.success) {
+                    // Cerrar modal de aprobación
+                    $('#aprobarPropuestaAlmacenajeModal').modal('hide');
+                    
+                    // Deshabilitar botones de aprobar/rechazar en la fila correspondiente
+                    $('button[onclick*="abrirModalAprobarAlmacenaje(\'' + urlAprobarActual + '\'"]').prop('disabled', true).addClass('disabled');
+                    $('button[onclick*="abrirModalRechazarAlmacenaje(\'' + urlRechazarActual + '\'"]').prop('disabled', true).addClass('disabled');
+                    
+                    // Mostrar modal de éxito
+                    $('#mensajeExitoAlmacenajeModal .modal-body p').text(response.message);
+                    $('#mensajeExitoAlmacenajeModal').modal('show');
+                    
+                    // Recargar después de 1.5 segundos
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    procesandoAprobacionAlmacenaje = false;
+                    btnSubmit.prop('disabled', false).html(originalText);
+                    btnCancel.prop('disabled', false);
+                    
+                    // Mostrar modal de error
+                    $('#mensajeErrorAlmacenajeModal .modal-body p').text(response.message || 'Error desconocido');
+                    $('#mensajeErrorAlmacenajeModal').modal('show');
+                }
+            },
+            error: function(xhr) {
+                procesandoAprobacionAlmacenaje = false;
+                btnSubmit.prop('disabled', false).html(originalText);
+                btnCancel.prop('disabled', false);
+                
+                const error = xhr.responseJSON?.message || 'Error al procesar la solicitud';
+                
+                // Mostrar modal de error
+                $('#mensajeErrorAlmacenajeModal .modal-body p').text(error);
+                $('#mensajeErrorAlmacenajeModal').modal('show');
+            }
+        });
+    });
+    
+    // Manejar rechazo desde almacenaje
+    $('#rechazarPropuestaAlmacenajeForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        if (procesandoRechazoAlmacenaje || !urlRechazarActual) {
+            return false;
+        }
+        
+        const observaciones = $('#rechazarObservacionesAlmacenaje').val();
+        
+        if (!observaciones || observaciones.trim() === '') {
+            $('#mensajeAdvertenciaAlmacenajeModal .modal-body p').text('Por favor, ingrese las observaciones del rechazo.');
+            $('#mensajeAdvertenciaAlmacenajeModal').modal('show');
+            return;
+        }
+        
+        procesandoRechazoAlmacenaje = true;
+        const btnSubmit = $(this).find('button[type="submit"]');
+        const btnCancel = $(this).closest('.modal').find('button[data-dismiss="modal"]');
+        const originalText = btnSubmit.html();
+        
+        // Deshabilitar todos los botones del modal
+        btnSubmit.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Procesando...');
+        btnCancel.prop('disabled', true);
+        
+        const csrfToken = $('meta[name="csrf-token"]').attr('content');
+        
+        $.ajax({
+            url: urlRechazarActual,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify({
+                accion: 'rechazar',
+                observaciones: observaciones
+            }),
+            success: function(response) {
+                if (response.success) {
+                    // Cerrar modal de rechazo
+                    $('#rechazarPropuestaAlmacenajeModal').modal('hide');
+                    
+                    // Deshabilitar botones de aprobar/rechazar en la fila correspondiente
+                    $('button[onclick*="abrirModalAprobarAlmacenaje(\'' + urlAprobarActual + '\'"]').prop('disabled', true).addClass('disabled');
+                    $('button[onclick*="abrirModalRechazarAlmacenaje(\'' + urlRechazarActual + '\'"]').prop('disabled', true).addClass('disabled');
+                    
+                    // Mostrar modal de éxito
+                    $('#mensajeExitoAlmacenajeModal .modal-body p').text(response.message);
+                    $('#mensajeExitoAlmacenajeModal').modal('show');
+                    
+                    // Recargar después de 1.5 segundos
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    procesandoRechazoAlmacenaje = false;
+                    btnSubmit.prop('disabled', false).html(originalText);
+                    btnCancel.prop('disabled', false);
+                    
+                    // Mostrar modal de error
+                    $('#mensajeErrorAlmacenajeModal .modal-body p').text(response.message || 'Error desconocido');
+                    $('#mensajeErrorAlmacenajeModal').modal('show');
+                }
+            },
+            error: function(xhr) {
+                procesandoRechazoAlmacenaje = false;
+                btnSubmit.prop('disabled', false).html(originalText);
+                btnCancel.prop('disabled', false);
+                
+                const error = xhr.responseJSON?.message || 'Error al procesar la solicitud';
+                
+                // Mostrar modal de error
+                $('#mensajeErrorAlmacenajeModal .modal-body p').text(error);
+                $('#mensajeErrorAlmacenajeModal').modal('show');
+            }
+        });
+    });
+    
+    // Resetear flags cuando se cierran los modales
+    $('#aprobarPropuestaAlmacenajeModal').on('hidden.bs.modal', function() {
+        procesandoAprobacionAlmacenaje = false;
+        $('#aprobarPropuestaAlmacenajeForm')[0].reset();
+        $(this).find('button[type="submit"]').prop('disabled', false).html('<i class="fas fa-check"></i> Aprobar Propuesta');
+        $(this).find('button[data-dismiss="modal"]').prop('disabled', false);
+    });
+    
+    $('#rechazarPropuestaAlmacenajeModal').on('hidden.bs.modal', function() {
+        procesandoRechazoAlmacenaje = false;
+        $('#rechazarPropuestaAlmacenajeForm')[0].reset();
+        $(this).find('button[type="submit"]').prop('disabled', false).html('<i class="fas fa-times"></i> Rechazar Propuesta');
+        $(this).find('button[data-dismiss="modal"]').prop('disabled', false);
     });
 });
 </script>

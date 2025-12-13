@@ -26,10 +26,15 @@ class AlmacenPedidoTransformService
         // Generar número de pedido único
         $numeroPedido = $this->generateOrderNumber($pedidoData['codigo_comprobante'] ?? null);
 
+        // Generar pedido_id manualmente (no es auto-increment)
+        $lastOrder = CustomerOrder::orderBy('pedido_id', 'desc')->first();
+        $nextPedidoId = $lastOrder ? ($lastOrder->pedido_id + 1) : 1;
+
         return [
+            'pedido_id' => $nextPedidoId,
             'cliente_id' => $customer->cliente_id,
             'numero_pedido' => $numeroPedido,
-            'nombre' => $pedidoData['almacen']['nombre'] ?? 'Pedido desde Almacén',
+            'nombre' => $pedidoData['codigo_comprobante'] ?? 'Pedido desde Almacén', // Usar código del pedido como nombre
             'estado' => 'pendiente',
             'fecha_creacion' => $pedidoData['fecha'] ?? now()->format('Y-m-d'),
             'fecha_entrega' => $pedidoData['fecha_max'] ?? now()->addDays(7)->format('Y-m-d'),
@@ -59,8 +64,13 @@ class AlmacenPedidoTransformService
             }
         }
 
+        // Generar cliente_id manualmente (no es auto-increment)
+        $lastCustomer = Customer::orderBy('cliente_id', 'desc')->first();
+        $nextClienteId = $lastCustomer ? ($lastCustomer->cliente_id + 1) : 1;
+        
         // Crear nuevo cliente
         $customer = Customer::create([
+            'cliente_id' => $nextClienteId,
             'razon_social' => $fullName,
             'nombre_comercial' => $fullName,
             'email' => $email,
@@ -147,13 +157,18 @@ class AlmacenPedidoTransformService
     public function createOrderProducts(CustomerOrder $order, array $productosData): array
     {
         $orderProducts = [];
+        
+        // Obtener el último producto_pedido_id para generar el siguiente
+        $lastOrderProduct = OrderProduct::orderBy('producto_pedido_id', 'desc')->first();
+        $nextProductoPedidoId = $lastOrderProduct ? ($lastOrderProduct->producto_pedido_id + 1) : 1;
 
         foreach ($productosData as $productoData) {
             // Buscar o crear producto
             $product = $this->findOrCreateProduct($productoData);
 
-            // Crear OrderProduct
+            // Crear OrderProduct con producto_pedido_id generado manualmente
             $orderProduct = OrderProduct::create([
+                'producto_pedido_id' => $nextProductoPedidoId++,
                 'pedido_id' => $order->pedido_id,
                 'producto_id' => $product->producto_id,
                 'cantidad' => (float) ($productoData['cantidad'] ?? 0),
@@ -221,7 +236,12 @@ class AlmacenPedidoTransformService
      */
     public function createOrderDestination(CustomerOrder $order, array $almacenData, ?array $operadorData = null): OrderDestination
     {
+        // Generar destino_id manualmente (no es auto-increment)
+        $lastDestination = OrderDestination::orderBy('destino_id', 'desc')->first();
+        $nextDestinoId = $lastDestination ? ($lastDestination->destino_id + 1) : 1;
+        
         return OrderDestination::create([
+            'destino_id' => $nextDestinoId,
             'pedido_id' => $order->pedido_id,
             'direccion' => $almacenData['direccion'] ?? $almacenData['nombre'] ?? 'Dirección no especificada',
             'latitud' => $almacenData['latitud'] ?? null,
@@ -229,6 +249,7 @@ class AlmacenPedidoTransformService
             'nombre_contacto' => $operadorData['full_name'] ?? null,
             'telefono_contacto' => null,
             'instrucciones_entrega' => "Entrega en almacén: {$almacenData['nombre']}",
+            'almacen_almacen_id' => $almacenData['id'] ?? null, // ID del almacén en sistema-almacen-PSIII
         ]);
     }
 }

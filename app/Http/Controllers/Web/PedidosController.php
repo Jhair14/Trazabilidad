@@ -22,59 +22,17 @@ class PedidosController extends Controller
     {
         $user = Auth::user();
 
-        // Buscar customer relacionado con el operador
-        $customerId = $user->cliente_id ?? null;
-        $customer = null;
-
-        if (!$customerId) {
-            // Buscar por email
-            $customer = Customer::where('email', $user->email)->first();
-            $customerId = $customer ? $customer->cliente_id : null;
+        // Verificar si el usuario es admin (tiene permiso de gestionar pedidos o tiene rol admin/administrador)
+        $esAdmin = false;
+        if ($user) {
+            $esAdmin = $user->hasPermissionTo('gestionar pedidos') || 
+                       $user->hasRole('admin') || 
+                       $user->hasRole('administrador');
         }
 
-        // Si no se encontró un cliente, crear uno automáticamente para este usuario
-        if (!$customerId) {
-            try {
-                // Sincronizar secuencia de customer si es necesario
-                $maxCustomerId = Customer::max('cliente_id') ?? 0;
-                try {
-                    $seqResult = DB::selectOne("SELECT last_value FROM cliente_seq");
-                    $seqValue = $seqResult->last_value ?? 0;
-                } catch (\Exception $e) {
-                    $seqValue = 0;
-                }
-
-                if ($seqValue < $maxCustomerId) {
-                    DB::statement("SELECT setval('cliente_seq', $maxCustomerId, true)");
-                }
-
-                // Obtener el siguiente ID de la secuencia
-                $nextId = DB::selectOne("SELECT nextval('cliente_seq') as id")->id;
-
-                // Crear un Customer automáticamente para este operador
-                $customer = Customer::create([
-                    'cliente_id' => $nextId,
-                    'razon_social' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
-                    'nombre_comercial' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
-                    'email' => $user->email ?? null,
-                    'contacto' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: $user->usuario,
-                    'activo' => true,
-                ]);
-
-                $customerId = $customer->cliente_id;
-            } catch (\Exception $e) {
-                // Si falla, usar el primer cliente activo como fallback
-                $customer = Customer::where('activo', true)->first();
-                $customerId = $customer ? $customer->cliente_id : null;
-            }
-        }
-
-        // Si aún no hay customerId, mostrar pedidos vacíos
-        if (!$customerId) {
-            $pedidos = CustomerOrder::whereRaw('1 = 0')->paginate(15);
-        } else {
-            $pedidos = CustomerOrder::where('cliente_id', $customerId)
-                ->with([
+        // Si es admin, mostrar todos los pedidos
+        if ($esAdmin) {
+            $pedidos = CustomerOrder::with([
                     'customer', 
                     'orderProducts.product', 
                     'batches.latestFinalEvaluation',
@@ -90,6 +48,77 @@ class PedidosController extends Controller
                 $pedido->estado_real = $estadoReal;
                 return $pedido;
             });
+        } else {
+            // Para usuarios no admin, mantener la lógica original
+            // Buscar customer relacionado con el operador
+            $customerId = $user->cliente_id ?? null;
+            $customer = null;
+
+            if (!$customerId) {
+                // Buscar por email
+                $customer = Customer::where('email', $user->email)->first();
+                $customerId = $customer ? $customer->cliente_id : null;
+            }
+
+            // Si no se encontró un cliente, crear uno automáticamente para este usuario
+            if (!$customerId) {
+                try {
+                    // Sincronizar secuencia de customer si es necesario
+                    $maxCustomerId = Customer::max('cliente_id') ?? 0;
+                    try {
+                        $seqResult = DB::selectOne("SELECT last_value FROM cliente_seq");
+                        $seqValue = $seqResult->last_value ?? 0;
+                    } catch (\Exception $e) {
+                        $seqValue = 0;
+                    }
+
+                    if ($seqValue < $maxCustomerId) {
+                        DB::statement("SELECT setval('cliente_seq', $maxCustomerId, true)");
+                    }
+
+                    // Obtener el siguiente ID de la secuencia
+                    $nextId = DB::selectOne("SELECT nextval('cliente_seq') as id")->id;
+
+                    // Crear un Customer automáticamente para este operador
+                    $customer = Customer::create([
+                        'cliente_id' => $nextId,
+                        'razon_social' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
+                        'nombre_comercial' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
+                        'email' => $user->email ?? null,
+                        'contacto' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: $user->usuario,
+                        'activo' => true,
+                    ]);
+
+                    $customerId = $customer->cliente_id;
+                } catch (\Exception $e) {
+                    // Si falla, usar el primer cliente activo como fallback
+                    $customer = Customer::where('activo', true)->first();
+                    $customerId = $customer ? $customer->cliente_id : null;
+                }
+            }
+
+            // Si aún no hay customerId, mostrar pedidos vacíos
+            if (!$customerId) {
+                $pedidos = CustomerOrder::whereRaw('1 = 0')->paginate(15);
+            } else {
+                $pedidos = CustomerOrder::where('cliente_id', $customerId)
+                    ->with([
+                        'customer', 
+                        'orderProducts.product', 
+                        'batches.latestFinalEvaluation',
+                        'batches.processMachineRecords',
+                        'batches.storage'
+                    ])
+                    ->orderBy('fecha_creacion', 'desc')
+                    ->paginate(15);
+                
+                // Calcular estado real para cada pedido basándose en sus lotes
+                $pedidos->getCollection()->transform(function($pedido) {
+                    $estadoReal = $this->calcularEstadoRealPedido($pedido);
+                    $pedido->estado_real = $estadoReal;
+                    return $pedido;
+                });
+            }
         }
 
         // Calcular estadísticas basadas en el estado real

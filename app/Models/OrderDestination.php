@@ -25,7 +25,8 @@ class OrderDestination extends Model
         'almacen_origen_id',
         'almacen_origen_nombre',
         'almacen_destino_id',
-        'almacen_destino_nombre'
+        'almacen_destino_nombre',
+        'almacen_almacen_id'
     ];
 
     protected $casts = [

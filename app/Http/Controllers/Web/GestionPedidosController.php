@@ -7,7 +7,7 @@ use App\Models\CustomerOrder;
 use App\Models\Customer;
 use App\Models\OrderProduct;
 use App\Models\OrderEnvioTracking;
-use App\Services\PlantaCrudsIntegrationService;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
@@ -20,11 +20,13 @@ class GestionPedidosController extends Controller
     {
         $query = CustomerOrder::with(['customer', 'orderProducts.product']);
         
-        // Filtro por estado - por defecto mostrar pendientes y aprobados
-        $estadoFiltro = $request->get('estado', 'pendientes_aprobados');
+        // Filtro por estado - por defecto mostrar pendientes, aprobados y almacenados
+        $estadoFiltro = $request->get('estado', 'pendientes_aprobados_almacenados');
         
         if ($estadoFiltro === 'pendientes_aprobados') {
             $query->whereIn('estado', ['pendiente', 'aprobado']);
+        } elseif ($estadoFiltro === 'pendientes_aprobados_almacenados') {
+            $query->whereIn('estado', ['pendiente', 'aprobado', 'almacenado']);
         } elseif ($estadoFiltro && $estadoFiltro !== '') {
             $query->where('estado', $estadoFiltro);
         }
@@ -53,6 +55,7 @@ class GestionPedidosController extends Controller
             'aprobados' => CustomerOrder::where('estado', 'aprobado')->count(),
             'rechazados' => CustomerOrder::where('estado', 'rechazado')->count(),
             'en_produccion' => CustomerOrder::where('estado', 'en_produccion')->count(),
+            'almacenados' => CustomerOrder::where('estado', 'almacenado')->count(),
         ];
 
         return view('gestion-pedidos', compact('pedidos', 'clientes', 'stats', 'estadoFiltro'));
@@ -73,7 +76,19 @@ class GestionPedidosController extends Controller
         $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
         $plantaBase = rtrim(str_replace('/api', '', $apiUrl), '/');
 
-        return view('gestion-pedidos-detalle', compact('pedido', 'trackings', 'plantaBase'));
+        // URLs de acceso a endpoints de plantaCruds usando los métodos helper
+        $propuestaPdfUrl = $pedido->getPropuestaVehiculosPdfUrl();
+        $aprobarRechazarUrl = $pedido->getAprobarRechazarUrl();
+        $envioId = $pedido->getPlantaCrudsEnvioId();
+        
+        // Verificar si el envío está pendiente de aprobación por trazabilidad
+        // Solo mostramos los botones si el estado es realmente "pendiente_aprobacion_trazabilidad"
+        $mostrarAprobarRechazar = false;
+        if ($envioId && $aprobarRechazarUrl) {
+            $mostrarAprobarRechazar = $pedido->isEnvioPendienteAprobacionTrazabilidad();
+        }
+
+        return view('gestion-pedidos-detalle', compact('pedido', 'trackings', 'plantaBase', 'propuestaPdfUrl', 'aprobarRechazarUrl', 'envioId', 'mostrarAprobarRechazar'));
     }
 
     public function update(Request $request, $id)
@@ -148,90 +163,16 @@ class GestionPedidosController extends Controller
 
             DB::commit();
 
-            // Recargar el pedido con todas las relaciones necesarias
-            $order->refresh();
-            $order->load([
-                'customer',
-                'orderProducts.product.unit',
-                'destinations.destinationProducts.orderProduct.product'
-            ]);
-
-            // Integración con plantaCruds - Crear envíos al aprobar el pedido
-            $integrationService = new PlantaCrudsIntegrationService();
-            $enviosCreated = [];
-            $integrationErrors = [];
-            
-            try {
-                // Verificar que el pedido tenga destinos
-                if ($order->destinations->isEmpty()) {
-                    Log::warning('Pedido aprobado sin destinos', [
-                        'order_id' => $order->pedido_id,
-                        'order_number' => $order->numero_pedido,
-                    ]);
-                    return redirect()->route('gestion-pedidos.show', $orderId)
-                        ->with('warning', 'Pedido aprobado exitosamente, pero no tiene destinos configurados. No se pueden crear envíos.');
-                }
-                
-                $results = $integrationService->sendOrderToShipping($order);
-                foreach ($results as $result) {
-                    if ($result['success']) {
-                        $enviosCreated[] = [
-                            'destination_id' => $result['destination_id'],
-                            'envio_codigo' => $result['envio_codigo'] ?? null,
-                            'envio_id' => $result['envio_id'] ?? null,
-                        ];
-                        
-                        // Guardar tracking en Trazabilidad
-                        OrderEnvioTracking::create([
-                            'order_id' => $order->pedido_id,
-                            'destination_id' => $result['destination_id'],
-                            'envio_id' => $result['envio_id'],
-                            'envio_codigo' => $result['envio_codigo'],
-                            'status' => 'success',
-                            'request_data' => json_encode($result['response']['request_data'] ?? []),
-                            'response_data' => json_encode($result['response']['data'] ?? []),
-                        ]);
-                    } else {
-                        $integrationErrors[] = [
-                            'destination_id' => $result['destination_id'],
-                            'error' => $result['error'] ?? 'Error desconocido',
-                        ];
-                        
-                        // Guardar tracking de error
-                        OrderEnvioTracking::create([
-                            'order_id' => $order->pedido_id,
-                            'destination_id' => $result['destination_id'],
-                            'envio_id' => null,
-                            'envio_codigo' => null,
-                            'status' => 'failed',
-                            'error_message' => $result['error'] ?? 'Error desconocido',
-                            'request_data' => json_encode($result['request_data'] ?? []),
-                            'response_data' => null,
-                        ]);
-                    }
-                }
-            } catch (\Exception $e) {
-                Log::error('Error en integración con plantaCruds al aprobar pedido', [
-                    'order_id' => $order->pedido_id,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-                $integrationErrors[] = ['error' => $e->getMessage()];
+            // Notificar a almacén si el pedido viene de ahí
+            if ($order->origen_sistema === 'almacen' && $order->pedido_almacen_id) {
+                $this->notifyAlmacen($order, 'aprobado');
             }
 
-            // Preparar mensaje de éxito
-            $successMessage = 'Pedido aprobado exitosamente.';
-            if (!empty($enviosCreated)) {
-                $successMessage .= ' Se crearon ' . count($enviosCreated) . ' envío(s) en plantaCruds.';
-            }
-            if (!empty($integrationErrors)) {
-                $successMessage .= ' Hubo ' . count($integrationErrors) . ' error(es) al crear algunos envíos.';
-            }
+            // NOTA: Los envíos se crean únicamente cuando se almacena el lote en AlmacenajeController,
+            // no cuando se aprueba el pedido.
 
             return redirect()->route('gestion-pedidos.show', $orderId)
-                ->with('success', $successMessage)
-                ->with('envios_created', $enviosCreated)
-                ->with('integration_errors', $integrationErrors);
+                ->with('success', 'Pedido aprobado exitosamente. El envío se creará cuando se almacene el lote.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
@@ -287,6 +228,53 @@ class GestionPedidosController extends Controller
             DB::rollBack();
             return redirect()->back()
                 ->with('error', 'Error al rechazar pedido: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Notifica a sistema-almacen-PSIII sobre cambios de estado del pedido
+     * 
+     * @param CustomerOrder $order
+     * @param string $estado 'aprobado' o 'rechazado'
+     * @return void
+     */
+    private function notifyAlmacen(CustomerOrder $order, string $estado): void
+    {
+        $almacenApiUrl = env('ALMACEN_API_URL', 'http://localhost:8002/api');
+        $pedidoAlmacenId = $order->pedido_almacen_id;
+
+        if (!$pedidoAlmacenId) {
+            return;
+        }
+
+        try {
+            $response = Http::timeout(10)
+                ->post("{$almacenApiUrl}/pedidos/{$pedidoAlmacenId}/actualizar-estado", [
+                    'estado' => $estado,
+                    'tracking_id' => $order->pedido_id,
+                    'message' => $estado === 'aprobado' 
+                        ? 'Pedido aprobado en Trazabilidad' 
+                        : 'Pedido rechazado en Trazabilidad'
+                ]);
+
+            if ($response->successful()) {
+                Log::info('Notificación enviada a sistema-almacen-PSIII', [
+                    'pedido_almacen_id' => $pedidoAlmacenId,
+                    'pedido_trazabilidad_id' => $order->pedido_id,
+                    'estado' => $estado
+                ]);
+            } else {
+                Log::warning('Error al notificar a sistema-almacen-PSIII', [
+                    'pedido_almacen_id' => $pedidoAlmacenId,
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Excepción al notificar a sistema-almacen-PSIII', [
+                'pedido_almacen_id' => $pedidoAlmacenId,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }
