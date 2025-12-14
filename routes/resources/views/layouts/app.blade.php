@@ -99,6 +99,7 @@
         }
 
         </style>
+        @stack('css')
         @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
             @vite(['resources/css/app.css', 'resources/js/app.js'])
         @endif
@@ -238,6 +239,20 @@
                     <a href="{{ route('gestion-pedidos') }}" class="nav-link">
                         <i class="nav-icon fas fa-list"></i>
                         <p>Gestión de Pedidos</p>
+                    </a>
+                </li>
+                @endcan
+                @can('gestionar pedidos')
+                <li class="nav-item">
+                    <a href="{{ route('rutas-tiempo-real') }}" class="nav-link">
+                        <i class="nav-icon fas fa-route"></i>
+                        <p>Seguimiento de Pedidos</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('documentacion-pedidos') }}" class="nav-link">
+                        <i class="nav-icon fas fa-file-alt"></i>
+                        <p>Documentación de Pedidos</p>
                     </a>
                 </li>
                 @endcan
@@ -460,6 +475,7 @@
         }
         </script>
         @stack('scripts')
+        @stack('js')
     </body>
     </html>
 

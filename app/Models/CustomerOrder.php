@@ -193,4 +193,27 @@ class CustomerOrder extends Model
 
         return true;
     }
+
+    /**
+     * Get the route key for the model.
+     *
+     * @return string
+     */
+    public function getRouteKeyName()
+    {
+        return 'pedido_id';
+    }
+
+    /**
+     * Retrieve the model for bound value.
+     *
+     * @param  mixed  $value
+     * @param  string|null  $field
+     * @return \Illuminate\Database\Eloquent\Model|null
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field = $field ?: $this->getRouteKeyName();
+        return $this->where($field, $value)->first();
+    }
 }

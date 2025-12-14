@@ -124,6 +124,14 @@ Route::middleware('auth:api')->group(function () {
 Route::post('/pedidos-almacen', [\App\Http\Controllers\Api\AlmacenPedidoController::class, 'store'])
     ->name('api.pedidos-almacen');
 
+// Ruta pública (sin autenticación) para recibir documentos de entrega desde plantaCruds
+Route::post('/pedidos/{pedido}/documentos-entrega', [\App\Http\Controllers\Api\PedidoDocumentosController::class, 'recibirDocumentos'])
+    ->name('api.pedidos.documentos-entrega');
+
+// Ruta pública para buscar pedido por envio_id (para integración con plantaCruds)
+Route::get('/pedidos/by-envio/{envioId}', [\App\Http\Controllers\Api\CustomerOrderController::class, 'getByEnvioId'])
+    ->name('api.pedidos.by-envio');
+
 // Legacy routes (keeping for compatibility)
 // Comentado para evitar conflicto con rutas web
 // Route::apiResource('procesos', \App\Http\Controllers\ProcesoController::class);

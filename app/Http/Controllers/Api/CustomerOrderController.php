@@ -845,5 +845,53 @@ class CustomerOrderController extends Controller
 
         return $customer ? $customer->cliente_id : null;
     }
+
+    /**
+     * Obtener pedido por envio_id (para integración con plantaCruds)
+     * GET /api/pedidos/by-envio/{envioId}
+     * 
+     * @param int $envioId
+     * @return JsonResponse
+     */
+    public function getByEnvioId($envioId): JsonResponse
+    {
+        try {
+            // Buscar en order_envio_tracking
+            $tracking = DB::table('seguimiento_envio_pedido')
+                ->where('envio_id', $envioId)
+                ->where('estado', 'success')
+                ->first();
+
+            if (!$tracking) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró pedido asociado a este envío'
+                ], 404);
+            }
+
+            // Obtener el pedido
+            $pedido = CustomerOrder::where('pedido_id', $tracking->pedido_id)->first();
+
+            if (!$pedido) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pedido no encontrado'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'pedido_id' => $pedido->pedido_id,
+                'numero_pedido' => $pedido->numero_pedido,
+                'envio_id' => $envioId,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar pedido',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
 
