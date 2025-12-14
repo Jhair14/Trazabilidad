@@ -25,8 +25,8 @@ class RawMaterialBaseResource extends JsonResource
             'minimum_stock' => $this->stock_minimo,
             'maximum_stock' => $this->stock_maximo,
             'active' => $this->activo,
-            'category' => $this->whenLoaded('category'),
-            'unit' => $this->whenLoaded('unit'),
+            'category' => new RawMaterialCategoryResource($this->whenLoaded('category')),
+            'unit' => new UnitOfMeasureResource($this->whenLoaded('unit')),
         ];
     }
 }

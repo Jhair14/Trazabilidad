@@ -22,8 +22,13 @@ class CustomerOrderResource extends JsonResource
             'delivery_date' => $this->fecha_entrega,
             'description' => $this->descripcion,
             'observations' => $this->observaciones,
+            'status' => $this->estado,
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'batches' => ProductionBatchResource::collection($this->whenLoaded('batches')),
+            'order_products' => OrderProductResource::collection($this->whenLoaded('orderProducts')),
+            'total_price' => $this->orderProducts->sum(function ($product) {
+                return $product->cantidad * $product->precio;
+            }),
         ];
     }
 }

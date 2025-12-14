@@ -32,7 +32,7 @@ class RawMaterialController extends Controller
     {
         try {
             $material = RawMaterial::with(['materialBase.unit', 'supplier'])->findOrFail($id);
-            return response()->json($material);
+            return response()->json(new RawMaterialResource($material));
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Materia prima no encontrada',
