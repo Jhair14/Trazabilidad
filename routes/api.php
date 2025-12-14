@@ -132,6 +132,15 @@ Route::post('/pedidos/{pedido}/documentos-entrega', [\App\Http\Controllers\Api\P
 Route::get('/pedidos/by-envio/{envioId}', [\App\Http\Controllers\Api\CustomerOrderController::class, 'getByEnvioId'])
     ->name('api.pedidos.by-envio');
 
+// Ruta pública para obtener información completa de todos los pedidos (sin autenticación)
+// Incluye toda la información: pedido, cliente, productos, destinos, montos, etc.
+Route::get('/pedidos/completo', [\App\Http\Controllers\Api\CustomerOrderController::class, 'getAllCompleteOrders'])
+    ->name('api.pedidos.completo.all');
+
+// Ruta pública para obtener información completa de un pedido específico (sin autenticación)
+Route::get('/pedidos/{id}/completo', [\App\Http\Controllers\Api\CustomerOrderController::class, 'getCompleteOrder'])
+    ->name('api.pedidos.completo');
+
 // Legacy routes (keeping for compatibility)
 // Comentado para evitar conflicto con rutas web
 // Route::apiResource('procesos', \App\Http\Controllers\ProcesoController::class);

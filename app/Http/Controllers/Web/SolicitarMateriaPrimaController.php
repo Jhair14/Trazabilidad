@@ -15,8 +15,15 @@ class SolicitarMateriaPrimaController extends Controller
 {
     public function index()
     {
-        $solicitudes = MaterialRequest::with(['order.customer', 'details.material.unit'])
+        $solicitudes = MaterialRequest::with([
+                'order.customer', 
+                'details.material.unit',
+                'details' => function($query) {
+                    $query->orderBy('detalle_id', 'asc');
+                }
+            ])
             ->orderBy('fecha_solicitud', 'desc')
+            ->orderBy('solicitud_id', 'desc')
             ->paginate(15);
 
         // Calcular estadísticas correctas basadas en detalles

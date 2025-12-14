@@ -81,7 +81,7 @@
 
                 <!-- Filtros -->
                 <div class="row mb-3">
-                    <div class="col-md-3">
+                    <div class="col-12 col-md-6 col-lg-3 mb-2 mb-md-0">
                         <select class="form-control" id="filtroCategoria">
                             <option value="">Todas las categorías</option>
                             <option value="harina">Harinas</option>
@@ -90,7 +90,7 @@
                             <option value="especias">Especias</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-12 col-md-6 col-lg-3 mb-2 mb-md-0">
                         <select class="form-control" id="filtroEstado">
                             <option value="">Todos los estados</option>
                             <option value="disponible">Disponible</option>
@@ -98,11 +98,11 @@
                             <option value="agotado">Agotado</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-12 col-md-6 col-lg-3 mb-2 mb-md-0">
                         <input type="text" class="form-control" placeholder="Buscar por nombre..." id="buscarMateria">
                     </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-info" onclick="aplicarFiltros()">
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <button class="btn btn-info btn-block" onclick="aplicarFiltros()">
                             <i class="fas fa-search"></i> Filtrar
                         </button>
                     </div>
@@ -128,9 +128,9 @@
                         <tbody>
                             @forelse($materias_primas as $mp)
                             @php
-                                $available = $mp->calculated_available_quantity ?? ($mp->available_quantity ?? 0);
-                                $minimum = $mp->minimum_stock ?? 0;
-                                $maximum = $mp->maximum_stock ?? 0;
+                                $available = $mp->calculated_available_quantity ?? ($mp->cantidad_disponible ?? 0);
+                                $minimum = $mp->stock_minimo ?? 0;
+                                $maximum = $mp->stock_maximo ?? null;
                             @endphp
                             <tr>
                                 <td>#{{ $mp->material_id }}</td>
@@ -144,7 +144,7 @@
                                     <small class="text-muted"> {{ $mp->unit->codigo ?? '' }}</small>
                                 </td>
                                 <td>{{ number_format($minimum, 2) }}</td>
-                                <td>{{ $maximum > 0 ? number_format($maximum, 2) : 'N/A' }}</td>
+                                <td>{{ $maximum !== null && $maximum > 0 ? number_format($maximum, 2) : 'N/A' }}</td>
                                 <td>
                                     @if($available <= 0)
                                         <span class="badge badge-danger">Agotado</span>
@@ -362,9 +362,9 @@
                             <i class="fas fa-tag mr-1"></i>
                             Nombre <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                               id="edit_name" name="name" required>
-                        @error('name')
+                        <input type="text" class="form-control @error('nombre') is-invalid @enderror" 
+                               id="edit_name" name="nombre" required>
+                        @error('nombre')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
@@ -416,7 +416,7 @@
                                     Stock Mínimo
                                 </label>
                                 <input type="number" class="form-control" id="edit_minimum_stock" 
-                                       name="minimum_stock" placeholder="0.00" step="0.01" min="0">
+                                       name="stock_minimo" placeholder="0.00" step="0.01" min="0">
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -426,7 +426,7 @@
                                     Stock Máximo
                                 </label>
                                 <input type="number" class="form-control" id="edit_maximum_stock" 
-                                       name="maximum_stock" placeholder="0.00" step="0.01" min="0">
+                                       name="stock_maximo" placeholder="0.00" step="0.01" min="0">
                             </div>
                         </div>
                     </div>
@@ -436,12 +436,12 @@
                             <i class="fas fa-align-left mr-1"></i>
                             Descripción
                         </label>
-                        <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
+                        <textarea class="form-control" id="edit_description" name="descripcion" rows="3"></textarea>
                     </div>
                     
                     <div class="form-group">
                         <label>
-                            <input type="checkbox" name="active" id="edit_active" value="1">
+                            <input type="checkbox" name="activo" id="edit_active" value="1">
                             Materia Prima Activa
                         </label>
                     </div>
@@ -471,8 +471,10 @@ function verMateriaPrima(id) {
     fetch(`{{ url('materia-prima-base') }}/${id}`)
         .then(response => response.json())
         .then(data => {
-            const categoria = categorias.find(c => c.category_id == data.category_id);
-            const unidad = unidades.find(u => u.unit_id == data.unit_id);
+            // Buscar categoría usando categoria_id (nombre correcto de la propiedad)
+            const categoria = categorias.find(c => c.categoria_id == data.category_id);
+            // Buscar unidad usando unidad_id (nombre correcto de la propiedad)
+            const unidad = unidades.find(u => u.unidad_id == data.unit_id);
             const stockActual = data.available_quantity || '0.00';
             
             const content = `
@@ -493,17 +495,17 @@ function verMateriaPrima(id) {
                             </tr>
                             <tr>
                                 <th>Categoría</th>
-                                <td>${categoria ? categoria.name : 'N/A'}</td>
+                                <td>${categoria ? categoria.nombre : 'N/A'}</td>
                             </tr>
                             <tr>
                                 <th>Unidad</th>
-                                <td>${unidad ? unidad.name + ' (' + unidad.code + ')' : 'N/A'}</td>
+                                <td>${unidad ? unidad.nombre + ' (' + unidad.codigo + ')' : 'N/A'}</td>
                             </tr>
                             <tr>
                                 <th>Stock Actual</th>
                                 <td>
                                     <strong>${stockActual}</strong>
-                                    <small class="text-muted"> ${unidad ? '(' + unidad.code + ')' : ''}</small>
+                                    <small class="text-muted"> ${unidad ? '(' + unidad.codigo + ')' : ''}</small>
                                 </td>
                             </tr>
                             <tr>
@@ -541,12 +543,17 @@ function verMateriaPrima(id) {
 
 function editarMateriaPrima(id) {
     fetch(`{{ url('materia-prima-base') }}/${id}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error al cargar los datos');
+            }
+            return response.json();
+        })
         .then(data => {
             document.getElementById('editarMateriaPrimaForm').action = `{{ url('materia-prima-base') }}/${id}`;
             document.getElementById('edit_name').value = data.name || '';
-            document.getElementById('edit_category_id').value = data.category_id || '';
-            document.getElementById('edit_unit_id').value = data.unit_id || '';
+            document.getElementById('edit_categoria_id').value = data.category_id || '';
+            document.getElementById('edit_unidad_id').value = data.unit_id || '';
             document.getElementById('edit_minimum_stock').value = data.minimum_stock || 0;
             document.getElementById('edit_maximum_stock').value = data.maximum_stock || '';
             document.getElementById('edit_description').value = data.description || '';
@@ -556,7 +563,7 @@ function editarMateriaPrima(id) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error al cargar los datos de la materia prima');
+            alert('Error al cargar los datos de la materia prima: ' + error.message);
         });
 }
 
@@ -644,29 +651,70 @@ document.getElementById('editarMateriaPrimaForm').addEventListener('submit', asy
     const formData = new FormData(this);
     const submitButton = this.querySelector('button[type="submit"]');
     
+    // Asegurar que activo se envíe correctamente (0 si no está marcado, 1 si está marcado)
+    if (!formData.has('activo')) {
+        formData.append('activo', '0');
+    }
+    
     submitButton.disabled = true;
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Actualizando...';
     
     try {
         formData.append('_method', 'PUT');
         
+        // Obtener el token CSRF
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                         this.querySelector('input[name="_token"]')?.value || 
+                         '{{ csrf_token() }}';
+        
         // Enviar formulario
         const response = await fetch(this.action, {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
             },
             body: formData
         });
         
+        const contentType = response.headers.get('content-type');
+        
         if (response.ok) {
-            window.location.reload();
+            // Si la respuesta es JSON (AJAX)
+            if (contentType && contentType.includes('application/json')) {
+                const data = await response.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    throw new Error(data.message || 'Error al actualizar la materia prima');
+                }
+            } else {
+                // Si es un redirect HTML, recargar la página
+                window.location.reload();
+            }
         } else {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Error al actualizar la materia prima');
+            // Manejar errores de validación
+            if (contentType && contentType.includes('application/json')) {
+                const errorData = await response.json();
+                let errorMessage = 'Error al actualizar la materia prima';
+                
+                if (errorData.errors) {
+                    const errors = Object.values(errorData.errors).flat();
+                    errorMessage = errors.join('\n');
+                } else if (errorData.message) {
+                    errorMessage = errorData.message;
+                }
+                
+                alert(errorMessage);
+            } else {
+                // Si es un redirect con errores, recargar para mostrar los errores
+                window.location.reload();
+            }
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        console.error('Error:', error);
+        alert('Error: ' + (error.message || 'Error al actualizar la materia prima. Por favor intente nuevamente.'));
         submitButton.disabled = false;
         submitButton.innerHTML = '<i class="fas fa-save mr-1"></i> Actualizar Materia Prima';
     }

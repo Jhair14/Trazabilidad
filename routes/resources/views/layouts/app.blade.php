@@ -48,6 +48,55 @@
             flex-direction: column;
             width: 250px !important;
         }
+        
+        /* En desktop, el sidebar funciona normalmente con AdminLTE */
+        @media (min-width: 769px) {
+            /* Sidebar en desktop - posición fija a la izquierda */
+            .main-sidebar {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                bottom: 0 !important;
+                transform: none !important;
+                margin-left: 0 !important;
+                z-index: 1038 !important;
+                float: none !important;
+            }
+            
+            /* En desktop, el contenido SÍ debe tener margen del sidebar */
+            body.layout-fixed.sidebar-expanded .content-wrapper,
+            body.layout-fixed .content-wrapper,
+            .layout-fixed.sidebar-expanded .content-wrapper,
+            .layout-fixed .content-wrapper {
+                margin-left: 250px !important;
+                left: auto !important;
+            }
+            
+            body.layout-fixed.sidebar-expanded .main-header,
+            body.layout-fixed .main-header,
+            .layout-fixed.sidebar-expanded .main-header,
+            .layout-fixed .main-header {
+                margin-left: 250px !important;
+                left: auto !important;
+            }
+            
+            body.layout-fixed.sidebar-expanded .main-footer,
+            body.layout-fixed .main-footer,
+            .layout-fixed.sidebar-expanded .main-footer,
+            .layout-fixed .main-footer {
+                margin-left: 250px !important;
+                left: auto !important;
+            }
+            
+            /* Ocultar botón hamburguesa en desktop */
+            .mobile-sidebar-toggle {
+                display: none !important;
+            }
+            
+            .mobile-sidebar-overlay {
+                display: none !important;
+            }
+        }
 
         .main-sidebar > .brand-link,
         .main-sidebar > .user-panel {
@@ -68,11 +117,40 @@
             margin-top: auto;
         }
 
-        /* Ajustar el contenido cuando el sidebar está expandido */
-        .sidebar-expanded .content-wrapper,
-        .sidebar-expanded .main-footer,
-        .sidebar-expanded .main-header {
-            margin-left: 250px !important;
+        /* Ajustar el contenido cuando el sidebar está expandido - Solo en desktop */
+        @media (min-width: 769px) {
+            /* En desktop, permitir que AdminLTE maneje los márgenes normalmente */
+            .sidebar-expanded .content-wrapper,
+            .sidebar-expanded .main-footer,
+            .sidebar-expanded .main-header {
+                margin-left: 250px !important;
+            }
+        }
+        
+        /* En móvil, forzar que no haya margen izquierdo - Sobrescribir AdminLTE */
+        @media (max-width: 768px) {
+            /* Sobrescribir todos los estilos de AdminLTE que agregan margen */
+            .sidebar-expanded .content-wrapper,
+            .sidebar-expanded .main-footer,
+            .sidebar-expanded .main-header,
+            body.sidebar-expanded .content-wrapper,
+            body.sidebar-expanded .main-footer,
+            body.sidebar-expanded .main-header {
+                margin-left: 0 !important;
+                left: 0 !important;
+            }
+            
+            /* SOLO EN MÓVIL: Asegurar que layout-fixed no cause problemas */
+            /* Estos estilos solo se aplican dentro del media query de móvil */
+            
+            /* Sobrescribir estilos de AdminLTE para sidebar en móvil */
+            .main-sidebar::before {
+                margin-left: -250px !important;
+            }
+            
+            .main-sidebar.mobile-open::before {
+                margin-left: 0 !important;
+            }
         }
 
         .sidebar::-webkit-scrollbar {
@@ -98,14 +176,542 @@
             min-height: 100%;
         }
 
+        /* Responsive Styles */
+        @media (max-width: 768px) {
+            /* Sidebar responsive - Oculto por defecto, aparece como overlay */
+            .main-sidebar {
+                width: 250px !important;
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                height: 100vh !important;
+                z-index: 1050 !important;
+                transform: translateX(-100%) !important;
+                transition: transform 0.3s ease-in-out !important;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.2) !important;
+                margin-left: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                /* Asegurar que el sidebar no afecte el layout del contenido */
+                will-change: transform;
+            }
+            
+            .main-sidebar.mobile-open {
+                transform: translateX(0) !important;
+            }
+            
+            /* IMPORTANTE: El contenido NUNCA debe moverse cuando el sidebar se abre */
+            /* El sidebar es overlay, no desplaza el contenido */
+            .main-sidebar.mobile-open ~ .content-wrapper,
+            .main-sidebar.mobile-open ~ .main-footer,
+            .main-sidebar.mobile-open ~ .main-header,
+            body:has(.main-sidebar.mobile-open) .content-wrapper,
+            body:has(.main-sidebar.mobile-open) .main-footer,
+            body:has(.main-sidebar.mobile-open) .main-header {
+                margin-left: 0 !important;
+                transform: none !important;
+                left: 0 !important;
+            }
+            
+            /* Asegurar que el wrapper no tenga restricciones */
+            .wrapper {
+                margin-left: 0 !important;
+                overflow-x: hidden;
+            }
+            
+            /* Asegurar que el sidebar tenga scroll interno */
+            .main-sidebar .sidebar {
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+            }
+            
+            /* Asegurar que el contenido no tenga margen del sidebar */
+            /* Asegurar que el contenido no tenga margen del sidebar en móvil */
+            /* Sobrescribir TODOS los estilos posibles de AdminLTE */
+            .content-wrapper,
+            .main-footer,
+            .main-header,
+            body.layout-fixed .content-wrapper,
+            body.layout-fixed.sidebar-expanded .content-wrapper,
+            body.sidebar-expanded .content-wrapper,
+            body.layout-fixed .main-footer,
+            body.layout-fixed.sidebar-expanded .main-footer,
+            body.sidebar-expanded .main-footer,
+            body.layout-fixed .main-header,
+            body.layout-fixed.sidebar-expanded .main-header,
+            body.sidebar-expanded .main-header {
+                margin-left: 0 !important;
+                width: 100% !important;
+                left: 0 !important;
+                position: relative !important;
+                transform: none !important;
+            }
+            
+            /* Asegurar que el contenido no se desborde */
+            .content-wrapper {
+                overflow-x: hidden;
+                position: relative;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            
+            /* Asegurar que el wrapper no tenga restricciones */
+            .wrapper {
+                margin-left: 0 !important;
+                overflow-x: hidden;
+            }
+            
+            /* Forzar que el contenido esté a la izquierda */
+            .content {
+                margin-left: 0 !important;
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+            
+            /* Container fluid sin padding extra */
+            .container-fluid {
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+            }
+            
+            /* Content header sin margen */
+            .content-header {
+                margin-left: 0 !important;
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+            }
+            
+            /* Asegurar que el wrapper no tenga restricciones */
+            .wrapper {
+                overflow-x: hidden;
+            }
+            
+            /* Tablas responsive */
+            .table-responsive {
+                display: block;
+                width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .table {
+                font-size: 0.875rem;
+            }
+            
+            .table th,
+            .table td {
+                padding: 0.5rem;
+                white-space: nowrap;
+            }
+            
+            /* Cards responsive */
+            .card {
+                margin-bottom: 1rem;
+            }
+            
+            .card-header {
+                padding: 0.75rem;
+            }
+            
+            .card-body {
+                padding: 0.75rem;
+            }
+            
+            /* Estadísticas responsive */
+            .small-box {
+                margin-bottom: 1rem;
+                min-height: 100px;
+            }
+            
+            .small-box .inner {
+                padding: 15px 10px;
+            }
+            
+            .small-box .inner h3 {
+                font-size: 1.75rem;
+                margin: 0;
+                line-height: 1.2;
+            }
+            
+            .small-box .inner p {
+                font-size: 0.9rem;
+                margin: 8px 0 0 0;
+                white-space: normal;
+                word-wrap: break-word;
+                line-height: 1.3;
+                text-align: left;
+            }
+            
+            .small-box .icon {
+                font-size: 2.5rem;
+                opacity: 0.3;
+            }
+            
+            /* Asegurar que las estadísticas se muestren en 2 columnas en móvil */
+            .row .col-6 {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+            
+            /* Botones responsive */
+            .btn {
+                padding: 0.375rem 0.75rem;
+                font-size: 0.875rem;
+            }
+            
+            .btn-sm {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.75rem;
+            }
+            
+            /* Modales responsive */
+            .modal-dialog {
+                margin: 0.5rem;
+                max-width: calc(100% - 1rem);
+            }
+            
+            .modal-content {
+                border-radius: 0.25rem;
+            }
+            
+            /* Formularios responsive */
+            .form-group {
+                margin-bottom: 1rem;
+            }
+            
+            /* Filtros responsive */
+            .row.mb-3 > div {
+                margin-bottom: 0.5rem;
+            }
+            
+            /* Navbar responsive */
+            .main-header {
+                padding-left: 50px !important;
+            }
+            
+            .navbar-nav {
+                flex-direction: row;
+            }
+            
+            .navbar-nav .nav-item {
+                margin-left: 0.5rem;
+            }
+            
+            /* Card header responsive */
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+            
+            .card-header .card-tools {
+                margin-top: 0.5rem;
+                width: 100%;
+            }
+            
+            .card-header .card-tools .btn {
+                width: 100%;
+                margin-bottom: 0.25rem;
+            }
+            
+            /* Content header responsive */
+            .content-header {
+                padding: 0.75rem 0.5rem !important;
+            }
+            
+            .content-header h1 {
+                font-size: 1.25rem;
+                margin: 0;
+            }
+            
+            /* Ocultar elementos no esenciales en móvil */
+            .d-none-mobile {
+                display: none !important;
+            }
+            
+            /* Texto responsive */
+            .text-sm-mobile {
+                font-size: 0.875rem;
+            }
+            
+            /* Card responsive mejorado */
+            .card {
+                border-radius: 0.25rem;
+                margin-bottom: 1rem;
+            }
+            
+            .card-header {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start !important;
+                padding: 0.75rem;
+            }
+            
+            .card-header .card-title {
+                margin-bottom: 0.5rem;
+                font-size: 1rem;
+            }
+            
+            .card-header .card-tools {
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+            
+            .card-header .card-tools .btn {
+                width: 100%;
+                margin-bottom: 0.25rem;
+            }
+            
+            .card-body {
+                padding: 0.75rem;
+            }
+            
+            /* Row responsive */
+            .row {
+                margin-left: -0.5rem;
+                margin-right: -0.5rem;
+            }
+            
+            .row > [class*="col-"] {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            /* Ajustes para pantallas muy pequeñas */
+            .table th,
+            .table td {
+                padding: 0.375rem;
+                font-size: 0.75rem;
+            }
+            
+            .btn {
+                padding: 0.375rem 0.5rem;
+                font-size: 0.8rem;
+            }
+            
+            .card-header h3,
+            .card-header .card-title {
+                font-size: 0.95rem;
+            }
+            
+            .small-box {
+                min-height: 90px;
+            }
+            
+            .small-box .inner {
+                padding: 12px 8px;
+            }
+            
+            .small-box .inner h3 {
+                font-size: 1.5rem;
+            }
+            
+            .small-box .inner p {
+                font-size: 0.8rem;
+                margin-top: 5px;
+            }
+            
+            .small-box .icon {
+                font-size: 2rem;
+            }
+            
+            .modal-dialog {
+                margin: 0.25rem;
+                max-width: calc(100% - 0.5rem);
+            }
+            
+            .modal-body {
+                padding: 1rem;
+            }
+            
+            /* Estadísticas en una sola columna en pantallas muy pequeñas si es necesario */
+            .row .col-6 {
+                flex: 0 0 50%;
+                max-width: 50%;
+            }
+        }
+        
+        /* Botón para abrir sidebar en móvil */
+        .mobile-sidebar-toggle {
+            display: none;
+        }
+        
+        .mobile-sidebar-overlay {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            /* Botón hamburguesa */
+            .mobile-sidebar-toggle {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                position: fixed;
+                top: 12px;
+                left: 12px;
+                z-index: 1051;
+                background: #007bff;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                width: 42px;
+                height: 42px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                cursor: pointer;
+                font-size: 18px;
+                transition: background 0.2s;
+            }
+            
+            .mobile-sidebar-toggle:hover,
+            .mobile-sidebar-toggle:focus {
+                background: #0056b3;
+                outline: none;
+            }
+            
+            .mobile-sidebar-toggle:active {
+                background: #004085;
+            }
+            
+            /* Overlay para cerrar sidebar */
+            .mobile-sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 1040;
+                transition: opacity 0.3s;
+            }
+            
+            .mobile-sidebar-overlay.active {
+                display: block;
+            }
+            
+            /* Asegurar que el contenido principal esté visible */
+            .content-wrapper {
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            
+            .content {
+                padding: 0.5rem !important;
+            }
+            
+            /* Container fluid responsive */
+            .container-fluid {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+            
+            /* Asegurar que el header tenga espacio para el botón */
+            .main-header {
+                padding-left: 60px !important;
+            }
+        }
+
+        /* Estilos adicionales para sobrescribir AdminLTE en móvil - AL FINAL para máxima prioridad */
+        @media (max-width: 768px) {
+            /* SOLO EN MÓVIL: Forzar que el contenido esté siempre a la izquierda */
+            body.layout-fixed.sidebar-expanded .content-wrapper,
+            body.layout-fixed .content-wrapper,
+            .layout-fixed.sidebar-expanded .content-wrapper,
+            .layout-fixed .content-wrapper,
+            body.sidebar-expanded.layout-fixed .content-wrapper,
+            body.layout-fixed.sidebar-expanded .wrapper .content-wrapper {
+                margin-left: 0 !important;
+                padding-left: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+            }
+            
+            body.layout-fixed.sidebar-expanded .main-header,
+            body.layout-fixed .main-header,
+            .layout-fixed.sidebar-expanded .main-header,
+            .layout-fixed .main-header,
+            body.sidebar-expanded.layout-fixed .main-header,
+            body.layout-fixed.sidebar-expanded .wrapper .main-header {
+                margin-left: 0 !important;
+                padding-left: 60px !important; /* Espacio para el botón hamburguesa */
+                left: 0 !important;
+                width: 100% !important;
+            }
+            
+            body.layout-fixed.sidebar-expanded .main-footer,
+            body.layout-fixed .main-footer,
+            .layout-fixed.sidebar-expanded .main-footer,
+            .layout-fixed .main-footer,
+            body.sidebar-expanded.layout-fixed .main-footer,
+            body.layout-fixed.sidebar-expanded .wrapper .main-footer {
+                margin-left: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+            }
+            
+            /* Asegurar que el wrapper no tenga margen en móvil */
+            body.layout-fixed.sidebar-expanded .wrapper,
+            body.layout-fixed .wrapper {
+                margin-left: 0 !important;
+            }
+        }
+        
+        /* En desktop, asegurar que AdminLTE funcione normalmente - AL FINAL para máxima prioridad */
+        @media (min-width: 769px) {
+            /* Permitir que AdminLTE maneje los márgenes normalmente en desktop */
+            /* Usar selectores muy específicos para asegurar que se apliquen */
+            body.layout-fixed.sidebar-expanded .content-wrapper,
+            body.layout-fixed .content-wrapper,
+            .layout-fixed.sidebar-expanded .content-wrapper,
+            .layout-fixed .content-wrapper,
+            body.sidebar-expanded.layout-fixed .content-wrapper {
+                margin-left: 250px !important;
+                left: auto !important;
+            }
+            
+            body.layout-fixed.sidebar-expanded .main-header,
+            body.layout-fixed .main-header,
+            .layout-fixed.sidebar-expanded .main-header,
+            .layout-fixed .main-header,
+            body.sidebar-expanded.layout-fixed .main-header {
+                margin-left: 250px !important;
+                left: auto !important;
+            }
+            
+            body.layout-fixed.sidebar-expanded .main-footer,
+            body.layout-fixed .main-footer,
+            .layout-fixed.sidebar-expanded .main-footer,
+            .layout-fixed .main-footer,
+            body.sidebar-expanded.layout-fixed .main-footer {
+                margin-left: 250px !important;
+                left: auto !important;
+            }
+            
+            /* Asegurar que el sidebar esté correctamente posicionado */
+            .main-sidebar {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                bottom: 0 !important;
+                transform: none !important;
+                margin-left: 0 !important;
+            }
+        }
         </style>
         @stack('css')
         @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
             @vite(['resources/css/app.css', 'resources/js/app.js'])
         @endif
     </head>
-    <body class="hold-transition sidebar-expanded layout-fixed">
+    <body class="hold-transition sidebar-expanded layout-fixed" id="appBody">
         <div class="wrapper">
+            <!-- Mobile Sidebar Toggle -->
+            <button class="mobile-sidebar-toggle" onclick="toggleMobileSidebar()" aria-label="Abrir menú">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="mobile-sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+            
             <!-- Navbar -->
             <nav class="main-header navbar navbar-expand navbar-white navbar-light">
                 <!-- Right navbar links -->
@@ -175,7 +781,7 @@
             </nav>
 
             <!-- Main Sidebar Container -->
-            <aside class="main-sidebar sidebar-dark-primary elevation-4">
+            <aside class="main-sidebar sidebar-dark-primary elevation-4" id="mainSidebar">
     <!-- Brand Logo -->
     <a href="{{ route('dashboard') }}" class="brand-link">
         <img src="https://adminlte.io/themes/v3/dist/img/AdminLTELogo.png" alt="Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
@@ -473,6 +1079,207 @@
                 }
             });
         }
+        
+        // Función para toggle del sidebar en móvil
+        function toggleMobileSidebar() {
+            var sidebar = document.getElementById('mainSidebar');
+            var overlay = document.querySelector('.mobile-sidebar-overlay');
+            var body = document.getElementById('appBody');
+            var contentWrapper = document.querySelector('.content-wrapper');
+            var mainHeader = document.querySelector('.main-header');
+            var mainFooter = document.querySelector('.main-footer');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('mobile-open');
+                overlay.classList.toggle('active');
+                
+                // Asegurar que el contenido NUNCA se mueva
+                if (contentWrapper) {
+                    contentWrapper.style.marginLeft = '0';
+                    contentWrapper.style.left = '0';
+                }
+                if (mainHeader) {
+                    mainHeader.style.marginLeft = '0';
+                    mainHeader.style.left = '0';
+                }
+                if (mainFooter) {
+                    mainFooter.style.marginLeft = '0';
+                    mainFooter.style.left = '0';
+                }
+                
+                // Prevenir scroll del body cuando el sidebar está abierto
+                if (sidebar.classList.contains('mobile-open')) {
+                    if (body) body.style.overflow = 'hidden';
+                    // Asegurar que el sidebar use transform, no margin
+                    sidebar.style.marginLeft = '0';
+                    sidebar.style.transform = 'translateX(0)';
+                } else {
+                    if (body) body.style.overflow = '';
+                    sidebar.style.marginLeft = '-250px';
+                    sidebar.style.transform = 'translateX(-100%)';
+                }
+            }
+        }
+        
+        // Cerrar sidebar al hacer clic en un enlace en móvil
+        $(document).ready(function() {
+            if (window.innerWidth <= 768) {
+                $('.nav-link').on('click', function() {
+                    setTimeout(function() {
+                        toggleMobileSidebar();
+                    }, 300);
+                });
+            }
+        });
+        
+        // Ajustar sidebar al cambiar tamaño de ventana
+        $(window).on('resize', function() {
+            var sidebar = document.getElementById('mainSidebar');
+            var overlay = document.querySelector('.mobile-sidebar-overlay');
+            var body = document.getElementById('appBody');
+            var contentWrapper = document.querySelector('.content-wrapper');
+            var mainHeader = document.querySelector('.main-header');
+            var mainFooter = document.querySelector('.main-footer');
+            
+            if (window.innerWidth > 768) {
+                // En desktop, restaurar comportamiento normal de AdminLTE
+                if (sidebar) {
+                    sidebar.classList.remove('mobile-open');
+                    sidebar.style.position = 'fixed';
+                    sidebar.style.transform = '';
+                    sidebar.style.zIndex = '1038';
+                    sidebar.style.marginLeft = '0';
+                    sidebar.style.left = '0';
+                    sidebar.style.top = '0';
+                    sidebar.style.bottom = '0';
+                }
+                if (overlay) overlay.classList.remove('active');
+                if (body) body.style.overflow = '';
+                
+                // En desktop, el contenido DEBE tener margen del sidebar (250px)
+                if (contentWrapper) {
+                    contentWrapper.style.marginLeft = '250px';
+                    contentWrapper.style.left = 'auto';
+                }
+                if (mainHeader) {
+                    mainHeader.style.marginLeft = '250px';
+                    mainHeader.style.left = 'auto';
+                }
+                if (mainFooter) {
+                    mainFooter.style.marginLeft = '250px';
+                    mainFooter.style.left = 'auto';
+                }
+            } else {
+                // En móvil, asegurar que el sidebar esté oculto por defecto
+                if (sidebar) {
+                    if (!sidebar.classList.contains('mobile-open')) {
+                        sidebar.style.transform = 'translateX(-100%)';
+                        sidebar.style.marginLeft = '-250px';
+                    }
+                }
+                // Forzar que el contenido no tenga margen
+                if (contentWrapper) {
+                    contentWrapper.style.marginLeft = '0';
+                    contentWrapper.style.left = '0';
+                }
+                if (mainHeader) {
+                    mainHeader.style.marginLeft = '0';
+                    mainHeader.style.left = '0';
+                }
+                if (mainFooter) {
+                    mainFooter.style.marginLeft = '0';
+                    mainFooter.style.left = '0';
+                }
+            }
+        });
+        
+        // Asegurar que el sidebar esté configurado correctamente al cargar
+        $(document).ready(function() {
+            var sidebar = document.getElementById('mainSidebar');
+            var contentWrapper = document.querySelector('.content-wrapper');
+            var mainHeader = document.querySelector('.main-header');
+            var mainFooter = document.querySelector('.main-footer');
+            
+            // Verificar si estamos en móvil o desktop
+            if (window.innerWidth <= 768) {
+                // MÓVIL: Sidebar oculto, contenido sin margen
+                if (sidebar) {
+                    sidebar.classList.remove('mobile-open');
+                    sidebar.style.transform = 'translateX(-100%)';
+                    sidebar.style.marginLeft = '-250px';
+                }
+                
+                // Forzar que el contenido no tenga margen
+                if (contentWrapper) {
+                    contentWrapper.style.marginLeft = '0';
+                    contentWrapper.style.left = '0';
+                }
+                if (mainHeader) {
+                    mainHeader.style.marginLeft = '0';
+                    mainHeader.style.left = '0';
+                }
+                if (mainFooter) {
+                    mainFooter.style.marginLeft = '0';
+                    mainFooter.style.left = '0';
+                }
+                
+                // Observar cambios en el DOM solo en móvil
+                var observer = new MutationObserver(function(mutations) {
+                    if (window.innerWidth <= 768) {
+                        var contentWrapper = document.querySelector('.content-wrapper');
+                        var mainHeader = document.querySelector('.main-header');
+                        var mainFooter = document.querySelector('.main-footer');
+                        
+                        if (contentWrapper && contentWrapper.style.marginLeft !== '0px') {
+                            contentWrapper.style.marginLeft = '0';
+                            contentWrapper.style.left = '0';
+                        }
+                        if (mainHeader && mainHeader.style.marginLeft !== '0px') {
+                            mainHeader.style.marginLeft = '0';
+                            mainHeader.style.left = '0';
+                        }
+                        if (mainFooter && mainFooter.style.marginLeft !== '0px') {
+                            mainFooter.style.marginLeft = '0';
+                            mainFooter.style.left = '0';
+                        }
+                    }
+                });
+                
+                observer.observe(document.body, {
+                    attributes: true,
+                    attributeFilter: ['style', 'class'],
+                    subtree: true
+                });
+            } else {
+                // DESKTOP: Sidebar visible, contenido con margen
+                if (sidebar) {
+                    sidebar.style.position = 'fixed';
+                    sidebar.style.transform = '';
+                    sidebar.style.marginLeft = '0';
+                    sidebar.style.left = '0';
+                    sidebar.style.top = '0';
+                    sidebar.style.bottom = '0';
+                    sidebar.style.zIndex = '1038';
+                }
+                
+                // En desktop, el contenido DEBE tener margen del sidebar (250px)
+                if (contentWrapper) {
+                    contentWrapper.style.marginLeft = '250px';
+                    contentWrapper.style.left = 'auto';
+                }
+                if (mainHeader) {
+                    mainHeader.style.marginLeft = '250px';
+                    mainHeader.style.left = 'auto';
+                }
+                if (mainFooter) {
+                    mainFooter.style.marginLeft = '250px';
+                    mainFooter.style.left = 'auto';
+                }
+            }
+            
+            // Inicializar el estado del sidebar
+            setActiveMenuItem();
+        });
         </script>
         @stack('scripts')
         @stack('js')

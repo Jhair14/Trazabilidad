@@ -234,6 +234,15 @@ class MateriaPrimaBaseController extends Controller
         ]);
 
         if ($validator->fails()) {
+            // Si es una petición AJAX, retornar JSON
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
@@ -242,19 +251,41 @@ class MateriaPrimaBaseController extends Controller
         try {
             $materia = RawMaterialBase::findOrFail($id);
             
-            $materia->update([
+            $updateData = [
                 'nombre' => $request->nombre,
                 'categoria_id' => $request->categoria_id,
                 'unidad_id' => $request->unidad_id,
-                'descripcion' => $request->descripcion,
-                'stock_minimo' => $request->stock_minimo,
-                'stock_maximo' => $request->stock_maximo,
-                'activo' => $request->activo,
-            ]);
+                'descripcion' => $request->descripcion ?? null,
+                'stock_minimo' => $request->stock_minimo ?? 0,
+                'stock_maximo' => $request->stock_maximo ?: null,
+            ];
+            
+            // Manejar activo: si se envía, usar el valor; si no se envía, mantener el valor actual
+            if ($request->has('activo')) {
+                $updateData['activo'] = (bool)$request->activo;
+            }
+            
+            $materia->update($updateData);
+
+            // Si es una petición AJAX, retornar JSON
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Materia prima base actualizada exitosamente'
+                ]);
+            }
 
             return redirect()->route('materia-prima-base')
                 ->with('success', 'Materia prima base actualizada exitosamente');
         } catch (\Exception $e) {
+            // Si es una petición AJAX, retornar JSON
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al actualizar: ' . $e->getMessage()
+                ], 500);
+            }
+            
             return redirect()->back()
                 ->with('error', 'Error al actualizar: ' . $e->getMessage());
         }

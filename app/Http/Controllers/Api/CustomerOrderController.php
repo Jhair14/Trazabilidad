@@ -77,6 +77,224 @@ class CustomerOrderController extends Controller
         }
     }
 
+    /**
+     * Obtener información completa de un pedido (endpoint público)
+     * Incluye toda la información necesaria para crear y procesar un pedido
+     * 
+     * @param int $id ID del pedido
+     * @return JsonResponse
+     */
+    public function getCompleteOrder($id): JsonResponse
+    {
+        try {
+            $order = CustomerOrder::with([
+                'customer',
+                'orderProducts.product.unit',
+                'orderProducts.approver',
+                'destinations.destinationProducts.orderProduct.product.unit',
+                'approver'
+            ])->findOrFail($id);
+
+            $orderData = $this->formatCompleteOrderData($order);
+
+            return response()->json($orderData);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener información del pedido',
+                'error' => $e->getMessage()
+            ], 404);
+        }
+    }
+
+    /**
+     * Obtener información completa de todos los pedidos (endpoint público)
+     * Incluye toda la información necesaria para crear y procesar pedidos
+     * 
+     * @return JsonResponse
+     */
+    public function getAllCompleteOrders(): JsonResponse
+    {
+        try {
+            $orders = CustomerOrder::with([
+                'customer',
+                'orderProducts.product.unit',
+                'orderProducts.approver',
+                'destinations.destinationProducts.orderProduct.product.unit',
+                'approver'
+            ])->orderBy('fecha_creacion', 'desc')->get();
+
+            $pedidos = $orders->map(function($order) {
+                return $this->formatCompleteOrderData($order);
+            });
+
+            return response()->json([
+                'success' => true,
+                'total' => $pedidos->count(),
+                'pedidos' => $pedidos
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener información de los pedidos',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Formatea los datos completos de un pedido
+     * 
+     * @param CustomerOrder $order
+     * @return array
+     */
+    private function formatCompleteOrderData($order): array
+    {
+        // Calcular montos totales
+        $subtotal = 0;
+        $totalProductos = 0;
+
+        // Procesar productos del pedido
+        $products = $order->orderProducts->map(function($op) use (&$subtotal, &$totalProductos) {
+            $precio = (float)($op->precio ?? $op->product->precio_unitario ?? 0);
+            $cantidad = (float)$op->cantidad;
+            $total = $precio * $cantidad;
+            
+            $subtotal += $total;
+            $totalProductos += $cantidad;
+
+            return [
+                'producto_pedido_id' => $op->producto_pedido_id,
+                'producto_id' => $op->producto_id,
+                'cantidad' => (float)$op->cantidad,
+                'precio_unitario' => $precio,
+                'precio_total' => $total,
+                'estado' => $op->estado,
+                'razon_rechazo' => $op->razon_rechazo,
+                'observaciones' => $op->observaciones,
+                'aprobado_por' => $op->aprobado_por,
+                'aprobado_en' => $op->aprobado_en ? $op->aprobado_en->toDateTimeString() : null,
+                'aprobador' => $op->approver ? [
+                    'operador_id' => $op->approver->operador_id,
+                    'nombre' => $op->approver->first_name . ' ' . $op->approver->last_name,
+                    'username' => $op->approver->username,
+                ] : null,
+                'producto' => [
+                    'producto_id' => $op->product->producto_id,
+                    'codigo' => $op->product->codigo,
+                    'nombre' => $op->product->nombre,
+                    'tipo' => $op->product->tipo,
+                    'peso' => (float)($op->product->peso ?? 0),
+                    'precio_unitario' => (float)($op->product->precio_unitario ?? 0),
+                    'descripcion' => $op->product->descripcion,
+                    'activo' => $op->product->activo,
+                    'unidad' => $op->product->unit ? [
+                        'unidad_id' => $op->product->unit->unidad_id,
+                        'codigo' => $op->product->unit->codigo,
+                        'nombre' => $op->product->unit->nombre,
+                    ] : null,
+                ],
+            ];
+        });
+
+        // Procesar destinos con sus productos
+        $destinations = $order->destinations->map(function($destino) {
+            $productosDestino = $destino->destinationProducts->map(function($dp) {
+                $op = $dp->orderProduct;
+                $product = $op->product;
+                
+                return [
+                    'producto_destino_id' => $dp->producto_destino_id,
+                    'producto_pedido_id' => $dp->producto_pedido_id,
+                    'cantidad' => (float)$dp->cantidad,
+                    'observaciones' => $dp->observaciones,
+                    'producto_pedido' => [
+                        'producto_pedido_id' => $op->producto_pedido_id,
+                        'producto_id' => $op->producto_id,
+                        'cantidad' => (float)$op->cantidad,
+                        'precio' => (float)($op->precio ?? 0),
+                        'estado' => $op->estado,
+                        'producto' => [
+                            'producto_id' => $product->producto_id,
+                            'codigo' => $product->codigo,
+                            'nombre' => $product->nombre,
+                            'tipo' => $product->tipo,
+                            'peso' => (float)($product->peso ?? 0),
+                            'precio_unitario' => (float)($product->precio_unitario ?? 0),
+                            'unidad' => $product->unit ? [
+                                'unidad_id' => $product->unit->unidad_id,
+                                'codigo' => $product->unit->codigo,
+                                'nombre' => $product->unit->nombre,
+                            ] : null,
+                        ],
+                    ],
+                ];
+            });
+
+            return [
+                'destino_id' => $destino->destino_id,
+                'direccion' => $destino->direccion,
+                'referencia' => $destino->referencia,
+                'latitud' => $destino->latitud ? (float)$destino->latitud : null,
+                'longitud' => $destino->longitud ? (float)$destino->longitud : null,
+                'nombre_contacto' => $destino->nombre_contacto,
+                'telefono_contacto' => $destino->telefono_contacto,
+                'instrucciones_entrega' => $destino->instrucciones_entrega,
+                'almacen_origen_id' => $destino->almacen_origen_id,
+                'almacen_origen_nombre' => $destino->almacen_origen_nombre,
+                'almacen_destino_id' => $destino->almacen_destino_id,
+                'almacen_destino_nombre' => $destino->almacen_destino_nombre,
+                'almacen_almacen_id' => $destino->almacen_almacen_id,
+                'productos' => $productosDestino,
+                'total_productos' => $productosDestino->sum('cantidad'),
+            ];
+        });
+
+        // Construir respuesta completa
+        return [
+            'pedido' => [
+                'pedido_id' => $order->pedido_id,
+                'numero_pedido' => $order->numero_pedido,
+                'nombre' => $order->nombre,
+                'estado' => $order->estado,
+                'fecha_creacion' => $order->fecha_creacion ? $order->fecha_creacion->toDateString() : null,
+                'fecha_entrega' => $order->fecha_entrega ? $order->fecha_entrega->toDateString() : null,
+                'descripcion' => $order->descripcion,
+                'observaciones' => $order->observaciones,
+                'editable_hasta' => $order->editable_hasta ? $order->editable_hasta->toDateTimeString() : null,
+                'aprobado_en' => $order->aprobado_en ? $order->aprobado_en->toDateTimeString() : null,
+                'aprobado_por' => $order->aprobado_por,
+                'razon_rechazo' => $order->razon_rechazo,
+                'origen_sistema' => $order->origen_sistema,
+                'pedido_almacen_id' => $order->pedido_almacen_id,
+                'aprobador' => $order->approver ? [
+                    'operador_id' => $order->approver->operador_id,
+                    'nombre' => $order->approver->first_name . ' ' . $order->approver->last_name,
+                    'username' => $order->approver->username,
+                ] : null,
+            ],
+            'cliente' => $order->customer ? [
+                'cliente_id' => $order->customer->cliente_id,
+                'razon_social' => $order->customer->razon_social,
+                'nombre_comercial' => $order->customer->nombre_comercial,
+                'nit' => $order->customer->nit,
+                'direccion' => $order->customer->direccion,
+                'telefono' => $order->customer->telefono,
+                'email' => $order->customer->email,
+                'contacto' => $order->customer->contacto,
+                'activo' => $order->customer->activo,
+            ] : null,
+            'productos' => $products,
+            'destinos' => $destinations,
+            'resumen' => [
+                'total_productos' => $totalProductos,
+                'subtotal' => round($subtotal, 2),
+                'total_destinos' => $destinations->count(),
+                'total_items' => $products->count(),
+            ],
+        ];
+    }
+
     public function store(Request $request): JsonResponse
     {
         // Debug: Ver qué está recibiendo el request

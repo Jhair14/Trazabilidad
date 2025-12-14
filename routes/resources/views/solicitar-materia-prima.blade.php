@@ -121,32 +121,43 @@
                         <tbody>
                             @forelse($solicitudes as $solicitud)
                             <tr>
-                                <td>#{{ $solicitud->numero_solicitud ?? $solicitud->solicitud_id }}</td>
-                                <td>{{ $solicitud->order->customer->razon_social ?? 'N/A' }}</td>
+                                <td>#{{ $solicitud->solicitud_id }}</td>
+                                <td>{{ $solicitud->order && $solicitud->order->customer ? $solicitud->order->customer->razon_social : ($solicitud->order ? 'N/A' : 'Sin pedido') }}</td>
                                 <td>
-                                    @foreach($solicitud->details as $detail)
-                                        {{ $detail->material->nombre ?? 'N/A' }}<br>
-                                    @endforeach
+                                    @if($solicitud->details && $solicitud->details->count() > 0)
+                                        @foreach($solicitud->details as $detail)
+                                            {{ $detail->material ? $detail->material->nombre : 'N/A' }}<br>
+                                        @endforeach
+                                    @else
+                                        <span class="text-muted">Sin detalles</span>
+                                    @endif
                                 </td>
                                 <td>
-                                    @foreach($solicitud->details as $detail)
-                                        {{ number_format($detail->cantidad_solicitada, 2) }} {{ $detail->material->unit->codigo ?? '' }}<br>
-                                    @endforeach
+                                    @if($solicitud->details && $solicitud->details->count() > 0)
+                                        @foreach($solicitud->details as $detail)
+                                            {{ number_format($detail->cantidad_solicitada ?? 0, 2) }} {{ $detail->material && $detail->material->unit ? $detail->material->unit->codigo : '' }}<br>
+                                        @endforeach
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
                                 </td>
                                 <td>
                                     @php
                                         // Verificar si la solicitud está completada basándose en si todos los detalles tienen cantidad aprobada
-                                        $completada = $solicitud->details->every(function($detail) {
-                                            return $detail->cantidad_aprobada > 0;
-                                        });
+                                        $completada = false;
+                                        if ($solicitud->details && $solicitud->details->count() > 0) {
+                                            $completada = $solicitud->details->every(function($detail) {
+                                                return ($detail->cantidad_aprobada ?? 0) >= ($detail->cantidad_solicitada ?? 0) && ($detail->cantidad_solicitada ?? 0) > 0;
+                                            });
+                                        }
                                     @endphp
-                                    @if($completada)
+                                    @if($completada && $solicitud->details && $solicitud->details->count() > 0)
                                         <span class="badge badge-success">Completada</span>
                                     @else
                                         <span class="badge badge-warning">Pendiente</span>
                                     @endif
                                 </td>
-                                <td>{{ \Carbon\Carbon::parse($solicitud->fecha_solicitud)->format('Y-m-d') }}</td>
+                                <td>{{ $solicitud->fecha_solicitud ? \Carbon\Carbon::parse($solicitud->fecha_solicitud)->format('Y-m-d') : 'N/A' }}</td>
                                 <td>{{ $solicitud->fecha_requerida ? \Carbon\Carbon::parse($solicitud->fecha_requerida)->format('Y-m-d') : 'N/A' }}</td>
                                 <td>
                                     <button class="btn btn-info btn-sm" title="Ver">
