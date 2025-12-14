@@ -187,14 +187,33 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="order_id">Pedido Asociado</label>
-                                <select class="form-control" id="pedido_id" name="pedido_id">
+                                <select class="form-control" id="pedido_id" name="pedido_id" onchange="mostrarInfoReferenciaPedido(this)">
                                     <option value="">Sin pedido asociado</option>
                                     @foreach($pedidos as $pedido)
-                                        <option value="{{ $pedido->pedido_id }}" {{ old('pedido_id') == $pedido->pedido_id ? 'selected' : '' }}>
+                                        <option value="{{ $pedido->pedido_id }}" 
+                                                data-pedido-info="{{ json_encode([
+                                                    'nombre' => $pedido->nombre ?? 'Sin nombre',
+                                                    'fecha_entrega' => $pedido->fecha_entrega ? \Carbon\Carbon::parse($pedido->fecha_entrega)->format('d/m/Y') : 'N/A',
+                                                    'productos' => $pedido->orderProducts->map(function($op) {
+                                                        return [
+                                                            'nombre' => $op->product->nombre ?? 'N/A',
+                                                            'tipo' => $op->product->tipo ?? 'N/A',
+                                                            'cantidad' => number_format($op->cantidad, 2),
+                                                            'unidad' => $op->product->unit->codigo ?? 'N/A'
+                                                        ];
+                                                    })->toArray()
+                                                ]) }}"
+                                                {{ old('pedido_id') == $pedido->pedido_id ? 'selected' : '' }}>
                                             {{ $pedido->nombre ?? 'Sin nombre' }} - {{ $pedido->customer->razon_social ?? 'N/A' }}
                                         </option>
                                     @endforeach
                                 </select>
+                                <div id="referencia_pedido" class="mt-2" style="display: none;">
+                                    <small class="text-muted">
+                                        <strong>Información del pedido seleccionado:</strong><br>
+                                        <span id="referencia_pedido_info"></span>
+                                    </small>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -203,6 +222,12 @@
                                 <input type="number" class="form-control" id="target_quantity" 
                                        name="target_quantity" value="{{ old('target_quantity') }}" 
                                        step="0.01" min="0" placeholder="0.00">
+                                <div id="referencia_cantidad" class="mt-2" style="display: none;">
+                                    <small class="text-info">
+                                        <i class="fas fa-info-circle"></i> 
+                                        <span id="referencia_cantidad_info"></span>
+                                    </small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -229,7 +254,7 @@
                                                     @php
                                                         $available = $mp->calculated_available_quantity ?? ($mp->available_quantity ?? 0);
                                                     @endphp
-                                                    <option value="{{ $mp->material_id }}" data-available="{{ number_format($available, 2) }}">
+                                                    <option value="{{ $mp->material_id }}" data-available="{{ $available }}">
                                                         {{ $mp->name }} ({{ $mp->unit->code ?? 'N/A' }}) - Disponible: {{ number_format($available, 2) }}
                                                     </option>
                                                 @endforeach
@@ -401,6 +426,71 @@ let materiaPrimaIndex = 1;
 
 const materiasPrimasData = @json($materias_primas_json);
 
+// Función para mostrar información de referencia del pedido
+function mostrarInfoReferenciaPedido(select) {
+    const selectedOption = select.options[select.selectedIndex];
+    const referenciaPedido = document.getElementById('referencia_pedido');
+    const referenciaPedidoInfo = document.getElementById('referencia_pedido_info');
+    const referenciaCantidad = document.getElementById('referencia_cantidad');
+    const referenciaCantidadInfo = document.getElementById('referencia_cantidad_info');
+    
+    if (select.value && selectedOption.getAttribute('data-pedido-info')) {
+        try {
+            const pedidoInfo = JSON.parse(selectedOption.getAttribute('data-pedido-info'));
+            
+            // Construir información de productos
+            let productosInfo = '';
+            if (pedidoInfo.productos && pedidoInfo.productos.length > 0) {
+                productosInfo = pedidoInfo.productos.map(prod => {
+                    return `• ${prod.nombre} (${prod.tipo}): ${prod.cantidad} ${prod.unidad}`;
+                }).join('<br>');
+            } else {
+                productosInfo = 'No hay productos en este pedido';
+            }
+            
+            // Mostrar información del pedido
+            referenciaPedidoInfo.innerHTML = `
+                <strong>Fecha requerida:</strong> ${pedidoInfo.fecha_entrega}<br>
+                <strong>Productos solicitados:</strong><br>
+                ${productosInfo}
+            `;
+            referenciaPedido.style.display = 'block';
+            
+            // Calcular total de cantidad requerida
+            let totalCantidad = 0;
+            if (pedidoInfo.productos && pedidoInfo.productos.length > 0) {
+                pedidoInfo.productos.forEach(prod => {
+                    const cantidad = parseFloat(prod.cantidad.replace(/,/g, '')) || 0;
+                    totalCantidad += cantidad;
+                });
+            }
+            
+            // Mostrar referencia de cantidad
+            if (totalCantidad > 0) {
+                referenciaCantidadInfo.innerHTML = `Cantidad total requerida por el almacén: <strong>${totalCantidad.toFixed(2)}</strong>`;
+                referenciaCantidad.style.display = 'block';
+            } else {
+                referenciaCantidad.style.display = 'none';
+            }
+        } catch (e) {
+            console.error('Error al parsear información del pedido:', e);
+            referenciaPedido.style.display = 'none';
+            referenciaCantidad.style.display = 'none';
+        }
+    } else {
+        referenciaPedido.style.display = 'none';
+        referenciaCantidad.style.display = 'none';
+    }
+}
+
+// Ejecutar al cargar la página si hay un pedido seleccionado
+document.addEventListener('DOMContentLoaded', function() {
+    const pedidoSelect = document.getElementById('pedido_id');
+    if (pedidoSelect && pedidoSelect.value) {
+        mostrarInfoReferenciaPedido(pedidoSelect);
+    }
+});
+
 // Agregar materia prima al formulario
 function addMateriaPrima() {
     const tbody = document.getElementById('materiasPrimasTable');
@@ -413,7 +503,7 @@ function addMateriaPrima() {
                 <option value="">Seleccionar materia prima...</option>
                 ${materiasPrimasData.map(mp => `
                     <option value="${mp.material_id}" data-available="${mp.available}">
-                        ${mp.name} (${mp.unit_code}) - Disponible: ${mp.available}
+                        ${mp.name} (${mp.unit_code}) - Disponible: ${parseFloat(mp.available).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </option>
                 `).join('')}
             </select>
@@ -454,7 +544,7 @@ function updateAvailableQuantity(select) {
     const availableSpan = row.querySelector('.available-quantity');
     
     if (select.value) {
-        availableSpan.textContent = `Disponible: ${available}`;
+        availableSpan.textContent = `Disponible: ${available.toFixed(2)}`;
         availableSpan.style.display = 'block';
         availableSpan.className = 'text-info available-quantity';
         
@@ -549,7 +639,7 @@ $('#crearLoteModal').on('shown.bs.modal', function() {
             <option value="">Seleccionar materia prima...</option>
             ${materiasPrimasData.map(mp => `
                 <option value="${mp.material_id}" data-available="${mp.available}">
-                    ${mp.name} (${mp.unit_code}) - Disponible: ${mp.available}
+                    ${mp.name} (${mp.unit_code}) - Disponible: ${parseFloat(mp.available).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                 </option>
             `).join('')}
         `;
@@ -660,7 +750,7 @@ function addMateriaPrima() {
     const row = table.insertRow();
     let optionsHtml = '<option value="">Seleccionar materia prima...</option>';
     materiasPrimasData.forEach(function(mp) {
-        optionsHtml += `<option value="${mp.material_id}">${mp.name} (${mp.unit_code}) - Disponible: ${mp.available}</option>`;
+        optionsHtml += `<option value="${mp.material_id}" data-available="${mp.available}">${mp.name} (${mp.unit_code}) - Disponible: ${parseFloat(mp.available).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</option>`;
     });
     row.innerHTML = `
         <td>

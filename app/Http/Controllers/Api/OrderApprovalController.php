@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class OrderApprovalController extends Controller
 {
@@ -89,33 +90,55 @@ class OrderApprovalController extends Controller
                 ->firstOrFail();
 
             $orderProduct->update([
-                'status' => 'aprobado',
-                'approved_by' => Auth::id(),
-                'approved_at' => now(),
-                'observations' => $request->observations,
+                'estado' => 'aprobado',
+                'aprobado_por' => Auth::id(),
+                'aprobado_en' => now(),
+                'observaciones' => $request->observations,
             ]);
 
             // Verificar si todos los productos están aprobados
-            $pendingProducts = OrderProduct::where('order_id', $orderId)
-                ->where('status', 'pendiente')
+            $pendingProducts = OrderProduct::where('pedido_id', $orderId)
+                ->where('estado', 'pendiente')
                 ->count();
+
+            $enviosCreated = [];
+            $integrationErrors = [];
+            $pedidoCompletado = false;
 
             if ($pendingProducts === 0) {
                 // Todos los productos están aprobados, aprobar el pedido completo
                 $order = CustomerOrder::findOrFail($orderId);
                 $order->update([
-                    'status' => 'aprobado',
-                    'approved_by' => Auth::id(),
-                    'approved_at' => now(),
+                    'estado' => 'aprobado',
+                    'aprobado_por' => Auth::id(),
+                    'aprobado_en' => now(),
                 ]);
+
+                $pedidoCompletado = true;
+
+                // NOTA: La integración con plantaCruds se hace cuando se almacena el pedido,
+                // no cuando se aprueba. Ver AlmacenajeController.
+                
+                // Notificar a almacén si el pedido viene de ahí
+                if ($order->origen_sistema === 'almacen' && $order->pedido_almacen_id) {
+                    $this->notifyAlmacen($order, 'aprobado');
+                }
             }
 
             DB::commit();
 
-            return response()->json([
+            $response = [
                 'message' => 'Producto aprobado exitosamente',
                 'order_product' => $orderProduct->load('product', 'approver')
-            ]);
+            ];
+
+            // Si se completó la aprobación del pedido
+            if ($pedidoCompletado) {
+                $response['pedido_completado'] = true;
+                $response['message'] = 'Producto y pedido aprobados exitosamente. El envío se creará cuando se almacene el pedido.';
+            }
+
+            return response()->json($response);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -144,20 +167,40 @@ class OrderApprovalController extends Controller
         try {
             DB::beginTransaction();
 
-            $orderProduct = OrderProduct::where('order_id', $orderId)
-                ->where('order_product_id', $productId)
-                ->where('status', 'pendiente')
+            $orderProduct = OrderProduct::where('pedido_id', $orderId)
+                ->where('producto_pedido_id', $productId)
+                ->where('estado', 'pendiente')
                 ->firstOrFail();
 
             $orderProduct->update([
-                'status' => 'rechazado',
-                'approved_by' => Auth::id(),
-                'approved_at' => now(),
-                'rejection_reason' => $request->rejection_reason,
+                'estado' => 'rechazado',
+                'aprobado_por' => Auth::id(),
+                'aprobado_en' => now(),
+                'razon_rechazo' => $request->rejection_reason,
             ]);
 
-            // Si se rechaza un producto, el pedido puede seguir pendiente con otros productos
-            // o puede ser rechazado completamente según la lógica de negocio
+            // Verificar si todos los productos están rechazados
+            $order = CustomerOrder::findOrFail($orderId);
+            $productosAprobados = OrderProduct::where('pedido_id', $orderId)
+                ->where('estado', 'aprobado')
+                ->count();
+            
+            $productosPendientes = OrderProduct::where('pedido_id', $orderId)
+                ->where('estado', 'pendiente')
+                ->count();
+
+            // Si no hay productos aprobados ni pendientes, rechazar el pedido completo
+            if ($productosAprobados === 0 && $productosPendientes === 0) {
+                $order->update([
+                    'estado' => 'rechazado',
+                    'razon_rechazo' => 'Todos los productos fueron rechazados'
+                ]);
+                
+                // Notificar a almacén si el pedido viene de ahí
+                if ($order->origen_sistema === 'almacen' && $order->pedido_almacen_id) {
+                    $this->notifyAlmacen($order, 'rechazado');
+                }
+            }
 
             DB::commit();
 
@@ -183,11 +226,11 @@ class OrderApprovalController extends Controller
             DB::beginTransaction();
 
             $order = CustomerOrder::with('orderProducts')
-                ->where('status', 'pendiente')
+                ->where('estado', 'pendiente')
                 ->findOrFail($orderId);
 
             $pendingProducts = $order->orderProducts()
-                ->where('status', 'pendiente')
+                ->where('estado', 'pendiente')
                 ->get();
 
             if ($pendingProducts->isEmpty()) {
@@ -197,41 +240,35 @@ class OrderApprovalController extends Controller
             }
 
             // Aprobar todos los productos pendientes
-            OrderProduct::where('order_id', $orderId)
-                ->where('status', 'pendiente')
+            OrderProduct::where('pedido_id', $orderId)
+                ->where('estado', 'pendiente')
                 ->update([
-                    'status' => 'aprobado',
-                    'approved_by' => Auth::id(),
-                    'approved_at' => now(),
+                    'estado' => 'aprobado',
+                    'aprobado_por' => Auth::id(),
+                    'aprobado_en' => now(),
                 ]);
 
             // Aprobar el pedido completo
             $order->update([
-                'status' => 'aprobado',
-                'approved_by' => Auth::id(),
-                'approved_at' => now(),
+                'estado' => 'aprobado',
+                'aprobado_por' => Auth::id(),
+                'aprobado_en' => now(),
             ]);
 
             DB::commit();
 
-            // NOTA: El envío a plantaCruds ahora se realiza al almacenar el lote, no al aprobar el pedido
+            // NOTA: La integración con plantaCruds se hace cuando se almacena el pedido,
+            // no cuando se aprueba. Ver AlmacenajeController.
+            
+            // Notificar a almacén si el pedido viene de ahí
+            if ($order->origen_sistema === 'almacen' && $order->pedido_almacen_id) {
+                $this->notifyAlmacen($order, 'aprobado');
+            }
 
-            $response = [
+            return response()->json([
                 'message' => 'Pedido aprobado exitosamente',
                 'order' => $order->load('orderProducts.product', 'approver'),
-            ];
-            
-            if (!empty($enviosCreated)) {
-                $response['envios_created'] = $enviosCreated;
-                $response['integration_success'] = true;
-            }
-            
-            if (!empty($integrationErrors)) {
-                $response['integration_errors'] = $integrationErrors;
-                $response['integration_partial_success'] = !empty($enviosCreated);
-            }
-
-            return response()->json($response);
+            ]);
             
         } catch (\Exception $e) {
             DB::rollBack();
@@ -239,6 +276,53 @@ class OrderApprovalController extends Controller
                 'message' => 'Error al aprobar pedido',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Notifica a sistema-almacen-PSIII sobre cambios de estado del pedido
+     * 
+     * @param CustomerOrder $order
+     * @param string $estado 'aprobado' o 'rechazado'
+     * @return void
+     */
+    private function notifyAlmacen(CustomerOrder $order, string $estado): void
+    {
+        $almacenApiUrl = env('ALMACEN_API_URL', 'http://localhost:8000/api');
+        $pedidoAlmacenId = $order->pedido_almacen_id;
+
+        if (!$pedidoAlmacenId) {
+            return;
+        }
+
+        try {
+            $response = Http::timeout(10)
+                ->post("{$almacenApiUrl}/pedidos/{$pedidoAlmacenId}/actualizar-estado", [
+                    'estado' => $estado,
+                    'tracking_id' => $order->pedido_id,
+                    'message' => $estado === 'aprobado' 
+                        ? 'Pedido aprobado en Trazabilidad' 
+                        : 'Pedido rechazado en Trazabilidad'
+                ]);
+
+            if ($response->successful()) {
+                Log::info('Notificación enviada a sistema-almacen-PSIII', [
+                    'pedido_almacen_id' => $pedidoAlmacenId,
+                    'pedido_trazabilidad_id' => $order->pedido_id,
+                    'estado' => $estado
+                ]);
+            } else {
+                Log::warning('Error al notificar a sistema-almacen-PSIII', [
+                    'pedido_almacen_id' => $pedidoAlmacenId,
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Excepción al notificar a sistema-almacen-PSIII', [
+                'pedido_almacen_id' => $pedidoAlmacenId,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }

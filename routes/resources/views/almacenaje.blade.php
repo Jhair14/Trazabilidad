@@ -33,10 +33,33 @@
     
     /* Estilos del mapa */
     #map {
-        height: 100%;
-        width: 100%;
+        height: 100% !important;
+        width: 100% !important;
         position: relative !important;
         z-index: 1;
+        min-height: 400px;
+    }
+    
+    /* Asegurar que el contenedor del mapa tenga dimensiones correctas */
+    #registrarAlmacenajeModal .form-group > div[style*="overflow: hidden"] {
+        width: 100% !important;
+        height: 400px !important;
+        min-height: 400px !important;
+        position: relative !important;
+    }
+    
+    /* Forzar que los tiles se rendericen correctamente */
+    #registrarAlmacenajeModal .leaflet-tile-container {
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    /* Asegurar que los tiles no se corten */
+    #registrarAlmacenajeModal .leaflet-tile {
+        width: 256px !important;
+        height: 256px !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     /* Controlar z-index de todos los elementos de Leaflet para que no escapen del modal */
@@ -268,9 +291,36 @@
                                                 <i class="fas fa-warehouse"></i> Almacenar
                                             </button>
                                         @else
-                                            <button class="btn btn-info btn-sm" title="Ver Detalles" onclick="verAlmacenaje({{ $lote->lote_id }})">
-                                                <i class="fas fa-eye"></i> Ver
-                                            </button>
+                                            @php
+                                                $pedido = $lote->order;
+                                                $envioId = $pedido ? $pedido->getPlantaCrudsEnvioId() : null;
+                                                $propuestaPdfUrl = $pedido ? $pedido->getPropuestaVehiculosPdfUrl() : null;
+                                                $aprobarRechazarUrl = $pedido ? $pedido->getAprobarRechazarUrl() : null;
+                                                
+                                                // Solo mostrar los botones si el estado es realmente "pendiente_aprobacion_trazabilidad"
+                                                $mostrarAprobarRechazar = false;
+                                                if ($envioId && $aprobarRechazarUrl && $pedido) {
+                                                    $mostrarAprobarRechazar = $pedido->isEnvioPendienteAprobacionTrazabilidad();
+                                                }
+                                            @endphp
+                                            <div class="btn-group-vertical btn-group-sm" role="group">
+                                                <button class="btn btn-info btn-sm" title="Ver Detalles" onclick="verAlmacenaje({{ $lote->lote_id }})">
+                                                    <i class="fas fa-eye"></i> Ver
+                                                </button>
+                                                @if($envioId && $propuestaPdfUrl)
+                                                    <a href="{{ $propuestaPdfUrl }}" target="_blank" class="btn btn-danger btn-sm" title="Descargar PDF Propuesta">
+                                                        <i class="fas fa-file-pdf"></i> PDF Propuesta
+                                                    </a>
+                                                @endif
+                                                @if($envioId && $aprobarRechazarUrl && $mostrarAprobarRechazar)
+                                                    <button class="btn btn-success btn-sm" title="Aprobar Propuesta" onclick="abrirModalAprobarAlmacenaje('{{ $aprobarRechazarUrl }}', {{ $envioId }})">
+                                                        <i class="fas fa-check"></i> Aprobar
+                                                    </button>
+                                                    <button class="btn btn-warning btn-sm" title="Rechazar Propuesta" onclick="abrirModalRechazarAlmacenaje('{{ $aprobarRechazarUrl }}', {{ $envioId }})">
+                                                        <i class="fas fa-times"></i> Rechazar
+                                                    </button>
+                                                @endif
+                                            </div>
                                         @endif
                                     @else
                                         <span class="text-muted">Requiere certificación</span>
@@ -380,41 +430,29 @@
                     <hr class="my-4">
                     <h5 class="mb-3"><i class="fas fa-map-marker-alt"></i> Ubicación de Recojo</h5>
                     
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>Ubicación fija de la planta:</strong> La ubicación de recojo está configurada y no puede ser modificada desde aquí. 
+                        Para cambiar la ubicación de la planta, ve a <strong>"Mi Ubicación"</strong> en el menú lateral.
+                    </div>
+                    
                     <div class="form-group">
-                        <label for="pickup_address">Dirección de Recojo <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control @error('pickup_address') is-invalid @enderror" 
-                               id="pickup_address" name="pickup_address" value="{{ old('pickup_address') }}" 
-                               placeholder="Ej: Av. Ejemplo 123, Santa Cruz, Bolivia" required>
-                        @error('pickup_address')
-                            <span class="invalid-feedback">{{ $message }}</span>
-                        @enderror
+                        <label>Dirección de Recojo</label>
+                        <input type="text" class="form-control" 
+                               id="pickup_address" name="pickup_address" 
+                               value="{{ config('services.planta.direccion', 'Av. Ejemplo 123, Santa Cruz, Bolivia') }}" 
+                               readonly style="background-color: #e9ecef;">
                         <small class="form-text text-muted">Dirección completa donde se recogerá el producto</small>
                     </div>
 
                     <div class="form-group">
-                        <label for="pickup_reference">Referencia (Opcional)</label>
-                        <input type="text" class="form-control @error('pickup_reference') is-invalid @enderror" 
-                               id="pickup_reference" name="pickup_reference" value="{{ old('pickup_reference') }}" 
-                               placeholder="Ej: Frente al parque, Edificio azul">
-                        @error('pickup_reference')
-                            <span class="invalid-feedback">{{ $message }}</span>
-                        @enderror
-                    </div>
-
-                    <div class="form-group">
-                        <label>Seleccionar Ubicación en el Mapa <span class="text-danger">*</span></label>
-                        <div style="position: relative; overflow: hidden; border: 1px solid #ddd; border-radius: 4px; height: 400px; width: 100%;">
-                            <div id="map" style="height: 100%; width: 100%; position: relative;"></div>
+                        <label>Ubicación en el Mapa</label>
+                        <div id="map-container" style="position: relative; overflow: hidden; border: 1px solid #ddd; border-radius: 4px; height: 400px; width: 100%; background-color: #f0f0f0;">
+                            <div id="map" style="height: 100%; width: 100%; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"></div>
                         </div>
-                        <small class="form-text text-muted mt-2 d-block">Haz clic en el mapa para seleccionar la ubicación exacta de recojo</small>
-                        <input type="hidden" id="pickup_latitude" name="pickup_latitude" value="{{ old('pickup_latitude') }}" required>
-                        <input type="hidden" id="pickup_longitude" name="pickup_longitude" value="{{ old('pickup_longitude') }}" required>
-                        @error('pickup_latitude')
-                            <span class="text-danger small d-block mt-1">{{ $message }}</span>
-                        @enderror
-                        @error('pickup_longitude')
-                            <span class="text-danger small d-block mt-1">{{ $message }}</span>
-                        @enderror
+                        <small class="form-text text-muted mt-2 d-block">Ubicación fija de la planta (solo visualización)</small>
+                        <input type="hidden" id="pickup_latitude" name="pickup_latitude" value="{{ config('services.planta.latitud', '-17.8146') }}">
+                        <input type="hidden" id="pickup_longitude" name="pickup_longitude" value="{{ config('services.planta.longitud', '-63.1561') }}">
                     </div>
 
                     <div class="alert alert-warning mt-3">
@@ -432,6 +470,139 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modales para aprobar/rechazar propuesta desde almacenaje -->
+<!-- Modal Aprobar Propuesta -->
+<div class="modal fade" id="aprobarPropuestaAlmacenajeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="aprobarPropuestaAlmacenajeForm">
+                @csrf
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-check-circle"></i> Aprobar Propuesta de Vehículos
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de aprobar la propuesta de vehículos para el envío <strong id="envioIdAprobarAlmacenaje"></strong>?</p>
+                    <p class="text-muted">Al aprobar, el envío cambiará su estado a "pendiente" y podrá proceder con la asignación del transportista.</p>
+                    <div class="form-group">
+                        <label>Observaciones (opcional)</label>
+                        <textarea class="form-control" name="observaciones" id="aprobarObservacionesAlmacenaje" rows="3" placeholder="Comentarios sobre la aprobación..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> Aprobar Propuesta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Rechazar Propuesta -->
+<div class="modal fade" id="rechazarPropuestaAlmacenajeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="rechazarPropuestaAlmacenajeForm">
+                @csrf
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-times-circle"></i> Rechazar Propuesta de Vehículos
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de rechazar la propuesta de vehículos para el envío <strong id="envioIdRechazarAlmacenaje"></strong>?</p>
+                    <p class="text-muted">Al rechazar, el envío será cancelado.</p>
+                    <div class="form-group">
+                        <label>Observaciones <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="observaciones" id="rechazarObservacionesAlmacenaje" rows="3" required placeholder="Razón del rechazo..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-times"></i> Rechazar Propuesta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Mensaje de Éxito -->
+<div class="modal fade" id="mensajeExitoAlmacenajeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle"></i> Éxito
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" data-dismiss="modal">Aceptar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Mensaje de Error -->
+<div class="modal fade" id="mensajeErrorAlmacenajeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-circle"></i> Error
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Mensaje de Advertencia -->
+<div class="modal fade" id="mensajeAdvertenciaAlmacenajeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> Advertencia
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-warning" data-dismiss="modal">Aceptar</button>
             </div>
         </div>
     </div>
@@ -462,10 +633,10 @@ function almacenarLote(loteId, codigoLote, nombreLote, quantity, isTargetQuantit
     $('#modal_quantity').text(qty.toFixed(2) + ' ' + (isTargetQuantity ? '(Objetivo)' : '(Producida)'));
     
     $('#observaciones').val('');
-    $('#pickup_address').val('');
-    $('#pickup_reference').val('');
-    $('#pickup_latitude').val('');
-    $('#pickup_longitude').val('');
+    // NO limpiar los valores de ubicación - siempre usar la configuración de la planta
+    $('#pickup_address').val('{{ config('services.planta.direccion', 'Av. Ejemplo 123, Santa Cruz, Bolivia') }}');
+    $('#pickup_latitude').val('{{ config('services.planta.latitud', '-17.8146') }}');
+    $('#pickup_longitude').val('{{ config('services.planta.longitud', '-63.1561') }}');
     
     // Cargar información del pedido
     if (pedidoId) {
@@ -520,100 +691,97 @@ function initMap() {
         return;
     }
     
-    // Verificar que el elemento tenga dimensiones visibles y correctas (400px)
-    if (mapElement.offsetWidth === 0 || mapElement.offsetHeight === 0) {
-        setTimeout(() => initMap(), 100);
+    // Verificar que el elemento tenga dimensiones visibles y correctas
+    const containerWidth = mapElement.offsetWidth || mapElement.clientWidth;
+    const containerHeight = mapElement.offsetHeight || mapElement.clientHeight;
+    
+    if (containerWidth === 0 || containerHeight === 0) {
+        // Esperar un poco más si el contenedor aún no tiene dimensiones
+        setTimeout(() => initMap(), 300);
         return;
     }
     
-    // Si el mapa ya existe, removerlo y crear uno nuevo
+    // Si el mapa ya existe, removerlo completamente
     if (map) {
         try {
             map.remove();
+            map = null;
+            marker = null;
         } catch(e) {
             console.log('Error removiendo mapa:', e);
+            map = null;
+            marker = null;
         }
-        map = null;
-        marker = null;
     }
     
-    // Coordenadas por defecto: Santa Cruz, Bolivia
-    const defaultLat = -17.8146;
-    const defaultLng = -63.1561;
+    // Obtener coordenadas de la configuración de la planta (solo lectura)
+    const plantaLat = parseFloat($('#pickup_latitude').val()) || {{ config('services.planta.latitud', '-17.8146') }};
+    const plantaLng = parseFloat($('#pickup_longitude').val()) || {{ config('services.planta.longitud', '-63.1561') }};
     
-    // Crear mapa - NO establecer vista todavía
+    // Crear mapa en modo solo lectura (sin interacción)
     map = L.map('map', {
         zoomControl: true,
         attributionControl: true,
-        preferCanvas: false
+        preferCanvas: true, // Usar canvas para mejor rendimiento
+        dragging: false,
+        touchZoom: false,
+        doubleClickZoom: false,
+        scrollWheelZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        zoomAnimation: true,
+        fadeAnimation: true,
+        markerZoomAnimation: true
     });
     
-    // Agregar capa de OpenStreetMap ANTES de establecer la vista
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Agregar capa de OpenStreetMap con opciones mejoradas
+    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
-    }).addTo(map);
-    
-    // Ahora establecer la vista DESPUÉS de agregar el tileLayer
-    map.setView([defaultLat, defaultLng], 13);
-    
-    // Invalidar tamaño INMEDIATAMENTE después de establecer la vista
-    map.invalidateSize(true);
-    
-    // Invalidar tamaño nuevamente después de un breve delay para asegurar que todos los tiles se carguen
-    setTimeout(() => {
-        if (map) {
-            map.invalidateSize(true);
-            // Forzar actualización de la vista para cargar todos los tiles
-            map.setView(map.getCenter(), map.getZoom());
-        }
-    }, 100);
-    
-    // Si hay coordenadas guardadas, usarlas
-    const savedLat = $('#pickup_latitude').val();
-    const savedLng = $('#pickup_longitude').val();
-    
-    if (savedLat && savedLng) {
-        setTimeout(() => {
-            if (map) {
-                map.setView([parseFloat(savedLat), parseFloat(savedLng)], 15);
-                addMarker(parseFloat(savedLat), parseFloat(savedLng));
-            }
-        }, 200);
-    }
-    
-    // Agregar marcador al hacer clic
-    map.on('click', function(e) {
-        const lat = e.latlng.lat;
-        const lng = e.latlng.lng;
-        addMarker(lat, lng);
-        $('#pickup_latitude').val(lat);
-        $('#pickup_longitude').val(lng);
-        
-        // Intentar obtener dirección usando geocodificación inversa
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
-            headers: {
-                'User-Agent': 'TrazabilidadApp/1.0'
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.address) {
-                    const addressParts = [];
-                    if (data.address.road) addressParts.push(data.address.road);
-                    if (data.address.house_number) addressParts.push(data.address.house_number);
-                    if (data.address.suburb) addressParts.push(data.address.suburb);
-                    if (data.address.city || data.address.town) addressParts.push(data.address.city || data.address.town);
-                    if (data.address.state) addressParts.push(data.address.state);
-                    if (data.address.country) addressParts.push(data.address.country);
-                    
-                    if (addressParts.length > 0) {
-                        $('#pickup_address').val(addressParts.join(', '));
-                    }
-                }
-            })
-            .catch(err => console.log('Error obteniendo dirección:', err));
+        maxZoom: 19,
+        minZoom: 10,
+        tileSize: 256,
+        zoomOffset: 0,
+        updateWhenZooming: true,
+        updateWhenIdle: true,
+        keepBuffer: 2
     });
+    
+    tileLayer.addTo(map);
+    
+    // Establecer la vista
+    map.setView([plantaLat, plantaLng], 15);
+    
+    // Invalidar tamaño múltiples veces para asegurar renderizado correcto
+    setTimeout(() => {
+        if (!map) return;
+        
+        map.invalidateSize(true);
+        map.setView([plantaLat, plantaLng], 15);
+        
+        // Forzar actualización de los tiles
+        setTimeout(() => {
+            if (!map) return;
+            
+            map.invalidateSize(true);
+            map.setView([plantaLat, plantaLng], 15);
+            
+            // Forzar redraw de todas las capas
+            map.eachLayer(function(layer) {
+                if (layer instanceof L.TileLayer) {
+                    layer.redraw();
+                }
+            });
+            
+            // Agregar marcador después de que el mapa esté completamente renderizado
+            setTimeout(() => {
+                if (map) {
+                    addMarker(plantaLat, plantaLng);
+                    // Una última invalidación para asegurar que todo esté correcto
+                    map.invalidateSize(true);
+                }
+            }, 300);
+        }, 200);
+    }, 500);
 }
 
 function addMarker(lat, lng) {
@@ -628,10 +796,24 @@ function addMarker(lat, lng) {
         marker = null;
     }
     
-    // Crear nuevo marcador con icono por defecto
+    // Crear nuevo marcador fijo (no arrastrable) con icono personalizado
+    const icon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+    
     marker = L.marker([lat, lng], {
-        draggable: false
+        draggable: false,
+        icon: icon
     }).addTo(map);
+    
+    // Agregar popup con información
+    const direccion = $('#pickup_address').val() || 'Ubicación de la Planta';
+    marker.bindPopup(`<strong>Ubicación de la Planta</strong><br>${direccion}`).openPopup();
     
     // Asegurar que el marcador sea visible
     map.setView([lat, lng], map.getZoom());
@@ -639,16 +821,33 @@ function addMarker(lat, lng) {
 
 // Inicializar mapa cuando se abre el modal completamente
 $('#registrarAlmacenajeModal').on('shown.bs.modal', function () {
-    // Limpiar marcador anterior
-    if (marker && map) {
-        map.removeLayer(marker);
+    // Limpiar mapa anterior completamente
+    if (map) {
+        try {
+            map.remove();
+        } catch(e) {
+            console.log('Error removiendo mapa:', e);
+        }
+        map = null;
         marker = null;
     }
     
-    // Esperar a que el modal esté completamente renderizado antes de inicializar el mapa
+    // Esperar a que el modal esté completamente renderizado y visible
+    // Aumentar el delay para asegurar que el contenedor tenga dimensiones correctas
     setTimeout(() => {
-        initMap();
-    }, 300);
+        // Verificar que el contenedor del mapa tenga dimensiones válidas
+        const mapContainer = document.getElementById('map');
+        if (mapContainer && mapContainer.offsetWidth > 0 && mapContainer.offsetHeight > 0) {
+            initMap();
+        } else {
+            // Si aún no tiene dimensiones, esperar un poco más
+            setTimeout(() => {
+                if (mapContainer && mapContainer.offsetWidth > 0 && mapContainer.offsetHeight > 0) {
+                    initMap();
+                }
+            }, 200);
+        }
+    }, 500);
 });
 
 // Redimensionar mapa cuando la ventana cambia de tamaño
@@ -671,11 +870,10 @@ $('#registrarAlmacenajeModal').on('hidden.bs.modal', function () {
         map.removeLayer(marker);
         marker = null;
     }
-    // Limpiar coordenadas
-    $('#pickup_latitude').val('');
-    $('#pickup_longitude').val('');
-    $('#pickup_address').val('');
-    $('#pickup_reference').val('');
+    // Restaurar valores de ubicación de la planta (no limpiarlos)
+    $('#pickup_latitude').val('{{ config('services.planta.latitud', '-17.8146') }}');
+    $('#pickup_longitude').val('{{ config('services.planta.longitud', '-63.1561') }}');
+    $('#pickup_address').val('{{ config('services.planta.direccion', 'Av. Ejemplo 123, Santa Cruz, Bolivia') }}');
 });
 
 let almacenajeDataGlobal = null;
@@ -1226,15 +1424,8 @@ $(document).ready(function() {
         const $btnText = $submitBtn.find('.btn-text');
         const $btnSpinner = $submitBtn.find('.btn-spinner');
         
-        // Validar que se haya seleccionado una ubicación en el mapa
-        const lat = $('#pickup_latitude').val();
-        const lng = $('#pickup_longitude').val();
-        
-        if (!lat || !lng) {
-            e.preventDefault();
-            alert('Por favor, seleccione una ubicación en el mapa haciendo clic en él.');
-            return false;
-        }
+        // Los valores de ubicación siempre están presentes (vienen de la configuración de la planta)
+        // No se requiere validación ya que el mapa es solo de visualización
         
         // Mostrar spinner y deshabilitar botones
         $btnText.hide();
@@ -1259,6 +1450,204 @@ $(document).ready(function() {
         $btnSpinner.hide();
         $submitBtn.prop('disabled', false).removeClass('disabled');
         $cancelBtn.prop('disabled', false).removeClass('disabled');
+    });
+});
+
+// Variables globales para evitar múltiples envíos
+let procesandoAprobacionAlmacenaje = false;
+let procesandoRechazoAlmacenaje = false;
+let urlAprobarActual = null;
+let urlRechazarActual = null;
+let envioIdActual = null;
+
+// Funciones para abrir modales desde almacenaje
+function abrirModalAprobarAlmacenaje(url, envioId) {
+    if (procesandoAprobacionAlmacenaje) {
+        return; // Ya hay una solicitud en proceso
+    }
+    urlAprobarActual = url;
+    envioIdActual = envioId;
+    $('#envioIdAprobarAlmacenaje').text('#' + envioId);
+    $('#aprobarPropuestaAlmacenajeModal').modal('show');
+}
+
+function abrirModalRechazarAlmacenaje(url, envioId) {
+    if (procesandoRechazoAlmacenaje) {
+        return; // Ya hay una solicitud en proceso
+    }
+    urlRechazarActual = url;
+    envioIdActual = envioId;
+    $('#envioIdRechazarAlmacenaje').text('#' + envioId);
+    $('#rechazarPropuestaAlmacenajeModal').modal('show');
+}
+
+// Manejar aprobación desde almacenaje
+$(document).ready(function() {
+    $('#aprobarPropuestaAlmacenajeForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        if (procesandoAprobacionAlmacenaje || !urlAprobarActual) {
+            return false;
+        }
+        
+        procesandoAprobacionAlmacenaje = true;
+        const observaciones = $('#aprobarObservacionesAlmacenaje').val();
+        const btnSubmit = $(this).find('button[type="submit"]');
+        const btnCancel = $(this).closest('.modal').find('button[data-dismiss="modal"]');
+        const originalText = btnSubmit.html();
+        
+        // Deshabilitar todos los botones del modal
+        btnSubmit.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Procesando...');
+        btnCancel.prop('disabled', true);
+        
+        const csrfToken = $('meta[name="csrf-token"]').attr('content');
+        
+        $.ajax({
+            url: urlAprobarActual,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify({
+                accion: 'aprobar',
+                observaciones: observaciones || null
+            }),
+            success: function(response) {
+                if (response.success) {
+                    // Cerrar modal de aprobación
+                    $('#aprobarPropuestaAlmacenajeModal').modal('hide');
+                    
+                    // Deshabilitar botones de aprobar/rechazar en la fila correspondiente
+                    $('button[onclick*="abrirModalAprobarAlmacenaje(\'' + urlAprobarActual + '\'"]').prop('disabled', true).addClass('disabled');
+                    $('button[onclick*="abrirModalRechazarAlmacenaje(\'' + urlRechazarActual + '\'"]').prop('disabled', true).addClass('disabled');
+                    
+                    // Mostrar modal de éxito
+                    $('#mensajeExitoAlmacenajeModal .modal-body p').text(response.message);
+                    $('#mensajeExitoAlmacenajeModal').modal('show');
+                    
+                    // Recargar después de 1.5 segundos
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    procesandoAprobacionAlmacenaje = false;
+                    btnSubmit.prop('disabled', false).html(originalText);
+                    btnCancel.prop('disabled', false);
+                    
+                    // Mostrar modal de error
+                    $('#mensajeErrorAlmacenajeModal .modal-body p').text(response.message || 'Error desconocido');
+                    $('#mensajeErrorAlmacenajeModal').modal('show');
+                }
+            },
+            error: function(xhr) {
+                procesandoAprobacionAlmacenaje = false;
+                btnSubmit.prop('disabled', false).html(originalText);
+                btnCancel.prop('disabled', false);
+                
+                const error = xhr.responseJSON?.message || 'Error al procesar la solicitud';
+                
+                // Mostrar modal de error
+                $('#mensajeErrorAlmacenajeModal .modal-body p').text(error);
+                $('#mensajeErrorAlmacenajeModal').modal('show');
+            }
+        });
+    });
+    
+    // Manejar rechazo desde almacenaje
+    $('#rechazarPropuestaAlmacenajeForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        if (procesandoRechazoAlmacenaje || !urlRechazarActual) {
+            return false;
+        }
+        
+        const observaciones = $('#rechazarObservacionesAlmacenaje').val();
+        
+        if (!observaciones || observaciones.trim() === '') {
+            $('#mensajeAdvertenciaAlmacenajeModal .modal-body p').text('Por favor, ingrese las observaciones del rechazo.');
+            $('#mensajeAdvertenciaAlmacenajeModal').modal('show');
+            return;
+        }
+        
+        procesandoRechazoAlmacenaje = true;
+        const btnSubmit = $(this).find('button[type="submit"]');
+        const btnCancel = $(this).closest('.modal').find('button[data-dismiss="modal"]');
+        const originalText = btnSubmit.html();
+        
+        // Deshabilitar todos los botones del modal
+        btnSubmit.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Procesando...');
+        btnCancel.prop('disabled', true);
+        
+        const csrfToken = $('meta[name="csrf-token"]').attr('content');
+        
+        $.ajax({
+            url: urlRechazarActual,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify({
+                accion: 'rechazar',
+                observaciones: observaciones
+            }),
+            success: function(response) {
+                if (response.success) {
+                    // Cerrar modal de rechazo
+                    $('#rechazarPropuestaAlmacenajeModal').modal('hide');
+                    
+                    // Deshabilitar botones de aprobar/rechazar en la fila correspondiente
+                    $('button[onclick*="abrirModalAprobarAlmacenaje(\'' + urlAprobarActual + '\'"]').prop('disabled', true).addClass('disabled');
+                    $('button[onclick*="abrirModalRechazarAlmacenaje(\'' + urlRechazarActual + '\'"]').prop('disabled', true).addClass('disabled');
+                    
+                    // Mostrar modal de éxito
+                    $('#mensajeExitoAlmacenajeModal .modal-body p').text(response.message);
+                    $('#mensajeExitoAlmacenajeModal').modal('show');
+                    
+                    // Recargar después de 1.5 segundos
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    procesandoRechazoAlmacenaje = false;
+                    btnSubmit.prop('disabled', false).html(originalText);
+                    btnCancel.prop('disabled', false);
+                    
+                    // Mostrar modal de error
+                    $('#mensajeErrorAlmacenajeModal .modal-body p').text(response.message || 'Error desconocido');
+                    $('#mensajeErrorAlmacenajeModal').modal('show');
+                }
+            },
+            error: function(xhr) {
+                procesandoRechazoAlmacenaje = false;
+                btnSubmit.prop('disabled', false).html(originalText);
+                btnCancel.prop('disabled', false);
+                
+                const error = xhr.responseJSON?.message || 'Error al procesar la solicitud';
+                
+                // Mostrar modal de error
+                $('#mensajeErrorAlmacenajeModal .modal-body p').text(error);
+                $('#mensajeErrorAlmacenajeModal').modal('show');
+            }
+        });
+    });
+    
+    // Resetear flags cuando se cierran los modales
+    $('#aprobarPropuestaAlmacenajeModal').on('hidden.bs.modal', function() {
+        procesandoAprobacionAlmacenaje = false;
+        $('#aprobarPropuestaAlmacenajeForm')[0].reset();
+        $(this).find('button[type="submit"]').prop('disabled', false).html('<i class="fas fa-check"></i> Aprobar Propuesta');
+        $(this).find('button[data-dismiss="modal"]').prop('disabled', false);
+    });
+    
+    $('#rechazarPropuestaAlmacenajeModal').on('hidden.bs.modal', function() {
+        procesandoRechazoAlmacenaje = false;
+        $('#rechazarPropuestaAlmacenajeForm')[0].reset();
+        $(this).find('button[type="submit"]').prop('disabled', false).html('<i class="fas fa-times"></i> Rechazar Propuesta');
+        $(this).find('button[data-dismiss="modal"]').prop('disabled', false);
     });
 });
 </script>

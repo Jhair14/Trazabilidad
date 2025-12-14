@@ -73,15 +73,41 @@
                         </div>
                     </div>
                 </div>
+                <div class="row mb-4">
+                    <div class="col-lg-3 col-6">
+                        <div class="small-box bg-secondary">
+                            <div class="inner">
+                                <h3>{{ $stats['almacenados'] ?? 0 }}</h3>
+                                <p>Almacenados</p>
+                            </div>
+                            <div class="icon">
+                                <i class="fas fa-warehouse"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-6">
+                        <div class="small-box bg-danger">
+                            <div class="inner">
+                                <h3>{{ $stats['rechazados'] }}</h3>
+                                <p>Rechazados</p>
+                            </div>
+                            <div class="icon">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Filtros -->
                 <div class="row mb-3">
                     <div class="col-md-3">
                         <select class="form-control" id="filtroEstado">
+                            <option value="pendientes_aprobados_almacenados" {{ (isset($estadoFiltro) && $estadoFiltro == 'pendientes_aprobados_almacenados') ? 'selected' : '' }}>Pendientes, Aprobados y Almacenados</option>
                             <option value="pendientes_aprobados" {{ (isset($estadoFiltro) && $estadoFiltro == 'pendientes_aprobados') ? 'selected' : '' }}>Pendientes y Aprobados</option>
                             <option value="">Todos los estados</option>
                             <option value="pendiente" {{ (isset($estadoFiltro) && $estadoFiltro == 'pendiente') ? 'selected' : '' }}>Pendiente</option>
                             <option value="aprobado" {{ (isset($estadoFiltro) && $estadoFiltro == 'aprobado') ? 'selected' : '' }}>Aprobado</option>
+                            <option value="almacenado" {{ (isset($estadoFiltro) && $estadoFiltro == 'almacenado') ? 'selected' : '' }}>Almacenado</option>
                             <option value="rechazado" {{ (isset($estadoFiltro) && $estadoFiltro == 'rechazado') ? 'selected' : '' }}>Rechazado</option>
                             <option value="en_produccion" {{ (isset($estadoFiltro) && $estadoFiltro == 'en_produccion') ? 'selected' : '' }}>En Producción</option>
                             <option value="completado" {{ (isset($estadoFiltro) && $estadoFiltro == 'completado') ? 'selected' : '' }}>Completado</option>
@@ -131,6 +157,8 @@
                                         <span class="badge badge-warning">Pendiente</span>
                                     @elseif($pedido->estado == 'aprobado')
                                         <span class="badge badge-success">Aprobado</span>
+                                    @elseif($pedido->estado == 'almacenado')
+                                        <span class="badge badge-primary"><i class="fas fa-warehouse"></i> Almacenado</span>
                                     @elseif($pedido->estado == 'rechazado')
                                         <span class="badge badge-danger">Rechazado</span>
                                     @elseif($pedido->estado == 'en_produccion')

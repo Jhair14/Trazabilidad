@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\RawMaterialController;
 use App\Http\Controllers\Api\RawMaterialBaseController;
 use App\Http\Controllers\Api\MaterialMovementLogController;
 use App\Http\Controllers\Api\UnitOfMeasureController;
+use App\Http\Controllers\Api\AlmacenController;
 
 // Public routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -64,6 +65,15 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/{orderId}/product/{productId}/approve', [\App\Http\Controllers\Api\OrderApprovalController::class, 'approveProduct']);
         Route::post('/{orderId}/product/{productId}/reject', [\App\Http\Controllers\Api\OrderApprovalController::class, 'rejectProduct']);
     });
+
+    // Almacenes Routes (sincronizados desde plantaCruds)
+    Route::prefix('almacenes')->group(function () {
+        Route::get('/', [AlmacenController::class, 'index']);
+        Route::get('/planta', [AlmacenController::class, 'planta']);
+        Route::get('/destinos', [AlmacenController::class, 'destinos']);
+        Route::get('/nearest', [AlmacenController::class, 'nearest']);
+        Route::post('/clear-cache', [AlmacenController::class, 'clearCache']);
+    });
           
     Route::apiResource('production-batches', ProductionBatchController::class);
     Route::apiResource('batch-raw-materials', \App\Http\Controllers\Api\BatchRawMaterialController::class);
@@ -109,6 +119,27 @@ Route::middleware('auth:api')->group(function () {
     // Image Upload
     Route::post('/upload', [\App\Http\Controllers\Web\ImageUploadController::class, 'upload']);
 });
+
+// Rutas públicas (sin autenticación) para integración con sistema-almacen-PSIII
+Route::post('/pedidos-almacen', [\App\Http\Controllers\Api\AlmacenPedidoController::class, 'store'])
+    ->name('api.pedidos-almacen');
+
+// Ruta pública (sin autenticación) para recibir documentos de entrega desde plantaCruds
+Route::post('/pedidos/{pedido}/documentos-entrega', [\App\Http\Controllers\Api\PedidoDocumentosController::class, 'recibirDocumentos'])
+    ->name('api.pedidos.documentos-entrega');
+
+// Ruta pública para buscar pedido por envio_id (para integración con plantaCruds)
+Route::get('/pedidos/by-envio/{envioId}', [\App\Http\Controllers\Api\CustomerOrderController::class, 'getByEnvioId'])
+    ->name('api.pedidos.by-envio');
+
+// Ruta pública para obtener información completa de todos los pedidos (sin autenticación)
+// Incluye toda la información: pedido, cliente, productos, destinos, montos, etc.
+Route::get('/pedidos/completo', [\App\Http\Controllers\Api\CustomerOrderController::class, 'getAllCompleteOrders'])
+    ->name('api.pedidos.completo.all');
+
+// Ruta pública para obtener información completa de un pedido específico (sin autenticación)
+Route::get('/pedidos/{id}/completo', [\App\Http\Controllers\Api\CustomerOrderController::class, 'getCompleteOrder'])
+    ->name('api.pedidos.completo');
 
 // Legacy routes (keeping for compatibility)
 // Comentado para evitar conflicto con rutas web

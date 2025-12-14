@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use App\Services\AlmacenSyncService;
 
 class PedidosController extends Controller
 {
@@ -21,59 +22,17 @@ class PedidosController extends Controller
     {
         $user = Auth::user();
 
-        // Buscar customer relacionado con el operador
-        $customerId = $user->cliente_id ?? null;
-        $customer = null;
-
-        if (!$customerId) {
-            // Buscar por email
-            $customer = Customer::where('email', $user->email)->first();
-            $customerId = $customer ? $customer->cliente_id : null;
+        // Verificar si el usuario es admin (tiene permiso de gestionar pedidos o tiene rol admin/administrador)
+        $esAdmin = false;
+        if ($user) {
+            $esAdmin = $user->hasPermissionTo('gestionar pedidos') || 
+                       $user->hasRole('admin') || 
+                       $user->hasRole('administrador');
         }
 
-        // Si no se encontró un cliente, crear uno automáticamente para este usuario
-        if (!$customerId) {
-            try {
-                // Sincronizar secuencia de customer si es necesario
-                $maxCustomerId = Customer::max('cliente_id') ?? 0;
-                try {
-                    $seqResult = DB::selectOne("SELECT last_value FROM cliente_seq");
-                    $seqValue = $seqResult->last_value ?? 0;
-                } catch (\Exception $e) {
-                    $seqValue = 0;
-                }
-
-                if ($seqValue < $maxCustomerId) {
-                    DB::statement("SELECT setval('cliente_seq', $maxCustomerId, true)");
-                }
-
-                // Obtener el siguiente ID de la secuencia
-                $nextId = DB::selectOne("SELECT nextval('cliente_seq') as id")->id;
-
-                // Crear un Customer automáticamente para este operador
-                $customer = Customer::create([
-                    'cliente_id' => $nextId,
-                    'razon_social' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
-                    'nombre_comercial' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
-                    'email' => $user->email ?? null,
-                    'contacto' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: $user->usuario,
-                    'activo' => true,
-                ]);
-
-                $customerId = $customer->cliente_id;
-            } catch (\Exception $e) {
-                // Si falla, usar el primer cliente activo como fallback
-                $customer = Customer::where('activo', true)->first();
-                $customerId = $customer ? $customer->cliente_id : null;
-            }
-        }
-
-        // Si aún no hay customerId, mostrar pedidos vacíos
-        if (!$customerId) {
-            $pedidos = CustomerOrder::whereRaw('1 = 0')->paginate(15);
-        } else {
-            $pedidos = CustomerOrder::where('cliente_id', $customerId)
-                ->with([
+        // Si es admin, mostrar todos los pedidos
+        if ($esAdmin) {
+            $pedidos = CustomerOrder::with([
                     'customer', 
                     'orderProducts.product', 
                     'batches.latestFinalEvaluation',
@@ -89,6 +48,77 @@ class PedidosController extends Controller
                 $pedido->estado_real = $estadoReal;
                 return $pedido;
             });
+        } else {
+            // Para usuarios no admin, mantener la lógica original
+            // Buscar customer relacionado con el operador
+            $customerId = $user->cliente_id ?? null;
+            $customer = null;
+
+            if (!$customerId) {
+                // Buscar por email
+                $customer = Customer::where('email', $user->email)->first();
+                $customerId = $customer ? $customer->cliente_id : null;
+            }
+
+            // Si no se encontró un cliente, crear uno automáticamente para este usuario
+            if (!$customerId) {
+                try {
+                    // Sincronizar secuencia de customer si es necesario
+                    $maxCustomerId = Customer::max('cliente_id') ?? 0;
+                    try {
+                        $seqResult = DB::selectOne("SELECT last_value FROM cliente_seq");
+                        $seqValue = $seqResult->last_value ?? 0;
+                    } catch (\Exception $e) {
+                        $seqValue = 0;
+                    }
+
+                    if ($seqValue < $maxCustomerId) {
+                        DB::statement("SELECT setval('cliente_seq', $maxCustomerId, true)");
+                    }
+
+                    // Obtener el siguiente ID de la secuencia
+                    $nextId = DB::selectOne("SELECT nextval('cliente_seq') as id")->id;
+
+                    // Crear un Customer automáticamente para este operador
+                    $customer = Customer::create([
+                        'cliente_id' => $nextId,
+                        'razon_social' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
+                        'nombre_comercial' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: 'Cliente ' . $user->usuario,
+                        'email' => $user->email ?? null,
+                        'contacto' => trim(($user->nombre ?? '') . ' ' . ($user->apellido ?? '')) ?: $user->usuario,
+                        'activo' => true,
+                    ]);
+
+                    $customerId = $customer->cliente_id;
+                } catch (\Exception $e) {
+                    // Si falla, usar el primer cliente activo como fallback
+                    $customer = Customer::where('activo', true)->first();
+                    $customerId = $customer ? $customer->cliente_id : null;
+                }
+            }
+
+            // Si aún no hay customerId, mostrar pedidos vacíos
+            if (!$customerId) {
+                $pedidos = CustomerOrder::whereRaw('1 = 0')->paginate(15);
+            } else {
+                $pedidos = CustomerOrder::where('cliente_id', $customerId)
+                    ->with([
+                        'customer', 
+                        'orderProducts.product', 
+                        'batches.latestFinalEvaluation',
+                        'batches.processMachineRecords',
+                        'batches.storage'
+                    ])
+                    ->orderBy('fecha_creacion', 'desc')
+                    ->paginate(15);
+                
+                // Calcular estado real para cada pedido basándose en sus lotes
+                $pedidos->getCollection()->transform(function($pedido) {
+                    $estadoReal = $this->calcularEstadoRealPedido($pedido);
+                    $pedido->estado_real = $estadoReal;
+                    return $pedido;
+                });
+            }
         }
 
         // Calcular estadísticas basadas en el estado real
@@ -110,25 +140,41 @@ class PedidosController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        // Obtener almacenes destino desde plantaCruds
-        $almacenesDestino = [];
-
-        try {
+        // Obtener almacenes destino desde plantaCruds usando el servicio
+        $almacenSyncService = new AlmacenSyncService();
+        
+        // Limpiar cache primero para asegurar datos frescos
+        $almacenSyncService->clearCache();
+        
+        $almacenesDestino = $almacenSyncService->getDestinoAlmacenes();
+        
+        // Si no hay almacenes, loggear el error para debugging
+        if (empty($almacenesDestino)) {
             $apiUrl = env('PLANTACRUDS_API_URL', 'http://localhost:8001/api');
-            $resp = Http::timeout(5)->get("{$apiUrl}/almacenes");
-            if ($resp->successful()) {
-                $almacenes = $resp->json('data', []);
-                foreach ($almacenes as $alm) {
-                    // Solo almacenes destino (no plantas)
-                    if (empty($alm['es_planta']) || !$alm['es_planta']) {
-                        $almacenesDestino[] = $alm;
-                    }
-                }
+            \Log::warning('No se pudieron obtener almacenes destino desde plantaCruds', [
+                'api_url' => $apiUrl,
+                'count' => 0,
+                'full_url' => rtrim($apiUrl, '/') . '/almacenes'
+            ]);
+            
+            // Intentar una vez más sin cache
+            try {
+                $almacenesDestino = $almacenSyncService->getAlmacenes(true);
+                $almacenesDestino = array_filter($almacenesDestino, function($alm) {
+                    return !($alm['es_planta'] ?? false);
+                });
+                $almacenesDestino = array_values($almacenesDestino); // Reindexar
+            } catch (\Exception $e) {
+                \Log::error('Error al obtener almacenes en segundo intento', [
+                    'error' => $e->getMessage()
+                ]);
             }
-        } catch (\Exception $e) {
-            \Log::warning('No se pudieron obtener almacenes de plantaCruds: ' . $e->getMessage());
+        } else {
+            \Log::info('Almacenes destino obtenidos exitosamente', [
+                'count' => count($almacenesDestino)
+            ]);
         }
-
+        
         return view('crear-pedido', compact('products', 'almacenesDestino'));
     }
 
@@ -427,7 +473,14 @@ class PedidosController extends Controller
     public function show($id)
     {
         $user = Auth::user();
-        $customerId = $this->getOrCreateCustomerId($user);
+        
+        // Verificar si el usuario es admin
+        $esAdmin = false;
+        if ($user) {
+            $esAdmin = $user->hasPermissionTo('gestionar pedidos') || 
+                       $user->hasRole('admin') || 
+                       $user->hasRole('administrador');
+        }
 
         $pedido = CustomerOrder::with([
             'customer',
@@ -437,44 +490,72 @@ class PedidosController extends Controller
             'batches'
         ])->findOrFail($id);
 
-        // Verificar que el pedido pertenece al cliente del usuario
-        if ($pedido->cliente_id != $customerId) {
-            abort(403, 'No tienes permiso para ver este pedido');
+        // Si no es admin, verificar que el pedido pertenece al cliente del usuario
+        if (!$esAdmin) {
+            $customerId = $this->getOrCreateCustomerId($user);
+            if ($pedido->cliente_id != $customerId) {
+                abort(403, 'No tienes permiso para ver este pedido');
+            }
         }
 
         // Si es una petición AJAX, devolver JSON
         if (request()->ajax() || request()->wantsJson()) {
+            // Obtener nombre del almacén si el pedido viene del sistema de almacenes
+            $almacenNombre = null;
+            if ($pedido->origen_sistema === 'almacen' && $pedido->pedido_almacen_id) {
+                // Intentar obtener el nombre del almacén desde sistema-almacen-PSIII
+                try {
+                    $almacenApiUrl = env('ALMACEN_API_URL', 'http://localhost:8002/api');
+                    $response = Http::timeout(5)->get("{$almacenApiUrl}/almacenes/{$pedido->pedido_almacen_id}");
+                    if ($response->successful()) {
+                        $almacenData = $response->json('data', []);
+                        $almacenNombre = $almacenData['nombre'] ?? null;
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('No se pudo obtener nombre del almacén: ' . $e->getMessage());
+                }
+                
+                // Si no se pudo obtener, intentar desde el primer destino
+                if (!$almacenNombre && $pedido->destinations->isNotEmpty()) {
+                    $firstDest = $pedido->destinations->first();
+                    // Extraer nombre del almacén desde las instrucciones de entrega
+                    if ($firstDest->instrucciones_entrega) {
+                        if (preg_match('/Entrega en almacén:\s*(.+)/i', $firstDest->instrucciones_entrega, $matches)) {
+                            $almacenNombre = trim($matches[1]);
+                        }
+                    }
+                    // Si no, usar la dirección como nombre
+                    if (!$almacenNombre) {
+                        $almacenNombre = $firstDest->direccion;
+                    }
+                }
+            }
+            
             return response()->json([
                 'order_id' => $pedido->pedido_id,
-                'order_number' => $pedido->numero_pedido,
-                'name' => $pedido->nombre,
-                'description' => $pedido->descripcion,
+                'order_number' => $pedido->numero_pedido ?? 'PED-' . $pedido->pedido_id,
+                'name' => $pedido->nombre ?? 'Sin nombre',
+                'description' => $pedido->descripcion ?? 'Sin descripción',
                 'status' => $pedido->estado,
-                'creation_date' => $pedido->fecha_creacion->format('Y-m-d'),
-                'delivery_date' => $pedido->fecha_entrega ? $pedido->fecha_entrega->format('Y-m-d') : null,
+                'creation_date' => $pedido->fecha_creacion ? $pedido->fecha_creacion->format('d/m/Y') : 'N/A',
+                'delivery_date' => $pedido->fecha_entrega ? $pedido->fecha_entrega->format('d/m/Y') : null,
                 'observations' => $pedido->observaciones,
                 'editable_until' => $pedido->editable_hasta ? $pedido->editable_hasta->format('Y-m-d H:i:s') : null,
                 'approved_at' => $pedido->aprobado_en ? $pedido->aprobado_en->format('Y-m-d H:i:s') : null,
                 'can_be_edited' => $pedido->canBeEdited(),
-                'orderProducts' => $pedido->orderProducts->map(function ($op) {
+                'almacen_nombre' => $almacenNombre, // Nombre del almacén si viene del sistema de almacenes
+                'products' => $pedido->orderProducts->map(function ($op) {
                     return [
                         'order_product_id' => $op->producto_pedido_id,
                         'product_id' => $op->producto_id,
-                        'quantity' => $op->cantidad,
+                        'product_name' => $op->product->nombre ?? 'Producto sin nombre',
+                        'quantity' => number_format($op->cantidad, 2),
+                        'unit' => $op->product->unit->codigo ?? $op->product->unit->nombre ?? 'N/A',
                         'status' => $op->estado,
                         'observations' => $op->observaciones,
                         'rejection_reason' => $op->razon_rechazo,
-                        'product' => [
-                            'product_id' => $op->product->producto_id,
-                            'name' => $op->product->nombre ?? 'N/A',
-                            'code' => $op->product->codigo ?? 'N/A',
-                            'unit' => [
-                                'name' => $op->product->unit->nombre ?? 'N/A',
-                                'abbreviation' => $op->product->unit->codigo ?? 'N/A',
-                            ]
-                        ]
                     ];
-                }),
+                })->toArray(),
                 'destinations' => $pedido->destinations->map(function ($dest) {
                     return [
                         'address' => $dest->direccion,
@@ -483,7 +564,7 @@ class PedidosController extends Controller
                         'contact_phone' => $dest->telefono_contacto,
                         'delivery_instructions' => $dest->instrucciones_entrega,
                     ];
-                }),
+                })->toArray(),
             ]);
         }
 

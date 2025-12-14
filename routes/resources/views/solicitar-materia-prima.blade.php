@@ -121,32 +121,43 @@
                         <tbody>
                             @forelse($solicitudes as $solicitud)
                             <tr>
-                                <td>#{{ $solicitud->numero_solicitud ?? $solicitud->solicitud_id }}</td>
-                                <td>{{ $solicitud->order->customer->razon_social ?? 'N/A' }}</td>
+                                <td>#{{ $solicitud->solicitud_id }}</td>
+                                <td>{{ $solicitud->order && $solicitud->order->customer ? $solicitud->order->customer->razon_social : ($solicitud->order ? 'N/A' : 'Sin pedido') }}</td>
                                 <td>
-                                    @foreach($solicitud->details as $detail)
-                                        {{ $detail->material->nombre ?? 'N/A' }}<br>
-                                    @endforeach
+                                    @if($solicitud->details && $solicitud->details->count() > 0)
+                                        @foreach($solicitud->details as $detail)
+                                            {{ $detail->material ? $detail->material->nombre : 'N/A' }}<br>
+                                        @endforeach
+                                    @else
+                                        <span class="text-muted">Sin detalles</span>
+                                    @endif
                                 </td>
                                 <td>
-                                    @foreach($solicitud->details as $detail)
-                                        {{ number_format($detail->cantidad_solicitada, 2) }} {{ $detail->material->unit->codigo ?? '' }}<br>
-                                    @endforeach
+                                    @if($solicitud->details && $solicitud->details->count() > 0)
+                                        @foreach($solicitud->details as $detail)
+                                            {{ number_format($detail->cantidad_solicitada ?? 0, 2) }} {{ $detail->material && $detail->material->unit ? $detail->material->unit->codigo : '' }}<br>
+                                        @endforeach
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
                                 </td>
                                 <td>
                                     @php
                                         // Verificar si la solicitud está completada basándose en si todos los detalles tienen cantidad aprobada
-                                        $completada = $solicitud->details->every(function($detail) {
-                                            return $detail->cantidad_aprobada > 0;
-                                        });
+                                        $completada = false;
+                                        if ($solicitud->details && $solicitud->details->count() > 0) {
+                                            $completada = $solicitud->details->every(function($detail) {
+                                                return ($detail->cantidad_aprobada ?? 0) >= ($detail->cantidad_solicitada ?? 0) && ($detail->cantidad_solicitada ?? 0) > 0;
+                                            });
+                                        }
                                     @endphp
-                                    @if($completada)
+                                    @if($completada && $solicitud->details && $solicitud->details->count() > 0)
                                         <span class="badge badge-success">Completada</span>
                                     @else
                                         <span class="badge badge-warning">Pendiente</span>
                                     @endif
                                 </td>
-                                <td>{{ \Carbon\Carbon::parse($solicitud->fecha_solicitud)->format('Y-m-d') }}</td>
+                                <td>{{ $solicitud->fecha_solicitud ? \Carbon\Carbon::parse($solicitud->fecha_solicitud)->format('Y-m-d') : 'N/A' }}</td>
                                 <td>{{ $solicitud->fecha_requerida ? \Carbon\Carbon::parse($solicitud->fecha_requerida)->format('Y-m-d') : 'N/A' }}</td>
                                 <td>
                                     <button class="btn btn-info btn-sm" title="Ver">
@@ -209,11 +220,11 @@
                             Pedido Asociado <span class="text-danger">*</span>
                         </label>
                         <select class="form-control @error('pedido_id') is-invalid @enderror" 
-                                id="pedido_id" name="pedido_id" required>
+                                id="pedido_id" name="pedido_id" required onchange="cargarMateriasPrimasDelPedido(this.value)">
                             <option value="">Seleccionar pedido...</option>
                             @foreach($pedidos as $pedido)
                                 <option value="{{ $pedido->pedido_id }}" {{ old('pedido_id') == $pedido->pedido_id ? 'selected' : '' }}>
-                                    {{ $pedido->nombre ?? 'Sin nombre' }} - {{ $pedido->customer->razon_social ?? 'N/A' }}
+                                    {{ $pedido->numero_pedido ?? $pedido->pedido_id }} - {{ $pedido->nombre ?? 'Sin nombre' }} - {{ $pedido->customer->razon_social ?? 'N/A' }}
                                 </option>
                             @endforeach
                         </select>
@@ -221,6 +232,12 @@
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                         <small class="form-text text-muted">Seleccione el pedido al que pertenece esta solicitud</small>
+                    </div>
+                    
+                    <!-- Recordatorio del Pedido -->
+                    <div id="recordatorioPedido" class="alert alert-info" style="display: none;">
+                        <h6 class="mb-2"><i class="fas fa-info-circle mr-2"></i><strong>Recordatorio del Pedido:</strong></h6>
+                        <div id="recordatorioContenido"></div>
                     </div>
                     
                     <!-- Fecha -->
@@ -325,6 +342,206 @@
 <script>
 let materialIndex = 1;
 const materiasPrimas = @json($materias_primas_json ?? []);
+let pedidoMateriasPrimasData = {}; // Almacenar datos de materias primas del pedido
+
+// Función para cargar materias primas del pedido seleccionado
+function cargarMateriasPrimasDelPedido(pedidoId) {
+    if (!pedidoId) {
+        // Si no hay pedido seleccionado, limpiar la tabla
+        limpiarTablaMateriasPrimas();
+        ocultarRecordatorio();
+        return;
+    }
+    
+    // Mostrar indicador de carga
+    const table = document.getElementById('materialsTable');
+    table.innerHTML = '<tr><td colspan="3" class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando información del pedido...</td></tr>';
+    
+    // Hacer petición AJAX
+    fetch(`{{ url('solicitar-materia-prima/pedido') }}/${pedidoId}/materias-primas`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Almacenar datos de materias primas del pedido para uso posterior
+            pedidoMateriasPrimasData = {};
+            if (data.materias_primas && data.materias_primas.length > 0) {
+                data.materias_primas.forEach(function(mp) {
+                    pedidoMateriasPrimasData[mp.material_id] = mp;
+                });
+            }
+            
+            // Mostrar recordatorio del pedido
+            mostrarRecordatorioPedido(data.pedido, data.materias_primas || []);
+            
+            // Actualizar fecha requerida si viene del pedido
+            if (data.pedido && data.pedido.fecha_entrega) {
+                const fechaInput = document.getElementById('fecha_requerida');
+                if (fechaInput && !fechaInput.value) {
+                    fechaInput.value = data.pedido.fecha_entrega;
+                }
+            }
+            
+            if (data.materias_primas && data.materias_primas.length > 0) {
+                // Limpiar tabla
+                table.innerHTML = '';
+                materialIndex = 0;
+                
+                // Agregar cada materia prima necesaria
+                data.materias_primas.forEach(function(mp) {
+                    addMaterialWithData(mp);
+                });
+            } else {
+                // No hay materias primas necesarias o no se encontraron - mostrar fila vacía
+                table.innerHTML = `
+                    <tr>
+                        <td>
+                            <select class="form-control form-control-sm" name="materials[0][material_id]" required>
+                                <option value="">Seleccionar materia prima...</option>
+                                @foreach($materias_primas as $mp)
+                                    <option value="{{ $mp->material_id }}">
+                                        {{ $mp->nombre }} ({{ $mp->unit->codigo ?? 'N/A' }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </td>
+                        <td>
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control" 
+                                       name="materials[0][cantidad_solicitada]" 
+                                       placeholder="0.00" step="0.01" min="0" required>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="removeMaterial(this)" title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                materialIndex = 1;
+            }
+        } else {
+            ocultarRecordatorio();
+            table.innerHTML = `
+                <tr>
+                    <td colspan="3" class="text-center">
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            Error al cargar información del pedido.
+                        </div>
+                    </td>
+                </tr>
+            `;
+            materialIndex = 1;
+        }
+    })
+    .catch(error => {
+        console.error('Error al cargar materias primas:', error);
+        ocultarRecordatorio();
+        table.innerHTML = `
+            <tr>
+                <td colspan="3" class="text-center">
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        Error al cargar materias primas. Puede agregarlas manualmente.
+                    </div>
+                </td>
+            </tr>
+        `;
+        materialIndex = 1;
+    });
+}
+
+// Función para agregar una materia prima con datos predefinidos
+function addMaterialWithData(mpData) {
+    const table = document.getElementById('materialsTable');
+    const row = table.insertRow();
+    
+    let optionsHtml = '<option value="">Seleccionar materia prima...</option>';
+    materiasPrimas.forEach(function(mp) {
+        const selected = mp.material_id == mpData.material_id ? 'selected' : '';
+        optionsHtml += `<option value="${mp.material_id}" ${selected}>${mp.nombre} (${mp.unit ? mp.unit.codigo : 'N/A'})</option>`;
+    });
+    
+    // Usar la cantidad mínima a solicitar como valor por defecto
+    const cantidadDefault = mpData.cantidad_minima_solicitar > 0 ? mpData.cantidad_minima_solicitar : mpData.cantidad_requerida;
+    
+    const rowIndex = materialIndex;
+    row.innerHTML = `
+        <td>
+            <select class="form-control form-control-sm" name="materials[${rowIndex}][material_id]" required onchange="mostrarCantidadNecesaria(this, ${rowIndex})">
+                ${optionsHtml}
+            </select>
+            <small class="text-muted d-block mt-1" id="cantidadNecesaria_${rowIndex}">
+                <i class="fas fa-info-circle text-info"></i> 
+                <strong>Recordatorio:</strong> Para este pedido necesitas <strong>${mpData.cantidad_requerida.toFixed(2)} ${mpData.unidad.codigo}</strong> de esta materia prima
+            </small>
+        </td>
+        <td>
+            <div class="input-group input-group-sm">
+                <input type="number" class="form-control" 
+                       name="materials[${rowIndex}][cantidad_solicitada]" 
+                       value="${cantidadDefault.toFixed(2)}"
+                       placeholder="0.00" step="0.01" min="0" required>
+            </div>
+            <small class="text-muted d-block mt-1">
+                <i class="fas fa-info-circle text-info"></i> 
+                <strong>Recordatorio:</strong> Disponible: ${mpData.cantidad_disponible.toFixed(2)} ${mpData.unidad.codigo}, 
+                Mínimo sugerido: ${mpData.cantidad_minima_solicitar.toFixed(2)} ${mpData.unidad.codigo}
+            </small>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeMaterial(this)" title="Eliminar">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+    materialIndex++;
+}
+
+// Función para limpiar la tabla de materias primas
+function limpiarTablaMateriasPrimas() {
+    const table = document.getElementById('materialsTable');
+    table.innerHTML = `
+        <tr>
+            <td>
+                <select class="form-control form-control-sm" name="materials[0][material_id]" required onchange="mostrarCantidadNecesaria(this, 0)">
+                    <option value="">Seleccionar materia prima...</option>
+                    @foreach($materias_primas as $mp)
+                        <option value="{{ $mp->material_id }}">
+                            {{ $mp->nombre }} ({{ $mp->unit->codigo ?? 'N/A' }})
+                        </option>
+                    @endforeach
+                </select>
+                <small class="text-muted d-block mt-1" id="cantidadNecesaria_0" style="display: none;">
+                    <i class="fas fa-info-circle text-info"></i> 
+                    <strong>Recordatorio:</strong> <span id="cantidadTexto_0"></span>
+                </small>
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" 
+                           name="materials[0][cantidad_solicitada]" 
+                           placeholder="0.00" step="0.01" min="0" required>
+                </div>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeMaterial(this)" title="Eliminar">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+    materialIndex = 1;
+    
+    // Ocultar recordatorio
+    ocultarRecordatorio();
+}
 
 function addMaterial() {
     const table = document.getElementById('materialsTable');
@@ -335,16 +552,21 @@ function addMaterial() {
         optionsHtml += `<option value="${mp.material_id}">${mp.nombre} (${mp.unit ? mp.unit.codigo : 'N/A'})</option>`;
     });
     
+    const rowIndex = materialIndex;
     row.innerHTML = `
         <td>
-            <select class="form-control form-control-sm" name="materials[${materialIndex}][material_id]" required>
+            <select class="form-control form-control-sm" name="materials[${rowIndex}][material_id]" required onchange="mostrarCantidadNecesaria(this, ${rowIndex})">
                 ${optionsHtml}
             </select>
+            <small class="text-muted d-block mt-1" id="cantidadNecesaria_${rowIndex}" style="display: none;">
+                <i class="fas fa-info-circle text-info"></i> 
+                <strong>Recordatorio:</strong> <span id="cantidadTexto_${rowIndex}"></span>
+            </small>
         </td>
         <td>
             <div class="input-group input-group-sm">
                 <input type="number" class="form-control" 
-                       name="materials[${materialIndex}][cantidad_solicitada]" 
+                       name="materials[${rowIndex}][cantidad_solicitada]" 
                        placeholder="0.00" step="0.01" min="0" required>
             </div>
         </td>
@@ -355,6 +577,21 @@ function addMaterial() {
         </td>
     `;
     materialIndex++;
+}
+
+// Función para mostrar la cantidad necesaria cuando se selecciona una materia prima
+function mostrarCantidadNecesaria(selectElement, rowIndex) {
+    const materialId = selectElement.value;
+    const cantidadNecesariaDiv = document.getElementById(`cantidadNecesaria_${rowIndex}`);
+    const cantidadTexto = document.getElementById(`cantidadTexto_${rowIndex}`);
+    
+    if (materialId && pedidoMateriasPrimasData[materialId]) {
+        const mpData = pedidoMateriasPrimasData[materialId];
+        cantidadTexto.textContent = `Para este pedido necesitas ${mpData.cantidad_requerida.toFixed(2)} ${mpData.unidad.codigo} de esta materia prima`;
+        cantidadNecesariaDiv.style.display = 'block';
+    } else {
+        cantidadNecesariaDiv.style.display = 'none';
+    }
 }
 
 function removeMaterial(button) {
@@ -417,6 +654,91 @@ document.getElementById('crearSolicitudForm').addEventListener('submit', functio
         e.preventDefault();
         alert('Por favor, agregue al menos una materia prima con cantidad válida');
         return false;
+    }
+});
+
+// Función para mostrar el recordatorio del pedido
+function mostrarRecordatorioPedido(pedido, materiasPrimas) {
+    const recordatorioDiv = document.getElementById('recordatorioPedido');
+    const contenidoDiv = document.getElementById('recordatorioContenido');
+    
+    if (!recordatorioDiv || !contenidoDiv) return;
+    
+    let html = `
+        <div class="row">
+            <div class="col-md-12 mb-2">
+                <strong>Pedido:</strong> ${pedido.numero_pedido} - ${pedido.nombre || 'Sin nombre'}
+            </div>
+    `;
+    
+    if (pedido.fecha_entrega_formatted) {
+        html += `
+            <div class="col-md-12 mb-2">
+                <i class="fas fa-calendar-alt text-warning"></i> 
+                <strong>Fecha requerida por el almacén:</strong> 
+                <span class="badge badge-warning badge-lg">${pedido.fecha_entrega_formatted}</span>
+            </div>
+        `;
+    }
+    
+    if (materiasPrimas && materiasPrimas.length > 0) {
+        html += `
+            <div class="col-md-12">
+                <strong class="d-block mb-2"><i class="fas fa-boxes"></i> Cantidades mínimas necesarias de materias primas:</strong>
+                <ul class="mb-0">
+        `;
+        
+        materiasPrimas.forEach(function(mp) {
+            html += `
+                <li class="mb-1">
+                    <strong>${mp.nombre}</strong>: 
+                    <span class="badge badge-warning badge-lg">${mp.cantidad_requerida.toFixed(2)} ${mp.unidad.codigo}</span>
+                    ${mp.cantidad_disponible > 0 ? `<small class="text-muted">(Disponible: ${mp.cantidad_disponible.toFixed(2)} ${mp.unidad.codigo})</small>` : ''}
+                </li>
+            `;
+        });
+        
+        html += `
+                </ul>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="col-md-12">
+                <small class="text-muted">No se encontraron materias primas relacionadas con este pedido.</small>
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
+    
+    contenidoDiv.innerHTML = html;
+    recordatorioDiv.style.display = 'block';
+}
+
+// Función para ocultar el recordatorio
+function ocultarRecordatorio() {
+    const recordatorioDiv = document.getElementById('recordatorioPedido');
+    if (recordatorioDiv) {
+        recordatorioDiv.style.display = 'none';
+    }
+}
+
+// Si hay un pedido preseleccionado (por old), cargar sus materias primas
+@if(old('pedido_id'))
+    document.addEventListener('DOMContentLoaded', function() {
+        const pedidoSelect = document.getElementById('pedido_id');
+        if (pedidoSelect && pedidoSelect.value) {
+            cargarMateriasPrimasDelPedido(pedidoSelect.value);
+        }
+    });
+@endif
+
+// También cargar si el modal se abre con un pedido ya seleccionado
+$('#crearSolicitudModal').on('shown.bs.modal', function() {
+    const pedidoSelect = document.getElementById('pedido_id');
+    if (pedidoSelect && pedidoSelect.value) {
+        cargarMateriasPrimasDelPedido(pedidoSelect.value);
     }
 });
 </script>

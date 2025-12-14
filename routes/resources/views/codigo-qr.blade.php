@@ -23,7 +23,7 @@
                         Código QR del Certificado
                     </h2>
                     <p class="text-sm text-gray-500 mb-4">
-                        Escanea este código para ver el certificado del lote #{{ $lote->batch_id }}
+                        Escanea este código para ver el certificado del lote #{{ $lote->lote_id }}
                     </p>
                     <div id="qrCode" style="min-height: 256px; display: flex; align-items: center; justify-content: center; margin: 20px auto;">
                         <div class="spinner-border text-primary" role="status">
@@ -42,7 +42,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // URL pública del certificado (accesible desde QR sin autenticación)
-    const url = window.location.origin + '/certificado-publico/{{ $lote->batch_id }}';
+    const url = window.location.origin + '/certificado-publico/{{ $lote->lote_id }}';
     const urlElement = document.getElementById('urlCertificado');
     const qrContainer = document.getElementById('qrCode');
     

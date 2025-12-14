@@ -303,15 +303,52 @@ let isSubmitting = false;
 // Datos de almacenes destino desde PlantaCruds
 const almacenesDestino = @json($almacenesDestino ?? []);
 
+// Debug: mostrar en consola si hay almacenes
+console.log('Almacenes destino cargados:', almacenesDestino);
+if (almacenesDestino.length === 0) {
+    console.warn('⚠️ No se encontraron almacenes destino. Verifique la conexión con plantaCruds.');
+    // Mostrar alerta visual al usuario
+    setTimeout(() => {
+        const alertHtml = `
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <h5><i class="fas fa-exclamation-triangle"></i> Almacenes no disponibles</h5>
+                <p class="mb-0">
+                    No se pudieron cargar los almacenes desde plantaCruds. 
+                    Por favor, verifique que:
+                </p>
+                <ul class="mb-0 mt-2">
+                    <li>El servidor de plantaCruds esté corriendo</li>
+                    <li>La variable <code>PLANTACRUDS_API_URL</code> esté configurada correctamente en el archivo .env</li>
+                    <li>El endpoint <code>/api/almacenes</code> esté disponible</li>
+                </ul>
+                <p class="mt-2 mb-0">
+                    <small>Puede continuar creando el pedido, pero deberá ingresar la dirección manualmente.</small>
+                </p>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        `;
+        const destinationsContainer = document.getElementById('destinationsContainer');
+        if (destinationsContainer && destinationsContainer.parentElement) {
+            destinationsContainer.parentElement.insertAdjacentHTML('afterbegin', alertHtml);
+        }
+    }, 500);
+}
+
 // Generar opciones HTML para el selector de almacenes
 let almacenesDestinoOptions = '';
-almacenesDestino.forEach(alm => {
-    const nombre = alm.nombre || alm.nombre_comercial || 'Almacén ' + alm.id;
-    const direccion = alm.direccion_completa || alm.direccion || '';
-    const lat = alm.latitud || '';
-    const lng = alm.longitud || '';
-    almacenesDestinoOptions += `<option value="${alm.id}" data-direccion="${direccion}" data-lat="${lat}" data-lng="${lng}">📦 ${nombre}</option>`;
-});
+if (almacenesDestino && almacenesDestino.length > 0) {
+    almacenesDestino.forEach(alm => {
+        const nombre = alm.nombre || alm.nombre_comercial || 'Almacén ' + alm.id;
+        const direccion = alm.direccion_completa || alm.direccion || '';
+        const lat = alm.latitud || '';
+        const lng = alm.longitud || '';
+        almacenesDestinoOptions += `<option value="${alm.id}" data-direccion="${direccion}" data-lat="${lat}" data-lng="${lng}">📦 ${nombre}</option>`;
+    });
+} else {
+    almacenesDestinoOptions = '<option value="" disabled>No hay almacenes disponibles</option>';
+}
 
 // Función para actualizar dirección cuando se selecciona un almacén
 function updateDestinationFromAlmacen(destIndex, selectElement) {
@@ -320,6 +357,8 @@ function updateDestinationFromAlmacen(destIndex, selectElement) {
     
     if (!destinationCard) return;
     
+    const almacenId = selectElement.value;
+    const almacenNombre = selectedOption.textContent.replace('📦 ', '');
     const direccion = selectedOption.dataset.direccion || '';
     const lat = selectedOption.dataset.lat || '';
     const lng = selectedOption.dataset.lng || '';
@@ -328,8 +367,10 @@ function updateDestinationFromAlmacen(destIndex, selectElement) {
     const addressInput = destinationCard.querySelector('.destination-address');
     const latInput = destinationCard.querySelector('.destination-latitude');
     const lngInput = destinationCard.querySelector('.destination-longitude');
+    const nombreInput = destinationCard.querySelector('.almacen-destino-nombre');
     const infoElement = destinationCard.querySelector('.almacen-direccion-info');
     
+    if (nombreInput) nombreInput.value = almacenNombre;
     if (addressInput && direccion) {
         addressInput.value = direccion;
     }
@@ -340,7 +381,7 @@ function updateDestinationFromAlmacen(destIndex, selectElement) {
         lngInput.value = lng;
     }
     if (infoElement) {
-        infoElement.innerHTML = direccion ? `📍 ${direccion}` : '';
+        infoElement.style.display = direccion ? 'block' : 'none';
     }
 }
 
@@ -730,6 +771,21 @@ function addDestination(silent = false) {
             </div>
             <div class="card-body">
                 <div class="form-group">
+                    <label>Almacén Destino <span class="text-danger">*</span></label>
+                    <select class="form-control almacen-destino-select" 
+                            name="destinations[${destinationIndex}][almacen_destino_id]" 
+                            onchange="updateDestinationFromAlmacen(${destinationIndex}, this)"
+                            required>
+                        <option value="">Seleccione un almacén...</option>
+                        ${almacenesDestinoOptions}
+                    </select>
+                    <small class="form-text text-muted">Seleccione el almacén de destino desde plantaCruds</small>
+                    <div class="almacen-direccion-info mt-2" style="display: none;">
+                        <small class="text-info"><i class="fas fa-info-circle"></i> La dirección se completará automáticamente</small>
+                    </div>
+                </div>
+                
+                <div class="form-group">
                     <label>Dirección <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <input type="text" class="form-control destination-address" 
@@ -740,10 +796,12 @@ function addDestination(silent = false) {
                             </button>
                         </div>
                     </div>
+                    <small class="form-text text-muted">Puede editar la dirección manualmente o usar el mapa</small>
                 </div>
                 
                 <input type="hidden" class="destination-latitude" name="destinations[${destinationIndex}][latitude]">
                 <input type="hidden" class="destination-longitude" name="destinations[${destinationIndex}][longitude]">
+                <input type="hidden" class="almacen-destino-nombre" name="destinations[${destinationIndex}][almacen_destino_nombre]">
                 
                 <div class="row">
                     <div class="col-md-6">
@@ -1364,6 +1422,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="card-body">
                             <div class="form-group">
+                                <label>Almacén Destino <span class="text-danger">*</span></label>
+                                <select class="form-control almacen-destino-select" 
+                                        name="destinations[${destinationIndex}][almacen_destino_id]" 
+                                        onchange="updateDestinationFromAlmacen(${destinationIndex}, this)"
+                                        required>
+                                    <option value="">Seleccione un almacén...</option>
+                                    ${almacenesDestinoOptions}
+                                </select>
+                                <small class="form-text text-muted">Seleccione el almacén de destino desde plantaCruds</small>
+                                <div class="almacen-direccion-info mt-2" style="display: none;">
+                                    <small class="text-info"><i class="fas fa-info-circle"></i> La dirección se completará automáticamente</small>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
                                 <label>Dirección <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <input type="text" class="form-control destination-address" 
@@ -1375,11 +1448,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </button>
                                     </div>
                                 </div>
+                                <small class="form-text text-muted">Puede editar la dirección manualmente o usar el mapa</small>
                             </div>
                             
                             <input type="hidden" class="destination-latitude" 
                                    name="destinations[${destinationIndex}][latitude]" 
                                    value="{{ old('destinations.' . $destIdx . '.latitude', '') }}">
+                            <input type="hidden" class="almacen-destino-nombre" 
+                                   name="destinations[${destinationIndex}][almacen_destino_nombre]" 
+                                   value="{{ old('destinations.' . $destIdx . '.almacen_destino_nombre', '') }}">
                             <input type="hidden" class="destination-longitude" 
                                    name="destinations[${destinationIndex}][longitude]" 
                                    value="{{ old('destinations.' . $destIdx . '.longitude', '') }}">

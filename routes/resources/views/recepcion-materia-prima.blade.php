@@ -404,23 +404,8 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label><strong>Fecha de Vencimiento:</strong></label>
-                            <p id="detalle_expiration_date">-</p>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
                             <label><strong>Número de Factura:</strong></label>
                             <p id="detalle_invoice_number">-</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label><strong>Lote del Proveedor:</strong></label>
-                            <p id="detalle_supplier_batch">-</p>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -605,9 +590,7 @@ function verDetalleRecepcion(materiaPrimaId) {
     document.getElementById('detalle_quantity').textContent = recepcion.quantity + ' ' + recepcion.unit;
     document.getElementById('detalle_available_quantity').textContent = recepcion.available_quantity + ' ' + recepcion.unit;
     document.getElementById('detalle_receipt_date').textContent = recepcion.receipt_date || 'N/A';
-    document.getElementById('detalle_expiration_date').textContent = recepcion.expiration_date || 'N/A';
     document.getElementById('detalle_invoice_number').textContent = recepcion.invoice_number;
-    document.getElementById('detalle_supplier_batch').textContent = recepcion.supplier_batch;
     
     // Mostrar estado de conformidad
     const conformidadHtml = recepcion.receipt_conformity 

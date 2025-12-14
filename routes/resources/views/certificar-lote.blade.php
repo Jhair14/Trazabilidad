@@ -109,9 +109,9 @@
                             @endif
                         </td>
                         <td class="text-right">
-                            <a href="{{ route('gestion-lotes.show', $lote->lote_id) }}" class="btn btn-sm btn-info" title="Ver Detalles">
+                            <button onclick="verLote({{ $lote->lote_id }})" class="btn btn-sm btn-info" title="Ver Detalles">
                                 <i class="fas fa-eye"></i>
-                            </a>
+                            </button>
                             @if(!$lote->latestFinalEvaluation)
                                 @if($lote->processMachineRecords->isEmpty())
                                     <a href="{{ route('proceso-transformacion', $lote->lote_id) }}" class="btn btn-sm btn-warning" title="Ir a Proceso de Transformación">
@@ -180,6 +180,35 @@
     </div>
 </div>
 
+<!-- Modal Ver Detalle de Lote -->
+<div class="modal fade" id="verLoteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h4 class="modal-title">
+                    <i class="fas fa-eye mr-1"></i>
+                    Detalles del Lote
+                </h4>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="verLoteContent">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p>Cargando detalles...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal para Certificar Lote -->
 <div class="modal fade" id="modalCertificarLote" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg" role="document">
@@ -242,6 +271,142 @@
 
 @push('scripts')
 <script>
+const gestionLotesBaseUrl = '{{ url("gestion-lotes") }}';
+
+function verLote(id) {
+    $('#verLoteModal').modal('show');
+    $('#verLoteContent').html(`
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p>Cargando detalles...</p>
+        </div>
+    `);
+    
+    fetch(`${gestionLotesBaseUrl}/${id}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+        .then(response => response.json())
+        .then(data => {
+            let rawMaterialsHtml = '';
+            if (data.raw_materials && data.raw_materials.length > 0) {
+                rawMaterialsHtml = '<ul class="list-unstyled">';
+                data.raw_materials.forEach(function(rm) {
+                    rawMaterialsHtml += `<li class="mb-2">
+                        <strong>${rm.material_name}</strong> - 
+                        Planificada: ${parseFloat(rm.planned_quantity).toFixed(2)} ${rm.unit}, 
+                        Usada: ${parseFloat(rm.used_quantity).toFixed(2)} ${rm.unit}<br>
+                        <small class="text-muted">Proveedor: ${rm.supplier}</small>
+                    </li>`;
+                });
+                rawMaterialsHtml += '</ul>';
+            } else {
+                rawMaterialsHtml = '<p class="text-muted">No hay materias primas registradas</p>';
+            }
+            
+            let evaluationHtml = '';
+            if (data.evaluation) {
+                evaluationHtml = `
+                    <tr>
+                        <th>Razón de Evaluación</th>
+                        <td>${data.evaluation.reason || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                        <th>Observaciones</th>
+                        <td>${data.evaluation.observations || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                        <th>Fecha de Evaluación</th>
+                        <td>${data.evaluation.evaluation_date ? new Date(data.evaluation.evaluation_date).toLocaleDateString('es-ES') : 'N/A'}</td>
+                    </tr>
+                `;
+            } else {
+                evaluationHtml = '<tr><td colspan="2" class="text-center text-muted">Aún no evaluado</td></tr>';
+            }
+            
+            const content = `
+                <div class="row">
+                    <div class="col-md-12">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th style="width: 30%;">ID Lote</th>
+                                <td>#${data.batch_id}</td>
+                            </tr>
+                            <tr>
+                                <th>Código de Lote</th>
+                                <td><span class="badge badge-primary">${data.batch_code || 'N/A'}</span></td>
+                            </tr>
+                            <tr>
+                                <th>Nombre</th>
+                                <td>${data.name || 'Sin nombre'}</td>
+                            </tr>
+                            <tr>
+                                <th>Cliente</th>
+                                <td>${data.customer_name || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th>Pedido</th>
+                                <td>${data.order_number || 'N/A'} - ${data.order_name || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th>Fecha de Creación</th>
+                                <td>${data.creation_date ? new Date(data.creation_date).toLocaleDateString('es-ES') : 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th>Hora de Inicio</th>
+                                <td>${data.start_time || 'No iniciado'}</td>
+                            </tr>
+                            <tr>
+                                <th>Hora de Fin</th>
+                                <td>${data.end_time || 'No finalizado'}</td>
+                            </tr>
+                            <tr>
+                                <th>Cantidad Objetivo</th>
+                                <td>${data.target_quantity ? parseFloat(data.target_quantity).toFixed(2) : 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th>Cantidad Producida</th>
+                                <td>${data.produced_quantity ? parseFloat(data.produced_quantity).toFixed(2) : 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th>Observaciones</th>
+                                <td>${data.observations || 'Sin observaciones'}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <h5><i class="fas fa-boxes mr-2"></i>Materias Primas</h5>
+                        ${rawMaterialsHtml}
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <h5><i class="fas fa-clipboard-check mr-2"></i>Evaluación Final</h5>
+                        <table class="table table-bordered">
+                            ${evaluationHtml}
+                        </table>
+                    </div>
+                </div>
+            `;
+            $('#verLoteContent').html(content);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            $('#verLoteContent').html(`
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    Error al cargar los datos del lote
+                </div>
+            `);
+        });
+}
+
 $(document).ready(function() {
     // Cuando se confirma en el modal, enviar el formulario correspondiente
     $('.btnConfirmarCertificacion').on('click', function() {

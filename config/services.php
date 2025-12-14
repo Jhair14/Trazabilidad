@@ -39,4 +39,11 @@ return [
         'api_url' => env('PLANTACRUDS_API_URL', 'http://localhost:8001/api'),
     ],
 
+    'planta' => [
+        'nombre' => env('PLANTA_NOMBRE', 'Planta Principal'),
+        'direccion' => env('PLANTA_DIRECCION', 'Av. Ejemplo 123, Santa Cruz de la Sierra, Bolivia'),
+        'latitud' => env('PLANTA_LATITUD', '-17.8146'),
+        'longitud' => env('PLANTA_LONGITUD', '-63.1561'),
+    ],
+
 ];

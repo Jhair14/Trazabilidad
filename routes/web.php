@@ -21,6 +21,9 @@ use App\Http\Controllers\Web\PedidosController;
 use App\Http\Controllers\Web\GestionPedidosController;
 use App\Http\Controllers\Web\UsuariosController;
 use App\Http\Controllers\Web\ProcesoTransformacionController;
+use App\Http\Controllers\Web\PlantaUbicacionController;
+use App\Http\Controllers\Web\RutaTiempoRealController;
+use App\Http\Controllers\Web\DocumentacionPedidosController;
 
 Route::redirect('/', '/login');
 
@@ -49,6 +52,7 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('/solicitar-materia-prima', [SolicitarMateriaPrimaController::class, 'index'])->middleware('permission:solicitar materia prima')->name('solicitar-materia-prima');
     Route::post('/solicitar-materia-prima', [SolicitarMateriaPrimaController::class, 'store'])->middleware('permission:solicitar materia prima');
+    Route::get('/solicitar-materia-prima/pedido/{pedidoId}/materias-primas', [SolicitarMateriaPrimaController::class, 'getMateriasPrimasPorPedido'])->middleware('permission:solicitar materia prima')->name('solicitar-materia-prima.get-materias-primas');
     
     Route::get('/recepcion-materia-prima', [RecepcionMateriaPrimaController::class, 'index'])->middleware('permission:recepcionar materia prima')->name('recepcion-materia-prima');
     Route::post('/recepcion-materia-prima', [RecepcionMateriaPrimaController::class, 'store'])->middleware('permission:recepcionar materia prima');
@@ -149,8 +153,20 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/gestion-pedidos/{id}', [GestionPedidosController::class, 'update'])->name('gestion-pedidos.update');
         Route::post('/gestion-pedidos/{orderId}/approve', [GestionPedidosController::class, 'approveOrder'])->middleware('permission:aprobar pedidos')->name('gestion-pedidos.approve-order');
         Route::post('/gestion-pedidos/{orderId}/reject', [GestionPedidosController::class, 'rejectOrder'])->middleware('permission:rechazar pedidos')->name('gestion-pedidos.reject-order');
+        
+        // Documentación de Pedidos
+        Route::get('/documentacion-pedidos', [DocumentacionPedidosController::class, 'index'])->name('documentacion-pedidos');
+        Route::get('/documentacion-pedidos/{pedido}', [DocumentacionPedidosController::class, 'show'])->name('documentacion-pedidos.show');
+        Route::get('/documentacion-pedidos/{pedido}/descargar/{tipo}', [DocumentacionPedidosController::class, 'descargarDocumento'])->name('documentacion-pedidos.descargar');
     });
 
+    // Configuración de Ubicación de la Planta
+    Route::get('/planta-ubicacion', [PlantaUbicacionController::class, 'index'])->middleware('permission:gestionar usuarios')->name('planta-ubicacion');
+    Route::put('/planta-ubicacion', [PlantaUbicacionController::class, 'update'])->middleware('permission:gestionar usuarios')->name('planta-ubicacion.update');
+
+    // Rutas en Tiempo Real
+    Route::get('/rutas-tiempo-real', [RutaTiempoRealController::class, 'index'])->name('rutas-tiempo-real');
+    
     // Usuarios/Operadores
     Route::get('/usuarios', [UsuariosController::class, 'index'])->middleware('permission:gestionar usuarios')->name('usuarios');
     Route::post('/usuarios', [UsuariosController::class, 'store'])->middleware('permission:gestionar usuarios');

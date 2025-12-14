@@ -274,12 +274,22 @@ function verPedido(id) {
                         <table class="table table-bordered">
                             <tr>
                                 <th style="width: 30%;">ID Pedido</th>
-                                <td>#${data.order_number || data.order_id}</td>
+                                <td>#${data.order_id || data.order_number || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th>Número de Pedido</th>
+                                <td>${data.order_number || data.order_id || 'N/A'}</td>
                             </tr>
                             <tr>
                                 <th>Nombre</th>
                                 <td>${data.name || 'Sin nombre'}</td>
                             </tr>
+                            ${data.almacen_nombre ? `
+                            <tr>
+                                <th>Almacén</th>
+                                <td><strong>${data.almacen_nombre}</strong></td>
+                            </tr>
+                            ` : ''}
                             <tr>
                                 <th>Descripción</th>
                                 <td>${data.description || 'Sin descripción'}</td>
@@ -287,7 +297,7 @@ function verPedido(id) {
                             <tr>
                                 <th>Estado</th>
                                 <td>
-                                    ${data.status === 'completado' 
+                                    ${data.status === 'completado' || data.status === 'almacenado'
                                         ? '<span class="badge badge-success">Completado</span>' 
                                         : data.status === 'aprobado'
                                         ? '<span class="badge badge-info">Aprobado</span>'
@@ -302,7 +312,7 @@ function verPedido(id) {
                             </tr>
                             <tr>
                                 <th>Fecha de Creación</th>
-                                <td>${data.creation_date}</td>
+                                <td>${data.creation_date || 'N/A'}</td>
                             </tr>
                             ${data.delivery_date ? `
                             <tr>

@@ -111,23 +111,34 @@
                                     @endif
                                 </td>
                                 <td class="text-right">
-                                    <button onclick="verProveedor({{ $proveedor->proveedor_id }})" 
-                                            class="btn btn-sm btn-info" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button onclick="editarProveedor({{ $proveedor->proveedor_id }})" 
-                                            class="btn btn-sm btn-warning" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <form method="POST" action="{{ route('proveedores.web.destroy', $proveedor->proveedor_id) }}" 
-                                          style="display: inline;" 
-                                          onsubmit="return confirm('¿Está seguro de eliminar este proveedor?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+                                    <div class="btn-group-vertical btn-group-sm d-md-none" role="group">
+                                        <button onclick="verProveedor({{ $proveedor->proveedor_id }})" 
+                                                class="btn btn-info mb-1" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button onclick="editarProveedor({{ $proveedor->proveedor_id }})" 
+                                                class="btn btn-warning mb-1" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button onclick="confirmarEliminarProveedor({{ $proveedor->proveedor_id }}, '{{ $proveedor->razon_social }}')" 
+                                                class="btn btn-danger" title="Eliminar">
                                             <i class="fas fa-trash"></i>
                                         </button>
-                                    </form>
+                                    </div>
+                                    <div class="btn-group btn-group-sm d-none d-md-inline-flex" role="group">
+                                        <button onclick="verProveedor({{ $proveedor->proveedor_id }})" 
+                                                class="btn btn-info" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button onclick="editarProveedor({{ $proveedor->proveedor_id }})" 
+                                                class="btn btn-warning" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button onclick="confirmarEliminarProveedor({{ $proveedor->proveedor_id }}, '{{ $proveedor->razon_social }}')" 
+                                                class="btn btn-danger" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             @empty
@@ -326,6 +337,42 @@
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">
                     <i class="fas fa-times mr-1"></i>
                     Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Eliminación -->
+<div class="modal fade" id="confirmarEliminarModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h4 class="modal-title">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Confirmar Eliminación
+                </h4>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de eliminar este proveedor?</p>
+                <p class="font-weight-bold" id="proveedorNombreEliminar"></p>
+                <p class="text-danger"><small>Esta acción no se puede deshacer.</small></p>
+                <form method="POST" id="eliminarProveedorForm" style="display: none;">
+                    @csrf
+                    @method('DELETE')
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-danger" onclick="eliminarProveedor()">
+                    <i class="fas fa-trash mr-1"></i>
+                    Sí, Eliminar
                 </button>
             </div>
         </div>
@@ -602,6 +649,16 @@ function editarProveedor(id) {
             console.error('Error:', error);
             alert('Error al cargar los datos del proveedor para editar');
         });
+}
+
+function confirmarEliminarProveedor(id, nombre) {
+    document.getElementById('proveedorNombreEliminar').textContent = nombre;
+    document.getElementById('eliminarProveedorForm').action = `${proveedoresBaseUrl}/${id}`;
+    $('#confirmarEliminarModal').modal('show');
+}
+
+function eliminarProveedor() {
+    document.getElementById('eliminarProveedorForm').submit();
 }
 </script>
 @endpush
