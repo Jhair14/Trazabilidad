@@ -12,12 +12,34 @@ use Illuminate\Support\Facades\DB;
 
 class MateriaPrimaBaseController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $materias_primas = RawMaterialBase::with(['category', 'unit', 'rawMaterials'])
-            ->where('activo', true)
-            ->orderBy('nombre', 'asc')
-            ->paginate(15);
+        $query = RawMaterialBase::with(['category', 'unit', 'rawMaterials'])
+            ->where('activo', true);
+        
+        // Filtro por categoría
+        if ($request->has('categoria') && $request->categoria) {
+            $query->whereHas('category', function($q) use ($request) {
+                $q->where('nombre', 'like', '%' . $request->categoria . '%');
+            });
+        }
+        
+        // Filtro por estado (disponible, bajo_stock, agotado)
+        if ($request->has('estado') && $request->estado) {
+            // Este filtro se aplicará después de calcular las cantidades
+        }
+        
+        // Filtro por búsqueda (nombre, código)
+        if ($request->has('buscar') && $request->buscar) {
+            $query->where(function($q) use ($request) {
+                $q->where('nombre', 'like', '%' . $request->buscar . '%')
+                  ->orWhere('codigo', 'like', '%' . $request->buscar . '%');
+            });
+        }
+        
+        $materias_primas = $query->orderBy('nombre', 'asc')
+            ->paginate(15)
+            ->appends($request->query());
 
         // Calcular cantidad_disponible dinámicamente desde las materias primas relacionadas
         $materias_primas->getCollection()->transform(function ($mp) {
@@ -40,6 +62,32 @@ class MateriaPrimaBaseController extends Controller
             }
             return $mp;
         });
+        
+        // Aplicar filtro por estado después de calcular las cantidades
+        if ($request->has('estado') && $request->estado) {
+            $estado = $request->estado;
+            $materias_primas->getCollection()->transform(function ($mp) use ($estado) {
+                $available = $mp->calculated_available_quantity ?? 0;
+                $minimum = $mp->stock_minimo ?? 0;
+                
+                $mp->should_show = false;
+                if ($estado === 'disponible') {
+                    $mp->should_show = $available > $minimum;
+                } elseif ($estado === 'bajo_stock') {
+                    $mp->should_show = $minimum > 0 && $available > 0 && $available <= $minimum;
+                } elseif ($estado === 'agotado') {
+                    $mp->should_show = $available <= 0;
+                }
+                return $mp;
+            });
+            
+            // Filtrar la colección
+            $materias_primas->setCollection(
+                $materias_primas->getCollection()->filter(function($mp) {
+                    return !isset($mp->should_show) || $mp->should_show;
+                })
+            );
+        }
 
         $categorias = RawMaterialCategory::where('activo', true)->get();
         $unidades = UnitOfMeasure::where('activo', true)->get();

@@ -98,12 +98,17 @@
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <input type="text" class="form-control" placeholder="Buscar por nombre..." id="buscarUsuario">
+                        <input type="text" class="form-control" placeholder="Buscar usuario..." id="buscarUsuario" value="{{ request('buscar', '') }}">
                     </div>
                     <div class="col-md-3">
                         <button class="btn btn-info" onclick="aplicarFiltros()">
                             <i class="fas fa-search"></i> Filtrar
                         </button>
+                        @if(request()->hasAny(['rol', 'estado', 'buscar']))
+                            <a href="{{ route('usuarios') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Limpiar
+                            </a>
+                        @endif
                     </div>
                 </div>
 
@@ -156,13 +161,13 @@
 
                 <!-- Paginación -->
                 @if($usuarios->hasPages())
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Mostrando {{ $usuarios->firstItem() }} a {{ $usuarios->lastItem() }} de {{ $usuarios->total() }} registros
+                <div class="card-footer clearfix">
+                    <div class="float-left">
+                        <small class="text-muted">
+                            Mostrando {{ $usuarios->firstItem() }} a {{ $usuarios->lastItem() }} de {{ $usuarios->total() }} registros
+                        </small>
                     </div>
-                    <nav>
-                        {{ $usuarios->links() }}
-                    </nav>
+                    {{ $usuarios->links() }}
                 </div>
                 @endif
             </div>
@@ -490,8 +495,11 @@ function aplicarFiltros() {
     
     const url = new URL(window.location);
     if (rol) url.searchParams.set('rol', rol);
+    else url.searchParams.delete('rol');
     if (estado) url.searchParams.set('estado', estado);
+    else url.searchParams.delete('estado');
     if (buscar) url.searchParams.set('buscar', buscar);
+    else url.searchParams.delete('buscar');
     window.location = url;
 }
 

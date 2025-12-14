@@ -29,7 +29,16 @@
       </tbody>
     </table>
   </div>
-  <div class="card-footer">{{ $operadores->links() }}</div>
+  @if($operadores->hasPages())
+  <div class="card-footer clearfix">
+    <div class="float-left">
+      <small class="text-muted">
+        Mostrando {{ $operadores->firstItem() }} a {{ $operadores->lastItem() }} de {{ $operadores->total() }} registros
+      </small>
+    </div>
+    {{ $operadores->links() }}
+  </div>
+  @endif
 </div>
 @endsection
 

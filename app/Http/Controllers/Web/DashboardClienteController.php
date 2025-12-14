@@ -145,6 +145,161 @@ class DashboardClienteController extends Controller
         return view('dashboard-cliente', compact('pedidos', 'stats', 'ultimoPedido', 'customer'));
     }
 
+    public function getData()
+    {
+        $user = Auth::user();
+        
+        // Obtener pedidos del cliente actual
+        $customerId = null;
+        if ($user->email) {
+            $customer = \App\Models\Customer::where('email', $user->email)->first();
+            $customerId = $customer ? $customer->cliente_id : null;
+        }
+        
+        if (!$customerId) {
+            return response()->json([
+                'stats' => [
+                    'total_pedidos' => 0,
+                    'pedidos_pendientes' => 0,
+                    'pedidos_completados' => 0,
+                    'pedidos_en_proceso' => 0,
+                ],
+                'pedidos' => [],
+                'ultimoPedido' => null,
+            ]);
+        }
+        
+        // Obtener todos los pedidos del cliente
+        $pedidos = CustomerOrder::where('cliente_id', $customerId)
+            ->with([
+                'batches.latestFinalEvaluation',
+                'batches.processMachineRecords',
+                'batches.storage',
+                'materialRequests'
+            ])
+            ->orderBy('fecha_creacion', 'desc')
+            ->orderBy('pedido_id', 'desc')
+            ->get();
+        
+        $ultimoPedido = $pedidos->first();
+        
+        // Si hay último pedido, cargar más información completa
+        if ($ultimoPedido) {
+            $ultimoPedido = CustomerOrder::where('pedido_id', $ultimoPedido->pedido_id)
+                ->with([
+                    'customer',
+                    'orderProducts.product.unit',
+                    'batches.latestFinalEvaluation.inspector',
+                    'batches.processMachineRecords.processMachine.machine',
+                    'batches.processMachineRecords.processMachine.process',
+                    'batches.processMachineRecords.operator',
+                    'batches.storage',
+                    'batches.rawMaterials.rawMaterial.materialBase',
+                    'materialRequests.details.material',
+                    'destinations'
+                ])
+                ->first();
+            
+            if ($ultimoPedido && $ultimoPedido->batches) {
+                $ultimoPedido->batches = $ultimoPedido->batches->sortByDesc('fecha_creacion')->values();
+            }
+        }
+
+        // Calcular estadísticas
+        $totalPedidos = $pedidos->count();
+        $pedidosPendientes = $pedidos->filter(function($pedido) {
+            if ($pedido->batches->isEmpty()) {
+                return true;
+            }
+            return $pedido->batches->some(function($batch) {
+                return !$batch->latestFinalEvaluation && $batch->processMachineRecords->isNotEmpty();
+            });
+        })->count();
+        
+        $pedidosCompletados = $pedidos->filter(function($pedido) {
+            return $pedido->batches->some(function($batch) {
+                $eval = $batch->latestFinalEvaluation;
+                return $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló');
+            });
+        })->count();
+        
+        $pedidosEnProceso = $pedidos->filter(function($pedido) {
+            return $pedido->batches->some(function($batch) {
+                return $batch->processMachineRecords->isNotEmpty() && !$batch->latestFinalEvaluation;
+            });
+        })->count();
+
+        $stats = [
+            'total_pedidos' => $totalPedidos,
+            'pedidos_pendientes' => $pedidosPendientes,
+            'pedidos_completados' => $pedidosCompletados,
+            'pedidos_en_proceso' => $pedidosEnProceso,
+        ];
+
+        // Formatear pedidos para JSON
+        $pedidosFormateados = $pedidos->map(function($pedido) {
+            $estadoPedido = 'Pendiente';
+            $tieneLotes = $pedido->batches->isNotEmpty();
+            $loteCertificado = false;
+            
+            if ($tieneLotes) {
+                $loteCertificado = $pedido->batches->some(function($batch) {
+                    $eval = $batch->latestFinalEvaluation;
+                    return $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló');
+                });
+                
+                $loteEnProceso = $pedido->batches->some(function($batch) {
+                    return $batch->processMachineRecords->isNotEmpty() && !$batch->latestFinalEvaluation;
+                });
+                
+                if ($loteCertificado) {
+                    $estadoPedido = 'Certificado';
+                } elseif ($loteEnProceso) {
+                    $estadoPedido = 'En Proceso';
+                } elseif ($tieneLotes) {
+                    $estadoPedido = 'Lote Creado';
+                }
+            }
+            
+            return [
+                'pedido_id' => $pedido->pedido_id,
+                'numero_pedido' => $pedido->numero_pedido ?? $pedido->pedido_id,
+                'nombre' => $pedido->nombre ?? ($pedido->descripcion ?? 'Sin descripción'),
+                'fecha_creacion' => $pedido->fecha_creacion ? $pedido->fecha_creacion->format('d/m/Y') : 'N/A',
+                'fecha_entrega' => $pedido->fecha_entrega ? $pedido->fecha_entrega->format('d/m/Y') : 'N/A',
+                'estado' => $estadoPedido,
+                'tiene_lotes' => $tieneLotes,
+                'cantidad_lotes' => $pedido->batches->count(),
+                'lote_certificado' => $loteCertificado,
+            ];
+        });
+
+        // Formatear último pedido para JSON (solo datos básicos para el timeline)
+        $ultimoPedidoData = null;
+        if ($ultimoPedido) {
+            $ultimoPedidoData = [
+                'pedido_id' => $ultimoPedido->pedido_id,
+                'numero_pedido' => $ultimoPedido->numero_pedido ?? $ultimoPedido->pedido_id,
+                'nombre' => $ultimoPedido->nombre ?? 'Sin nombre',
+                'descripcion' => $ultimoPedido->descripcion ?? 'Sin descripción',
+                'fecha_creacion' => $ultimoPedido->fecha_creacion ? $ultimoPedido->fecha_creacion->format('d/m/Y') : 'N/A',
+                'fecha_entrega' => $ultimoPedido->fecha_entrega ? $ultimoPedido->fecha_entrega->format('d/m/Y') : null,
+                'tiene_lotes' => $ultimoPedido->batches && $ultimoPedido->batches->isNotEmpty(),
+                'cantidad_lotes' => $ultimoPedido->batches ? $ultimoPedido->batches->count() : 0,
+                'tiene_solicitudes' => $ultimoPedido->materialRequests && $ultimoPedido->materialRequests->isNotEmpty(),
+                'tiene_lotes_almacenados' => $ultimoPedido->batches && $ultimoPedido->batches->some(function($batch) {
+                    return $batch->storage->isNotEmpty();
+                }),
+            ];
+        }
+
+        return response()->json([
+            'stats' => $stats,
+            'pedidos' => $pedidosFormateados,
+            'ultimoPedido' => $ultimoPedidoData,
+        ]);
+    }
+
     public function obtenerDetallesPedido($orderId)
     {
         $user = Auth::user();

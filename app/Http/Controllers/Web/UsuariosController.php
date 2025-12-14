@@ -12,11 +12,40 @@ use Illuminate\Support\Facades\App;
 
 class UsuariosController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $usuarios = Operator::with('roles')
-            ->orderBy('nombre', 'asc')
-            ->paginate(15);
+        $query = Operator::with('roles');
+        
+        // Filtro por rol
+        if ($request->has('rol') && $request->rol) {
+            $query->whereHas('roles', function($q) use ($request) {
+                $q->where('name', $request->rol);
+            });
+        }
+        
+        // Filtro por estado
+        if ($request->has('estado') && $request->estado) {
+            if ($request->estado === 'activo') {
+                $query->where('activo', true);
+            } elseif ($request->estado === 'inactivo') {
+                $query->where('activo', false);
+            }
+        }
+        
+        // Filtro por búsqueda (nombre, apellido, usuario, email)
+        if ($request->has('buscar') && $request->buscar) {
+            $buscar = $request->buscar;
+            $query->where(function($q) use ($buscar) {
+                $q->where('nombre', 'like', '%' . $buscar . '%')
+                  ->orWhere('apellido', 'like', '%' . $buscar . '%')
+                  ->orWhere('usuario', 'like', '%' . $buscar . '%')
+                  ->orWhere('email', 'like', '%' . $buscar . '%');
+            });
+        }
+        
+        $usuarios = $query->orderBy('nombre', 'asc')
+            ->paginate(15)
+            ->appends($request->query());
 
         // Ya no usamos OperatorRole, Spatie maneja los roles
         $roles = \Spatie\Permission\Models\Role::all();

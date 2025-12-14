@@ -11,6 +11,14 @@
                     <i class="fas fa-truck mr-1"></i>
                     Recepción de Materia Prima
                 </h3>
+                <div class="card-tools">
+                    <form action="{{ route('recepcion-materia-prima.sync-envios') }}" method="POST" style="display: inline-block;" onsubmit="return confirm('¿Desea sincronizar envíos desde la API de Trazabilidad? Esto procesará automáticamente las recepciones de envíos entregados.');">
+                        @csrf
+                        <button type="submit" class="btn btn-info btn-sm">
+                            <i class="fas fa-sync-alt"></i> Sincronizar Envíos API
+                        </button>
+                    </form>
+                </div>
             </div>
             <div class="card-body">
                 @if(session('success'))
@@ -79,22 +87,26 @@
                     <div class="col-md-3">
                         <select class="form-control" id="filtroEstado">
                             <option value="">Todos los estados</option>
-                            <option value="pendiente">Pendiente</option>
-                            <option value="en_proceso">En Proceso</option>
-                            <option value="completada">Completada</option>
-                            <option value="rechazada">Rechazada</option>
+                            <option value="pendiente" {{ request('estado') == 'pendiente' ? 'selected' : '' }}>Pendiente</option>
+                            <option value="en_proceso" {{ request('estado') == 'en_proceso' ? 'selected' : '' }}>En Proceso</option>
+                            <option value="completada" {{ request('estado') == 'completada' ? 'selected' : '' }}>Completada</option>
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <input type="date" class="form-control" id="filtroFecha">
+                        <input type="date" class="form-control" id="filtroFecha" value="{{ request('fecha', '') }}">
                     </div>
                     <div class="col-md-3">
-                        <input type="text" class="form-control" placeholder="Buscar por proveedor..." id="buscarProveedor">
+                        <input type="text" class="form-control" placeholder="Buscar por proveedor..." id="buscarProveedor" value="{{ request('proveedor', '') }}">
                     </div>
                     <div class="col-md-3">
                         <button class="btn btn-info" onclick="aplicarFiltros()">
                             <i class="fas fa-search"></i> Filtrar
                         </button>
+                        @if(request()->hasAny(['estado', 'fecha', 'proveedor']))
+                            <a href="{{ route('recepcion-materia-prima') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Limpiar
+                            </a>
+                        @endif
                     </div>
                 </div>
 
@@ -152,7 +164,12 @@
                         </div>
                     </div>
                     @if($solicitudes->hasPages())
-                    <div class="card-footer">
+                    <div class="card-footer clearfix">
+                        <div class="float-left">
+                            <small class="text-muted">
+                                Mostrando {{ $solicitudes->firstItem() }} a {{ $solicitudes->lastItem() }} de {{ $solicitudes->total() }} registros
+                            </small>
+                        </div>
                         {{ $solicitudes->links() }}
                     </div>
                     @endif
@@ -607,12 +624,15 @@ function guardarRecepcion() {
 function aplicarFiltros() {
     const estado = document.getElementById('filtroEstado').value;
     const fecha = document.getElementById('filtroFecha').value;
-    const buscar = document.getElementById('buscarProveedor').value;
+    const proveedor = document.getElementById('buscarProveedor').value;
     
     const url = new URL(window.location);
     if (estado) url.searchParams.set('estado', estado);
+    else url.searchParams.delete('estado');
     if (fecha) url.searchParams.set('fecha', fecha);
-    if (buscar) url.searchParams.set('buscar', buscar);
+    else url.searchParams.delete('fecha');
+    if (proveedor) url.searchParams.set('proveedor', proveedor);
+    else url.searchParams.delete('proveedor');
     window.location = url;
 }
 

@@ -84,27 +84,31 @@
                     <div class="col-12 col-md-6 col-lg-3 mb-2 mb-md-0">
                         <select class="form-control" id="filtroCategoria">
                             <option value="">Todas las categorías</option>
-                            <option value="harina">Harinas</option>
-                            <option value="azucar">Azúcares</option>
-                            <option value="sal">Sales</option>
-                            <option value="especias">Especias</option>
+                            @foreach($categorias as $categoria)
+                                <option value="{{ $categoria->nombre }}" {{ request('categoria') == $categoria->nombre ? 'selected' : '' }}>{{ $categoria->nombre }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <div class="col-12 col-md-6 col-lg-3 mb-2 mb-md-0">
                         <select class="form-control" id="filtroEstado">
                             <option value="">Todos los estados</option>
-                            <option value="disponible">Disponible</option>
-                            <option value="bajo_stock">Bajo Stock</option>
-                            <option value="agotado">Agotado</option>
+                            <option value="disponible" {{ request('estado') == 'disponible' ? 'selected' : '' }}>Disponible</option>
+                            <option value="bajo_stock" {{ request('estado') == 'bajo_stock' ? 'selected' : '' }}>Bajo Stock</option>
+                            <option value="agotado" {{ request('estado') == 'agotado' ? 'selected' : '' }}>Agotado</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-6 col-lg-3 mb-2 mb-md-0">
-                        <input type="text" class="form-control" placeholder="Buscar por nombre..." id="buscarMateria">
+                        <input type="text" class="form-control" placeholder="Buscar por nombre..." id="buscarMateria" value="{{ request('buscar', '') }}">
                     </div>
                     <div class="col-12 col-md-6 col-lg-3">
                         <button class="btn btn-info btn-block" onclick="aplicarFiltros()">
                             <i class="fas fa-search"></i> Filtrar
                         </button>
+                        @if(request()->hasAny(['categoria', 'estado', 'buscar']))
+                            <a href="{{ route('materia-prima-base') }}" class="btn btn-secondary btn-block mt-2">
+                                <i class="fas fa-times"></i> Limpiar
+                            </a>
+                        @endif
                     </div>
                 </div>
 
@@ -175,13 +179,13 @@
 
                 <!-- Paginación -->
                 @if($materias_primas->hasPages())
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Mostrando {{ $materias_primas->firstItem() }} a {{ $materias_primas->lastItem() }} de {{ $materias_primas->total() }} registros
+                <div class="card-footer clearfix">
+                    <div class="float-left">
+                        <small class="text-muted">
+                            Mostrando {{ $materias_primas->firstItem() }} a {{ $materias_primas->lastItem() }} de {{ $materias_primas->total() }} registros
+                        </small>
                     </div>
-                    <nav>
-                        {{ $materias_primas->links() }}
-                    </nav>
+                    {{ $materias_primas->links() }}
                 </div>
                 @endif
             </div>
@@ -727,8 +731,11 @@ function aplicarFiltros() {
     
     const url = new URL(window.location);
     if (categoria) url.searchParams.set('categoria', categoria);
+    else url.searchParams.delete('categoria');
     if (estado) url.searchParams.set('estado', estado);
+    else url.searchParams.delete('estado');
     if (buscar) url.searchParams.set('buscar', buscar);
+    else url.searchParams.delete('buscar');
     window.location = url;
 }
 </script>

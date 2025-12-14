@@ -39,7 +39,9 @@ Route::get('/certificado-publico/{id}', [CertificadosController::class, 'showPub
 Route::middleware(['auth'])->group(function () {
     // Dashboards
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:ver panel control')->name('dashboard');
+    Route::get('/dashboard/data', [DashboardController::class, 'getData'])->middleware('permission:ver panel control')->name('dashboard.data');
     Route::get('/dashboard-cliente', [DashboardClienteController::class, 'index'])->middleware('permission:ver panel cliente')->name('dashboard-cliente');
+    Route::get('/dashboard-cliente/data', [DashboardClienteController::class, 'getData'])->middleware('permission:ver panel cliente')->name('dashboard-cliente.data');
     Route::get('/dashboard-cliente/pedido/{orderId}', [DashboardClienteController::class, 'obtenerDetallesPedido'])->middleware('permission:ver panel cliente')->name('dashboard-cliente.pedido.detalles');
 
     // Materia Prima
@@ -56,6 +58,7 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('/recepcion-materia-prima', [RecepcionMateriaPrimaController::class, 'index'])->middleware('permission:recepcionar materia prima')->name('recepcion-materia-prima');
     Route::post('/recepcion-materia-prima', [RecepcionMateriaPrimaController::class, 'store'])->middleware('permission:recepcionar materia prima');
+    Route::post('/recepcion-materia-prima/sync-envios', [RecepcionMateriaPrimaController::class, 'syncEnvios'])->middleware('permission:recepcionar materia prima')->name('recepcion-materia-prima.sync-envios');
 
     // Proveedores
     Route::resource('proveedores', ProveedorWebController::class, ['names' => [

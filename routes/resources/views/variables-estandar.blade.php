@@ -159,13 +159,13 @@
 
                 <!-- Paginación -->
                 @if($variables->hasPages())
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Mostrando {{ $variables->firstItem() }} a {{ $variables->lastItem() }} de {{ $variables->total() }} registros
+                <div class="card-footer clearfix">
+                    <div class="float-left">
+                        <small class="text-muted">
+                            Mostrando {{ $variables->firstItem() }} a {{ $variables->lastItem() }} de {{ $variables->total() }} registros
+                        </small>
                     </div>
-                    <nav>
-                        {{ $variables->links() }}
-                    </nav>
+                    {{ $variables->links() }}
                 </div>
                 @endif
             </div>

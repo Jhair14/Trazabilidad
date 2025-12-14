@@ -747,6 +747,114 @@ function verDetallesPedido(orderId) {
             `);
         });
 }
+
+// Polling cada 2 segundos para actualizar datos en tiempo real
+let pollingIntervalCliente = null;
+let totalPedidosAnterior = {{ $stats['total_pedidos'] ?? 0 }};
+let ultimoPedidoIdAnterior = {{ isset($ultimoPedido) && $ultimoPedido ? $ultimoPedido->pedido_id : 'null' }};
+
+function actualizarDashboardCliente() {
+    fetch('{{ route("dashboard-cliente.data") }}', {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Si hay un nuevo pedido (total aumentó), recargar la página para mostrar el timeline
+        if (data.stats.total_pedidos > totalPedidosAnterior) {
+            totalPedidosAnterior = data.stats.total_pedidos;
+            location.reload();
+            return;
+        }
+        
+        // Si el último pedido cambió, recargar para actualizar el timeline
+        if (data.ultimoPedido && data.ultimoPedido.pedido_id !== ultimoPedidoIdAnterior) {
+            ultimoPedidoIdAnterior = data.ultimoPedido.pedido_id;
+            location.reload();
+            return;
+        }
+        
+        // Actualizar KPIs
+        $('.small-box.bg-info .inner h3').text(data.stats.total_pedidos || 0);
+        $('.small-box.bg-warning .inner h3').text(data.stats.pedidos_pendientes || 0);
+        $('.small-box.bg-success .inner h3').text(data.stats.pedidos_completados || 0);
+        $('.small-box.bg-primary .inner h3').text(data.stats.pedidos_en_proceso || 0);
+        
+        // Actualizar tabla de pedidos
+        const pedidosTbody = $('table tbody');
+        if (data.pedidos && data.pedidos.length > 0) {
+            let pedidosHtml = '';
+            data.pedidos.forEach(pedido => {
+                let estadoBadge = '';
+                if (pedido.estado === 'Certificado') {
+                    estadoBadge = '<span class="badge badge-success">Certificado</span>';
+                } else if (pedido.estado === 'En Proceso') {
+                    estadoBadge = '<span class="badge badge-primary">En Proceso</span>';
+                } else if (pedido.estado === 'Lote Creado') {
+                    estadoBadge = '<span class="badge badge-info">Lote Creado</span>';
+                } else {
+                    estadoBadge = '<span class="badge badge-warning">Pendiente</span>';
+                }
+                
+                let lotesBadge = pedido.tiene_lotes 
+                    ? `<span class="badge badge-info">${pedido.cantidad_lotes} lote(s)</span>`
+                    : '<span class="badge badge-secondary">Sin lotes</span>';
+                
+                let accionesHtml = `
+                    <button class="btn btn-info btn-sm" onclick="verDetallesPedido(${pedido.pedido_id})" title="Ver Detalles">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                `;
+                
+                if (pedido.lote_certificado) {
+                    accionesHtml += `
+                        <a href="#" class="btn btn-primary btn-sm" title="Ver Certificado" onclick="alert('Funcionalidad de certificado próximamente')">
+                            <i class="fas fa-certificate"></i>
+                        </a>
+                    `;
+                }
+                
+                pedidosHtml += `
+                    <tr>
+                        <td>#${pedido.numero_pedido}</td>
+                        <td>${pedido.nombre}</td>
+                        <td>${pedido.fecha_creacion}</td>
+                        <td>${pedido.fecha_entrega || 'N/A'}</td>
+                        <td>${estadoBadge}</td>
+                        <td>${lotesBadge}</td>
+                        <td>${accionesHtml}</td>
+                    </tr>
+                `;
+            });
+            pedidosTbody.html(pedidosHtml);
+        } else {
+            pedidosTbody.html('<tr><td colspan="7" class="text-center">No tienes pedidos registrados aún.</td></tr>');
+        }
+    })
+    .catch(error => {
+        console.error('Error al actualizar dashboard cliente:', error);
+    });
+}
+
+// Iniciar polling cuando la página esté lista
+$(document).ready(function() {
+    // Primera actualización después de 2 segundos
+    setTimeout(actualizarDashboardCliente, 2000);
+    
+    // Luego actualizar cada 2 segundos
+    pollingIntervalCliente = setInterval(actualizarDashboardCliente, 2000);
+});
+
+// Detener polling cuando se sale de la página
+$(window).on('beforeunload', function() {
+    if (pollingIntervalCliente) {
+        clearInterval(pollingIntervalCliente);
+    }
+});
 </script>
 @endpush
 

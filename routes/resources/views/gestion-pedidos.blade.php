@@ -186,13 +186,13 @@
 
                 <!-- Paginación -->
                 @if($pedidos->hasPages())
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Mostrando {{ $pedidos->firstItem() }} a {{ $pedidos->lastItem() }} de {{ $pedidos->total() }} registros
+                <div class="card-footer clearfix">
+                    <div class="float-left">
+                        <small class="text-muted">
+                            Mostrando {{ $pedidos->firstItem() }} a {{ $pedidos->lastItem() }} de {{ $pedidos->total() }} registros
+                        </small>
                     </div>
-                    <nav>
-                        {{ $pedidos->links() }}
-                    </nav>
+                    {{ $pedidos->links() }}
                 </div>
                 @endif
             </div>

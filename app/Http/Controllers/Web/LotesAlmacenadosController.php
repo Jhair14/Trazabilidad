@@ -8,15 +8,35 @@ use Illuminate\Http\Request;
 
 class LotesAlmacenadosController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $lotes_almacenados = Storage::with([
+        $query = Storage::with([
                 'batch.order.customer', 
                 'batch.latestFinalEvaluation',
                 'batch.processMachineRecords.processMachine.machine'
-            ])
-            ->orderBy('fecha_almacenaje', 'desc')
-            ->paginate(15);
+            ]);
+        
+        // Filtro por búsqueda de lote (código o nombre)
+        if ($request->has('lote') && $request->lote) {
+            $query->whereHas('batch', function($q) use ($request) {
+                $q->where('codigo_lote', 'like', '%' . $request->lote . '%')
+                  ->orWhere('nombre', 'like', '%' . $request->lote . '%');
+            });
+        }
+        
+        // Filtro por condición
+        if ($request->has('condicion') && $request->condicion) {
+            $query->whereRaw("LOWER(condicion) LIKE ?", ['%' . strtolower($request->condicion) . '%']);
+        }
+        
+        // Filtro por fecha
+        if ($request->has('fecha') && $request->fecha) {
+            $query->whereDate('fecha_almacenaje', $request->fecha);
+        }
+        
+        $lotes_almacenados = $query->orderBy('fecha_almacenaje', 'desc')
+            ->paginate(15)
+            ->appends($request->query());
 
         // Estadísticas
         $stats = [

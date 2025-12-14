@@ -364,8 +364,37 @@
                 font-size: 0.75rem;
             }
             
-            /* Modales responsive */
-            .modal-dialog {
+        /* Paginación compacta estilo AdminLTE */
+        .pagination {
+            margin: 0;
+            padding: 0;
+        }
+        
+        .pagination .page-link {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            border-radius: 0.2rem;
+        }
+        
+        .pagination-sm .page-link {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+        
+        .card-footer.clearfix {
+            padding: 0.75rem 1.25rem;
+            background-color: #fff;
+            border-top: 1px solid rgba(0,0,0,.125);
+        }
+        
+        .card-footer .float-left {
+            padding-top: 0.5rem;
+        }
+        
+        /* Modales responsive */
+        .modal-dialog {
                 margin: 0.5rem;
                 max-width: calc(100% - 1rem);
             }

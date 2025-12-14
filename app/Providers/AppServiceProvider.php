@@ -27,6 +27,10 @@ class AppServiceProvider extends ServiceProvider
             View::addLocation($customPath);
         }
 
+        // Configurar paginación para usar Bootstrap 4 (compatible con AdminLTE)
+        \Illuminate\Pagination\Paginator::defaultView('vendor.pagination.bootstrap-4');
+        \Illuminate\Pagination\Paginator::defaultSimpleView('vendor.pagination.simple-bootstrap-4');
+
         // Use custom permission logic
         \Illuminate\Support\Facades\Gate::before(function ($user, $ability) {
             if (method_exists($user, 'hasPermissionTo')) {

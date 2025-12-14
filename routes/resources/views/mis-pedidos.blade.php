@@ -184,6 +184,11 @@
     </div>
     @if($pedidos->hasPages())
     <div class="card-footer clearfix">
+        <div class="float-left">
+            <small class="text-muted">
+                Mostrando {{ $pedidos->firstItem() }} a {{ $pedidos->lastItem() }} de {{ $pedidos->total() }} registros
+            </small>
+        </div>
         {{ $pedidos->links() }}
     </div>
     @endif

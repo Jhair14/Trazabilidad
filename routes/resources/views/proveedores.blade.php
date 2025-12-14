@@ -152,13 +152,13 @@
 
                 <!-- Paginación -->
                 @if($proveedores->hasPages())
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Mostrando {{ $proveedores->firstItem() }} a {{ $proveedores->lastItem() }} de {{ $proveedores->total() }} registros
+                <div class="card-footer clearfix">
+                    <div class="float-left">
+                        <small class="text-muted">
+                            Mostrando {{ $proveedores->firstItem() }} a {{ $proveedores->lastItem() }} de {{ $proveedores->total() }} registros
+                        </small>
                     </div>
-                    <nav>
-                        {{ $proveedores->links() }}
-                    </nav>
+                    {{ $proveedores->links() }}
                 </div>
                 @endif
             </div>

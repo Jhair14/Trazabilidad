@@ -13,22 +13,56 @@ use Illuminate\Support\Facades\DB;
 
 class RecepcionMateriaPrimaController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         // Obtener solicitudes pendientes (con detalles de materiales)
-        // Solo mostrar solicitudes que NO están completamente recepcionadas
-        $solicitudes = MaterialRequest::with(['order.customer', 'details.material.unit'])
-            ->whereHas('details', function($query) {
-                // Filtrar solicitudes que tienen al menos un detalle sin recepcionar completamente
-                $query->whereRaw('COALESCE(cantidad_aprobada, 0) < cantidad_solicitada');
-            })
-            ->orderBy('fecha_requerida', 'asc')
-            ->paginate(15);
+        $query = MaterialRequest::with(['order.customer', 'details.material.unit']);
+        
+        // Filtro por estado
+        if ($request->has('estado') && $request->estado) {
+            $estado = $request->estado;
+            if ($estado === 'pendiente') {
+                $query->whereHas('details', function($q) {
+                    $q->whereRaw('COALESCE(cantidad_aprobada, 0) < cantidad_solicitada');
+                });
+            } elseif ($estado === 'en_proceso') {
+                $query->whereHas('details', function($q) {
+                    $q->whereRaw('COALESCE(cantidad_aprobada, 0) > 0')
+                      ->whereRaw('COALESCE(cantidad_aprobada, 0) < cantidad_solicitada');
+                });
+            } elseif ($estado === 'completada') {
+                $query->whereDoesntHave('details', function($q) {
+                    $q->whereRaw('COALESCE(cantidad_aprobada, 0) < cantidad_solicitada');
+                });
+            }
+        } else {
+            // Por defecto, mostrar solo pendientes
+            $query->whereHas('details', function($q) {
+                $q->whereRaw('COALESCE(cantidad_aprobada, 0) < cantidad_solicitada');
+            });
+        }
+        
+        // Filtro por fecha
+        if ($request->has('fecha') && $request->fecha) {
+            $query->whereDate('fecha_solicitud', $request->fecha);
+        }
+        
+        // Filtro por proveedor (buscar en materias primas recibidas relacionadas)
+        if ($request->has('proveedor') && $request->proveedor) {
+            $query->whereHas('details.material.rawMaterials.supplier', function($q) use ($request) {
+                $q->where('razon_social', 'like', '%' . $request->proveedor . '%')
+                  ->orWhere('nombre_comercial', 'like', '%' . $request->proveedor . '%');
+            });
+        }
+        
+        $solicitudes = $query->orderBy('fecha_requerida', 'asc')
+            ->paginate(15)
+            ->appends($request->query());
 
-        // Obtener materias primas recibidas
+        // Obtener materias primas recibidas (recientes)
         $materias_primas = RawMaterial::with(['materialBase.unit', 'supplier'])
             ->orderBy('fecha_recepcion', 'desc')
-            ->limit(10)
+            ->limit(20)
             ->get();
 
         $materias_base = RawMaterialBase::where('activo', true)
@@ -265,6 +299,24 @@ class RecepcionMateriaPrimaController extends Controller
             return redirect()->back()
                 ->with('error', 'Error al recibir materia prima: ' . $e->getMessage())
                 ->withInput();
+        }
+    }
+
+    /**
+     * Sincroniza envíos desde la API de Trazabilidad
+     */
+    public function syncEnvios()
+    {
+        try {
+            // Ejecutar el comando de sincronización
+            \Artisan::call('trazabilidad:sync-envios');
+            $output = \Artisan::output();
+
+            return redirect()->route('recepcion-materia-prima')
+                ->with('success', 'Sincronización de envíos completada. ' . $output);
+        } catch (\Exception $e) {
+            return redirect()->route('recepcion-materia-prima')
+                ->with('error', 'Error al sincronizar envíos: ' . $e->getMessage());
         }
     }
 }

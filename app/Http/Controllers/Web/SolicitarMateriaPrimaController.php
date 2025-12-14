@@ -15,18 +15,49 @@ use Illuminate\Support\Facades\Log;
 
 class SolicitarMateriaPrimaController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $solicitudes = MaterialRequest::with([
+        $query = MaterialRequest::with([
                 'order.customer', 
                 'details.material.unit',
-                'details' => function($query) {
-                    $query->orderBy('detalle_id', 'asc');
+                'details' => function($q) {
+                    $q->orderBy('detalle_id', 'asc');
                 }
-            ])
-            ->orderBy('fecha_solicitud', 'desc')
+            ]);
+        
+        // Filtro por estado (basado en detalles)
+        if ($request->has('estado') && $request->estado) {
+            $estado = $request->estado;
+            if ($estado === 'pendiente') {
+                // Solicitudes con al menos un detalle sin completar
+                $query->whereHas('details', function($q) {
+                    $q->whereRaw('COALESCE(cantidad_aprobada, 0) < cantidad_solicitada');
+                });
+            } elseif ($estado === 'completada' || $estado === 'entregada') {
+                // Solicitudes donde todos los detalles están completos
+                $query->whereDoesntHave('details', function($q) {
+                    $q->whereRaw('COALESCE(cantidad_aprobada, 0) < cantidad_solicitada');
+                });
+            }
+        }
+        
+        // Filtro por fecha
+        if ($request->has('fecha') && $request->fecha) {
+            $query->whereDate('fecha_solicitud', $request->fecha);
+        }
+        
+        // Filtro por solicitante (cliente)
+        if ($request->has('solicitante') && $request->solicitante) {
+            $query->whereHas('order.customer', function($q) use ($request) {
+                $q->where('razon_social', 'like', '%' . $request->solicitante . '%')
+                  ->orWhere('nombre_comercial', 'like', '%' . $request->solicitante . '%');
+            });
+        }
+        
+        $solicitudes = $query->orderBy('fecha_solicitud', 'desc')
             ->orderBy('solicitud_id', 'desc')
-            ->paginate(15);
+            ->paginate(15)
+            ->appends($request->query());
 
         // Calcular estadísticas correctas basadas en detalles
         $allSolicitudes = MaterialRequest::with('details')->get();

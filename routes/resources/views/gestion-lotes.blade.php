@@ -126,7 +126,12 @@
                     </table>
                 </div>
                 @if($lotes->hasPages())
-                <div class="card-footer">
+                <div class="card-footer clearfix">
+                    <div class="float-left">
+                        <small class="text-muted">
+                            Mostrando {{ $lotes->firstItem() }} a {{ $lotes->lastItem() }} de {{ $lotes->total() }} registros
+                        </small>
+                    </div>
                     {{ $lotes->links() }}
                 </div>
                 @endif

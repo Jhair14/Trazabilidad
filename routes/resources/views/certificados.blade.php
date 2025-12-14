@@ -9,7 +9,7 @@
             <div class="card-header">
                 <h3 class="card-title">
                     <i class="fas fa-certificate mr-1"></i>
-                    Gestión de Certificados
+                    Gestiรณn de Certificados
                 </h3>
                 <div class="card-tools">
                     <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#generarCertificadoModal">
@@ -25,7 +25,7 @@
                     </div>
                 @endif
 
-                <!-- Estadísticas -->
+                <!-- Estadรญsticas -->
                 <div class="row mb-4">
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
@@ -43,7 +43,7 @@
                             <div class="inner">
                                 <h3>{{ $certificados->getCollection()->filter(function($c) { 
                                     $eval = $c->latestFinalEvaluation;
-                                    return $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló'); 
+                                    return $eval && !str_contains(strtolower($eval->razon ?? ''), 'fallรณ'); 
                                 })->count() }}</h3>
                                 <p>Certificados</p>
                             </div>
@@ -57,7 +57,7 @@
                             <div class="inner">
                                 <h3>{{ $certificados->getCollection()->filter(function($c) { 
                                     $eval = $c->latestFinalEvaluation;
-                                    return $eval && str_contains(strtolower($eval->razon ?? ''), 'falló'); 
+                                    return $eval && str_contains(strtolower($eval->razon ?? ''), 'fallรณ'); 
                                 })->count() }}</h3>
                                 <p>No Certificados</p>
                             </div>
@@ -84,22 +84,27 @@
                     <div class="col-md-3">
                         <select class="form-control" id="filtroEstado">
                             <option value="">Todos los estados</option>
-                            <option value="valido">Válido</option>
-                            <option value="por_vencer">Por Vencer</option>
-                            <option value="vencido">Vencido</option>
-                            <option value="revocado">Revocado</option>
+                            <option value="valido" {{ request('estado') == 'valido' ? 'selected' : '' }}>Válido</option>
+                            <option value="por_vencer" {{ request('estado') == 'por_vencer' ? 'selected' : '' }}>Por Vencer</option>
+                            <option value="vencido" {{ request('estado') == 'vencido' ? 'selected' : '' }}>Vencido</option>
+                            <option value="revocado" {{ request('estado') == 'revocado' ? 'selected' : '' }}>Revocado</option>
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <input type="date" class="form-control" id="filtroFecha">
+                        <input type="date" class="form-control" id="filtroFecha" value="{{ request('fecha', '') }}">
                     </div>
                     <div class="col-md-3">
-                        <input type="text" class="form-control" placeholder="Buscar por lote..." id="buscarLote">
+                        <input type="text" class="form-control" placeholder="Buscar por lote..." id="buscarLote" value="{{ request('lote', '') }}">
                     </div>
                     <div class="col-md-3">
                         <button class="btn btn-info" onclick="aplicarFiltros()">
                             <i class="fas fa-search"></i> Filtrar
                         </button>
+                        @if(request()->hasAny(['estado', 'fecha', 'lote']))
+                            <a href="{{ route('certificados') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Limpiar
+                            </a>
+                        @endif
                     </div>
                 </div>
 
@@ -113,7 +118,7 @@
                     @foreach($certificados as $certificado)
                     @php
                         $finalEval = $certificado->latestFinalEvaluation;
-                        $esFallido = $finalEval && str_contains(strtolower($finalEval->razon ?? ''), 'falló');
+                        $esFallido = $finalEval && str_contains(strtolower($finalEval->razon ?? ''), 'fallรณ');
                     @endphp
                     <div class="col-md-4 mb-4">
                         <div class="card h-100 border {{ $esFallido ? 'border-danger' : 'border-success' }}">
@@ -127,11 +132,11 @@
                                     <strong>Nombre:</strong> {{ $certificado->nombre ?? 'Sin nombre' }}
                                 </p>
                                 <p class="text-gray-500 text-sm mb-2">
-                                    <strong>Fecha de Creación:</strong> {{ $certificado->fecha_creacion ? \Carbon\Carbon::parse($certificado->fecha_creacion)->format('d/m/Y') : 'N/A' }}
+                                    <strong>Fecha de Creaciรณn:</strong> {{ $certificado->fecha_creacion ? \Carbon\Carbon::parse($certificado->fecha_creacion)->format('d/m/Y') : 'N/A' }}
                                 </p>
                                 @if($finalEval)
                                 <p class="text-sm mb-2">
-                                    <strong>Fecha de Evaluación:</strong> {{ $finalEval->fecha_evaluacion ? \Carbon\Carbon::parse($finalEval->fecha_evaluacion)->format('d/m/Y') : 'N/A' }}
+                                    <strong>Fecha de Evaluaciรณn:</strong> {{ $finalEval->fecha_evaluacion ? \Carbon\Carbon::parse($finalEval->fecha_evaluacion)->format('d/m/Y') : 'N/A' }}
                                 </p>
                                 @endif
                             </div>
@@ -155,13 +160,13 @@
 
                 <!-- Paginación -->
                 @if($certificados->hasPages())
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Mostrando {{ $certificados->firstItem() }} a {{ $certificados->lastItem() }} de {{ $certificados->total() }} registros
+                <div class="card-footer clearfix">
+                    <div class="float-left">
+                        <small class="text-muted">
+                            Mostrando {{ $certificados->firstItem() }} a {{ $certificados->lastItem() }} de {{ $certificados->total() }} registros
+                        </small>
                     </div>
-                    <nav>
-                        {{ $certificados->links() }}
-                    </nav>
+                    {{ $certificados->links() }}
                 </div>
                 @endif
             </div>
@@ -187,9 +192,9 @@
                                 <label for="loteCertificado">Lote</label>
                                 <select class="form-control" id="loteCertificado">
                                     <option value="">Seleccionar lote...</option>
-                                    <option value="1">#L001 - Lote Producción A</option>
-                                    <option value="2">#L002 - Lote Producción B</option>
-                                    <option value="3">#L003 - Lote Producción C</option>
+                                    <option value="1">#L001 - Lote Producciรณn A</option>
+                                    <option value="2">#L002 - Lote Producciรณn B</option>
+                                    <option value="3">#L003 - Lote Producciรณn C</option>
                                 </select>
                             </div>
                         </div>
@@ -204,7 +209,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="fechaEmision">Fecha de Emisión</label>
+                                <label for="fechaEmision">Fecha de Emisiรณn</label>
                                 <input type="date" class="form-control" id="fechaEmision">
                             </div>
                         </div>
@@ -257,12 +262,15 @@
 function aplicarFiltros() {
     const estado = document.getElementById('filtroEstado').value;
     const fecha = document.getElementById('filtroFecha').value;
-    const buscar = document.getElementById('buscarLote').value;
+    const lote = document.getElementById('buscarLote').value;
     
     const url = new URL(window.location);
     if (estado) url.searchParams.set('estado', estado);
+    else url.searchParams.delete('estado');
     if (fecha) url.searchParams.set('fecha', fecha);
-    if (buscar) url.searchParams.set('buscar', buscar);
+    else url.searchParams.delete('fecha');
+    if (lote) url.searchParams.set('lote', lote);
+    else url.searchParams.delete('lote');
     window.location = url;
 }
 </script>

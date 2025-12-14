@@ -136,30 +136,28 @@
                 <!-- Filtros -->
                 <div class="row mb-3">
                     <div class="col-md-3">
-                        <select class="form-control" id="filtroEstado">
-                            <option value="">Todos los estados</option>
-                            <option value="disponible">Disponible</option>
-                            <option value="por_vencer">Por Vencer</option>
-                            <option value="vencido">Vencido</option>
-                            <option value="retirado">Retirado</option>
+                        <select class="form-control" id="filtroCondicion">
+                            <option value="">Todas las condiciones</option>
+                            <option value="buen" {{ request('condicion') == 'buen' ? 'selected' : '' }}>Buen Estado</option>
+                            <option value="regular" {{ request('condicion') == 'regular' ? 'selected' : '' }}>Regular</option>
+                            <option value="mal" {{ request('condicion') == 'mal' ? 'selected' : '' }}>Mal Estado</option>
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <select class="form-control" id="filtroZona">
-                            <option value="">Todas las zonas</option>
-                            <option value="A">Zona A</option>
-                            <option value="B">Zona B</option>
-                            <option value="C">Zona C</option>
-                            <option value="D">Zona D</option>
-                        </select>
+                        <input type="date" class="form-control" id="filtroFecha" value="{{ request('fecha', '') }}" placeholder="Fecha de almacenaje">
                     </div>
                     <div class="col-md-3">
-                        <input type="text" class="form-control" placeholder="Buscar por lote..." id="buscarLote">
+                        <input type="text" class="form-control" placeholder="Buscar por lote..." id="buscarLote" value="{{ request('lote', '') }}">
                     </div>
                     <div class="col-md-3">
                         <button class="btn btn-info" onclick="aplicarFiltros()">
                             <i class="fas fa-search"></i> Filtrar
                         </button>
+                        @if(request()->hasAny(['condicion', 'fecha', 'lote']))
+                            <a href="{{ route('lotes-almacenados') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Limpiar
+                            </a>
+                        @endif
                     </div>
                 </div>
 
@@ -214,13 +212,13 @@
 
                 <!-- Paginación -->
                 @if($lotes_almacenados->hasPages())
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Mostrando {{ $lotes_almacenados->firstItem() }} a {{ $lotes_almacenados->lastItem() }} de {{ $lotes_almacenados->total() }} registros
+                <div class="card-footer clearfix">
+                    <div class="float-left">
+                        <small class="text-muted">
+                            Mostrando {{ $lotes_almacenados->firstItem() }} a {{ $lotes_almacenados->lastItem() }} de {{ $lotes_almacenados->total() }} registros
+                        </small>
                     </div>
-                    <nav>
-                        {{ $lotes_almacenados->links() }}
-                    </nav>
+                    {{ $lotes_almacenados->links() }}
                 </div>
                 @endif
             </div>
@@ -288,14 +286,17 @@
 @push('scripts')
 <script>
 function aplicarFiltros() {
-    const estado = document.getElementById('filtroEstado').value;
-    const zona = document.getElementById('filtroZona').value;
-    const buscar = document.getElementById('buscarLote').value;
+    const condicion = document.getElementById('filtroCondicion').value;
+    const fecha = document.getElementById('filtroFecha').value;
+    const lote = document.getElementById('buscarLote').value;
     
     const url = new URL(window.location);
-    if (estado) url.searchParams.set('estado', estado);
-    if (zona) url.searchParams.set('zona', zona);
-    if (buscar) url.searchParams.set('buscar', buscar);
+    if (condicion) url.searchParams.set('condicion', condicion);
+    else url.searchParams.delete('condicion');
+    if (fecha) url.searchParams.set('fecha', fecha);
+    else url.searchParams.delete('fecha');
+    if (lote) url.searchParams.set('lote', lote);
+    else url.searchParams.delete('lote');
     window.location = url;
 }
 

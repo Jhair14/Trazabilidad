@@ -176,13 +176,13 @@
 
                 <!-- Paginación -->
                 @if($solicitudes->hasPages())
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Mostrando {{ $solicitudes->firstItem() }} a {{ $solicitudes->lastItem() }} de {{ $solicitudes->total() }} registros
+                <div class="card-footer clearfix">
+                    <div class="float-left">
+                        <small class="text-muted">
+                            Mostrando {{ $solicitudes->firstItem() }} a {{ $solicitudes->lastItem() }} de {{ $solicitudes->total() }} registros
+                        </small>
                     </div>
-                    <nav>
-                        {{ $solicitudes->links() }}
-                    </nav>
+                    {{ $solicitudes->links() }}
                 </div>
                 @endif
             </div>
@@ -759,12 +759,15 @@ function reindexMaterials() {
 function aplicarFiltros() {
     const estado = document.getElementById('filtroEstado').value;
     const fecha = document.getElementById('filtroFecha').value;
-    const buscar = document.getElementById('buscarSolicitante').value;
+    const solicitante = document.getElementById('buscarSolicitante').value;
     
     const url = new URL(window.location);
     if (estado) url.searchParams.set('estado', estado);
+    else url.searchParams.delete('estado');
     if (fecha) url.searchParams.set('fecha', fecha);
-    if (buscar) url.searchParams.set('buscar', buscar);
+    else url.searchParams.delete('fecha');
+    if (solicitante) url.searchParams.set('solicitante', solicitante);
+    else url.searchParams.delete('solicitante');
     window.location = url;
 }
 

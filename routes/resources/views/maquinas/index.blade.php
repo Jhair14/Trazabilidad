@@ -40,7 +40,16 @@
       </tbody>
     </table>
   </div>
-  <div class="card-footer">{{ $maquinas->links() }}</div>
+  @if($maquinas->hasPages())
+  <div class="card-footer clearfix">
+    <div class="float-left">
+      <small class="text-muted">
+        Mostrando {{ $maquinas->firstItem() }} a {{ $maquinas->lastItem() }} de {{ $maquinas->total() }} registros
+      </small>
+    </div>
+    {{ $maquinas->links() }}
+  </div>
+  @endif
 </div>
 @endsection
 

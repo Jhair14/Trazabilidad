@@ -304,6 +304,132 @@ var lotesChart = new Chart(lotesCtx, {
         }
     }
 });
+
+// Polling cada 2 segundos para actualizar datos en tiempo real
+let pollingInterval = null;
+
+function actualizarDashboard() {
+    fetch('{{ route("dashboard.data") }}', {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Actualizar KPIs
+        $('.small-box.bg-info .inner h3').text(data.stats.total_pedidos || 0);
+        $('.small-box.bg-success .inner h3').text(data.stats.total_lotes || 0);
+        $('.small-box.bg-warning .inner h3').text(data.stats.pedidos_pendientes || 0);
+        $('.small-box.bg-danger .inner h3').text(data.stats.lotes_completados || 0);
+        
+        // Actualizar gráfica de pedidos
+        pedidosChart.data.datasets[0].data = [
+            data.pedidosPorEstado.pendiente || 0,
+            data.pedidosPorEstado.materia_prima_solicitada || 0,
+            data.pedidosPorEstado.en_proceso || 0,
+            data.pedidosPorEstado.produccion_finalizada || 0,
+            data.pedidosPorEstado.almacenado || 0,
+            data.pedidosPorEstado.cancelado || 0
+        ];
+        pedidosChart.update('none'); // 'none' para animación suave
+        
+        // Actualizar gráfica de lotes
+        lotesChart.data.datasets[0].data = [
+            data.lotesPorEstado.pendiente || 0,
+            data.lotesPorEstado.en_proceso || 0,
+            data.lotesPorEstado.certificado || 0,
+            data.lotesPorEstado.no_certificado || 0,
+            data.lotesPorEstado.almacenado || 0
+        ];
+        lotesChart.update('none');
+        
+        // Actualizar tabla de pedidos recientes
+        const pedidosTbody = $('table:first tbody');
+        if (data.pedidos_recientes && data.pedidos_recientes.length > 0) {
+            let pedidosHtml = '';
+            data.pedidos_recientes.forEach(pedido => {
+                let estadoBadge = '';
+                if (pedido.estado === 'pendiente') {
+                    estadoBadge = '<span class="badge badge-warning">Pendiente</span>';
+                } else if (pedido.estado === 'certificado') {
+                    estadoBadge = '<span class="badge badge-success">Certificado</span>';
+                } else if (pedido.estado === 'en_proceso') {
+                    estadoBadge = '<span class="badge badge-primary">En Proceso</span>';
+                } else if (pedido.estado === 'lote_creado') {
+                    estadoBadge = '<span class="badge badge-info">Lote Creado</span>';
+                } else {
+                    estadoBadge = '<span class="badge badge-info">' + pedido.estado.charAt(0).toUpperCase() + pedido.estado.slice(1) + '</span>';
+                }
+                
+                pedidosHtml += `
+                    <tr>
+                        <td>#${pedido.id}</td>
+                        <td>${pedido.cliente}</td>
+                        <td>${estadoBadge}</td>
+                        <td>${pedido.fecha}</td>
+                    </tr>
+                `;
+            });
+            pedidosTbody.html(pedidosHtml);
+        } else {
+            pedidosTbody.html('<tr><td colspan="4" class="text-center">No hay pedidos recientes</td></tr>');
+        }
+        
+        // Actualizar tabla de lotes recientes
+        const lotesTbody = $('table:last tbody');
+        if (data.lotes_recientes && data.lotes_recientes.length > 0) {
+            let lotesHtml = '';
+            data.lotes_recientes.forEach(lote => {
+                let estadoBadge = '';
+                if (lote.estado === 'Certificado') {
+                    estadoBadge = '<span class="badge badge-success">Certificado</span>';
+                } else if (lote.estado === 'No Certificado') {
+                    estadoBadge = '<span class="badge badge-danger">No Certificado</span>';
+                } else if (lote.estado === 'En Proceso') {
+                    estadoBadge = '<span class="badge badge-warning">En Proceso</span>';
+                } else if (lote.estado === 'En Transformación') {
+                    estadoBadge = '<span class="badge badge-primary">En Transformación</span>';
+                } else {
+                    estadoBadge = '<span class="badge badge-info">Pendiente</span>';
+                }
+                
+                lotesHtml += `
+                    <tr>
+                        <td>#${lote.id}</td>
+                        <td>${lote.nombre}</td>
+                        <td>${estadoBadge}</td>
+                        <td>${lote.fecha}</td>
+                    </tr>
+                `;
+            });
+            lotesTbody.html(lotesHtml);
+        } else {
+            lotesTbody.html('<tr><td colspan="4" class="text-center">No hay lotes recientes</td></tr>');
+        }
+    })
+    .catch(error => {
+        console.error('Error al actualizar dashboard:', error);
+    });
+}
+
+// Iniciar polling cuando la página esté lista
+$(document).ready(function() {
+    // Primera actualización después de 2 segundos
+    setTimeout(actualizarDashboard, 2000);
+    
+    // Luego actualizar cada 2 segundos
+    pollingInterval = setInterval(actualizarDashboard, 2000);
+});
+
+// Detener polling cuando se sale de la página
+$(window).on('beforeunload', function() {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+    }
+});
 </script>
 @endpush
 

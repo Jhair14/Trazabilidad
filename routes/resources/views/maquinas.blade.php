@@ -142,13 +142,13 @@
 
                 <!-- Paginación -->
                 @if($maquinas->hasPages())
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Mostrando {{ $maquinas->firstItem() }} a {{ $maquinas->lastItem() }} de {{ $maquinas->total() }} registros
+                <div class="card-footer clearfix">
+                    <div class="float-left">
+                        <small class="text-muted">
+                            Mostrando {{ $maquinas->firstItem() }} a {{ $maquinas->lastItem() }} de {{ $maquinas->total() }} registros
+                        </small>
                     </div>
-                    <nav>
-                        {{ $maquinas->links() }}
-                    </nav>
+                    {{ $maquinas->links() }}
                 </div>
                 @endif
             </div>
