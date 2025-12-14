@@ -17,6 +17,7 @@ services:
       CLOUDINARY_API_KEY: 576298653297422
       CLOUDINARY_API_SECRET: O-z365d0P_j26ZZb8HaKNeypO3U
       PRODUCTORES_API_URL: http://productores.dasalas.shop/api
+      HELPDESK_API_URL: https://proyecto-de-ultimo-minuto.online
     depends_on:
       - db
     networks:
