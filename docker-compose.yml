@@ -16,6 +16,7 @@ services:
       CLOUDINARY_CLOUD_NAME: dtnweo7db
       CLOUDINARY_API_KEY: 576298653297422
       CLOUDINARY_API_SECRET: O-z365d0P_j26ZZb8HaKNeypO3U
+      PRODUCTORES_API_URL: http://productores.dasalas.shop/api
     depends_on:
       - db
     networks:

@@ -788,6 +788,19 @@ document.getElementById('crearSolicitudForm').addEventListener('submit', functio
         alert('Por favor, agregue al menos una materia prima con cantidad válida');
         return false;
     }
+    
+    // Mostrar indicador de carga
+    const submitBtn = document.querySelector('button[type="submit"][form="crearSolicitudForm"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Procesando...';
+    }
+    
+    // Cerrar el modal
+    $('#crearSolicitudModal').modal('hide');
+    
+    // El formulario se enviará normalmente y el servidor hará redirect
+    // El redirect ya recarga la página automáticamente
 });
 
 // Función para mostrar el recordatorio del pedido

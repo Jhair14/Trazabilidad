@@ -246,8 +246,9 @@ class SolicitarMateriaPrimaController extends Controller
                 ]);
             }
 
+            // Recargar la página después de crear la solicitud y enviarla a productores
             return redirect()->route('solicitar-materia-prima')
-                ->with('success', 'Solicitud de materia prima creada exitosamente');
+                ->with('success', 'Solicitud de materia prima creada exitosamente y enviada a productores');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
@@ -278,27 +279,29 @@ class SolicitarMateriaPrimaController extends Controller
             ->pluck('nombre', 'material_id')
             ->toArray();
         
-        // Construir el array de detalles con nombres de productos
+        // Construir el array de detalles con el nuevo formato
         $detallesArray = [];
         foreach ($details as $detail) {
             $nombreProducto = $materiasPrimas[$detail->material_id] ?? null;
             if ($nombreProducto) {
                 $detallesArray[] = [
-                    'nombre_producto' => $nombreProducto,
-                    'cantidad_solicitada' => (float) $detail->cantidad_solicitada
+                    'cultivo_personalizado' => $nombreProducto,
+                    'cantidad' => (float) $detail->cantidad_solicitada,
+                    'observaciones' => '' // Campo opcional, puede estar vacío
                 ];
             }
         }
 
-        // Construir el JSON según el formato especificado
+        // Construir el JSON según el nuevo formato especificado
         $data = [
-            'solicitud_id' => $materialRequest->solicitud_id,
             'numero_solicitud' => $materialRequest->numero_solicitud,
-            'fecha_solicitud' => $materialRequest->fecha_solicitud->format('Y-m-d'),
-            'fecha_requerida' => $materialRequest->fecha_requerida->format('Y-m-d'),
-            'direccion' => $materialRequest->direccion,
+            'nombre_planta' => 'Planta',
             'latitud' => $materialRequest->latitud ? (float) $materialRequest->latitud : null,
             'longitud' => $materialRequest->longitud ? (float) $materialRequest->longitud : null,
+            'direccion_texto' => $materialRequest->direccion,
+            'estado' => 'pendiente',
+            'fechaEntregaDeseada' => $materialRequest->fecha_requerida->format('Y-m-d'),
+            'observaciones' => $materialRequest->observaciones ?? '',
             'detalles' => $detallesArray
         ];
 
