@@ -14,6 +14,12 @@ class RawMaterialCategoryResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'category_id' => $this->categoria_id,
+            'code' => $this->codigo,
+            'name' => $this->nombre,
+            'description' => $this->descripcion,
+            'active' => $this->activo,
+        ];
     }
 }

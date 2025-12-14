@@ -15,7 +15,7 @@ class RawMaterialBaseController extends Controller
     {
         try {
             $materials = RawMaterialBase::with(['category', 'unit'])
-                ->where('active', true)
+                ->where('activo', true)
                 ->paginate($request->get('per_page', 15));
 
             return response()->json($materials);
@@ -69,15 +69,15 @@ class RawMaterialBaseController extends Controller
             // Create material with manual ID
             $material = RawMaterialBase::create([
                 'material_id' => $nextId,
-                'category_id' => $request->category_id,
-                'unit_id' => $request->unit_id,
-                'code' => $code,
-                'name' => $request->name,
-                'description' => $request->description,
-                'available_quantity' => 0,
-                'minimum_stock' => $request->minimum_stock ?? 0,
-                'maximum_stock' => $request->maximum_stock,
-                'active' => true,
+                'categoria_id' => $request->category_id,
+                'unidad_id' => $request->unit_id,
+                'codigo' => $code,
+                'nombre' => $request->name,
+                'descripcion' => $request->description,
+                'cantidad_disponible' => 0,
+                'stock_minimo' => $request->minimum_stock ?? 0,
+                'stock_maximo' => $request->maximum_stock,
+                'activo' => true,
             ]);
 
             return response()->json([
@@ -111,9 +111,15 @@ class RawMaterialBaseController extends Controller
 
         try {
             $material = RawMaterialBase::findOrFail($id);
-            $material->update($request->only([
-                'name', 'description', 'minimum_stock', 'maximum_stock', 'active'
-            ]));
+            
+            $data = [];
+            if ($request->has('name')) $data['nombre'] = $request->name;
+            if ($request->has('description')) $data['descripcion'] = $request->description;
+            if ($request->has('minimum_stock')) $data['stock_minimo'] = $request->minimum_stock;
+            if ($request->has('maximum_stock')) $data['stock_maximo'] = $request->maximum_stock;
+            if ($request->has('active')) $data['activo'] = $request->active;
+
+            $material->update($data);
 
             return response()->json([
                 'message' => 'Materia prima base actualizada'
@@ -130,7 +136,7 @@ class RawMaterialBaseController extends Controller
     {
         try {
             $material = RawMaterialBase::findOrFail($id);
-            $material->update(['active' => false]);
+            $material->update(['activo' => false]);
 
             return response()->json([
                 'message' => 'Materia prima base eliminada'

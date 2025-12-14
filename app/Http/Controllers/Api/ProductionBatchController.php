@@ -59,12 +59,12 @@ class ProductionBatchController extends Controller
     public function store(ProductionBatchRequest $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'order_id' => 'required|integer|exists:customer_order,order_id',
+            'order_id' => 'required|integer|exists:pedido_cliente,pedido_id',
             'name' => 'nullable|string|max:100',
             'target_quantity' => 'nullable|numeric|min:0',
             'observations' => 'nullable|string|max:500',
             'raw_materials' => 'nullable|array',
-            'raw_materials.*.raw_material_id' => 'required|integer|exists:raw_material,raw_material_id',
+            'raw_materials.*.raw_material_id' => 'required|integer|exists:materia_prima,materia_prima_id',
             'raw_materials.*.planned_quantity' => 'required|numeric|min:0',
         ]);
 
@@ -78,50 +78,48 @@ class ProductionBatchController extends Controller
         DB::beginTransaction();
         try {
             // Get the next ID manually since sequence doesn't exist
-            $maxId = ProductionBatch::max('batch_id') ?? 0;
+            // Get the next ID manually since sequence doesn't exist
+            $maxId = ProductionBatch::max('lote_id') ?? 0;
             $nextId = $maxId + 1;
             
             // Generar código de lote automáticamente
             $batchCode = 'LOTE-' . str_pad($nextId, 4, '0', STR_PAD_LEFT) . '-' . date('Ymd');
             
             $batch = ProductionBatch::create([
-                'batch_id' => $nextId,
-                'order_id' => $request->order_id,
-                'batch_code' => $batchCode,
-                'name' => $request->name ?? 'Unnamed Batch',
-                'creation_date' => now()->toDateString(),
-                'target_quantity' => $request->target_quantity,
-                'observations' => $request->observations,
+                'lote_id' => $nextId,
+                'pedido_id' => $request->order_id,
+                'codigo_lote' => $batchCode,
+                'nombre' => $request->name ?? 'Unnamed Batch',
+                'fecha_creacion' => now()->toDateString(),
+                'cantidad_objetivo' => $request->target_quantity,
+                'observaciones' => $request->observations,
             ]);
 
             // Create batch raw materials
             if ($request->has('raw_materials')) {
                 foreach ($request->raw_materials as $rm) {
                     // Get the next ID manually
-                    $maxBatchMaterialId = BatchRawMaterial::max('batch_material_id') ?? 0;
+                    $maxBatchMaterialId = BatchRawMaterial::max('lote_material_id') ?? 0;
                     $batchMaterialId = $maxBatchMaterialId + 1;
                     
                     BatchRawMaterial::create([
-                        'batch_material_id' => $batchMaterialId,
-                        'batch_id' => $batch->batch_id,
-                        'raw_material_id' => $rm['raw_material_id'],
-                        'planned_quantity' => $rm['planned_quantity'],
-                        'used_quantity' => 0,
+                        'lote_material_id' => $batchMaterialId,
+                        'lote_id' => $batch->lote_id,
+                        'materia_prima_id' => $rm['raw_material_id'],
+                        'cantidad_planificada' => $rm['planned_quantity'],
+                        'cantidad_usada' => 0,
                     ]);
                 }
             }
 
             // Update order status
-            $order = CustomerOrder::find($request->order_id);
-            if ($order) {
-                // You might want to update order status here
-            }
+            $this->updateOrderStatus($request->order_id);
 
             DB::commit();
 
             return response()->json([
                 'message' => 'Lote de producción creado exitosamente',
-                'batch_id' => $batch->batch_id
+                'batch_id' => $batch->lote_id
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -145,19 +143,32 @@ class ProductionBatchController extends Controller
     /**
      * Delete production batch
      */
-    public function destroy(ProductionBatch $productionBatch): Response
+    public function destroy(ProductionBatch $productionBatch)
     {
-        // Check if batch can be deleted (not in use)
-        // Commented out until process_machine_record table is created:
-        // if ($productionBatch->processMachineRecords()->count() > 0) {
-        //     return response()->json([
-        //         'message' => 'No se puede eliminar un lote que tiene registros de proceso'
-        //     ], 400);
-        // }
+        DB::beginTransaction();
+        try {
+            // Delete related records manually to avoid foreign key constraints
+            $productionBatch->rawMaterials()->delete();
+            $productionBatch->processMachineRecords()->delete();
+            $productionBatch->finalEvaluation()->delete();
+            $productionBatch->storage()->delete();
 
-        $productionBatch->delete();
+            $orderId = $productionBatch->pedido_id;
+            
+            $productionBatch->delete();
 
-        return response()->noContent();
+            // Update parent order status
+            $this->updateOrderStatus($orderId);
+
+            DB::commit();
+            return response()->noContent();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            // Return error as JSON response with 500 status, but since return type is Response, 
+            // we might need to change return type or just return response()->json(...)
+            // However, the signature says : Response. Let's change it to match what Laravel expects or just return response
+            return response()->json(['message' => 'Error al eliminar lote: ' . $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -409,6 +420,9 @@ class ProductionBatchController extends Controller
             \Illuminate\Support\Facades\Log::info("Batch {$batchId} finalized. Update result: " . ($updated ? 'true' : 'false'));
             \Illuminate\Support\Facades\Log::info("Batch {$batchId} fresh data: " . json_encode($batch->fresh()));
 
+            // Update parent order status
+            $this->updateOrderStatus($batch->pedido_id);
+
             DB::commit();
 
             return response()->json([
@@ -483,6 +497,35 @@ class ProductionBatchController extends Controller
             return response()->json([
                 'message' => 'Error al obtener log: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Update parent order status based on batches
+     */
+    private function updateOrderStatus($orderId)
+    {
+        $order = CustomerOrder::find($orderId);
+        if (!$order) return;
+
+        $batches = ProductionBatch::where('pedido_id', $orderId)->get();
+        
+        if ($batches->isEmpty()) {
+            return;
+        }
+
+        $allCompleted = $batches->every(function ($batch) {
+            return !is_null($batch->hora_fin);
+        });
+
+        $anyStarted = $batches->contains(function ($batch) {
+            return !is_null($batch->hora_inicio) || !is_null($batch->hora_fin);
+        });
+
+        if ($allCompleted) {
+            $order->update(['estado' => 'completado']);
+        } elseif ($anyStarted) {
+            $order->update(['estado' => 'en_produccion']);
         }
     }
 }
