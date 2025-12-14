@@ -340,6 +340,17 @@ function verPedido(id) {
                                 <td>${data.approved_at}</td>
                             </tr>
                             ` : ''}
+                            ${data.status === 'rechazado' && data.rejection_reason ? `
+                            <tr>
+                                <th>Motivo del Rechazo</th>
+                                <td>
+                                    <div class="alert alert-danger mb-0">
+                                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                                        <strong>${data.rejection_reason}</strong>
+                                    </div>
+                                </td>
+                            </tr>
+                            ` : ''}
                         </table>
                     </div>
                 </div>

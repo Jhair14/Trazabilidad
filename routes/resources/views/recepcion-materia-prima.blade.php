@@ -283,8 +283,11 @@
                                        id="recepcion_fecha_recepcion" name="fecha_recepcion" 
                                        value="{{ date('Y-m-d') }}"
                                        min="{{ date('Y-m-d') }}"
-                                       title="No se pueden seleccionar fechas anteriores a hoy"
+                                       title="Seleccione una fecha entre la fecha de solicitud y la fecha requerida"
                                        required>
+                                <small class="form-text text-muted" id="fechaRecepcionHelp">
+                                    Seleccione una fecha a partir de hoy
+                                </small>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -521,6 +524,46 @@ function recepcionarMaterial(requestId, materialId, materialName, requestedQuant
     document.getElementById('recepcion_requested_quantity').textContent = requestedQuantity;
     document.getElementById('recepcion_unit').textContent = unit;
     document.getElementById('recepcion_cantidad').value = requestedQuantity;
+    
+    // Buscar la solicitud para obtener las fechas
+    const solicitud = solicitudes.find(s => s.request_id == requestId);
+    const fechaInput = document.getElementById('recepcion_fecha_recepcion');
+    const fechaHelp = document.getElementById('fechaRecepcionHelp');
+    
+    if (solicitud && solicitud.fecha_solicitud && solicitud.fecha_requerida) {
+        // Establecer el mínimo como la fecha de solicitud (o hoy si es más reciente)
+        const hoy = new Date().toISOString().split('T')[0];
+        const fechaMin = solicitud.fecha_solicitud >= hoy ? solicitud.fecha_solicitud : hoy;
+        const fechaMax = solicitud.fecha_requerida;
+        
+        fechaInput.setAttribute('min', fechaMin);
+        fechaInput.setAttribute('max', fechaMax);
+        
+        // Actualizar el texto de ayuda
+        if (fechaHelp) {
+            fechaHelp.textContent = `Seleccione una fecha entre ${solicitud.fecha_solicitud_formatted || solicitud.fecha_solicitud} (fecha de solicitud) y ${solicitud.fecha_requerida_formatted || solicitud.fecha_requerida} (fecha requerida)`;
+            fechaHelp.className = 'form-text text-info';
+        }
+        
+        // Establecer la fecha de hoy como valor por defecto si está dentro del rango
+        if (hoy >= fechaMin && hoy <= fechaMax) {
+            fechaInput.value = hoy;
+        } else if (hoy < fechaMin) {
+            fechaInput.value = fechaMin;
+        } else {
+            fechaInput.value = fechaMax;
+        }
+    } else {
+        // Si no hay fechas de solicitud, usar solo el mínimo de hoy
+        const hoy = new Date().toISOString().split('T')[0];
+        fechaInput.setAttribute('min', hoy);
+        fechaInput.removeAttribute('max');
+        fechaInput.value = hoy;
+        if (fechaHelp) {
+            fechaHelp.textContent = 'Seleccione una fecha a partir de hoy';
+            fechaHelp.className = 'form-text text-muted';
+        }
+    }
     
     // Limpiar otros campos
     document.getElementById('recepcion_proveedor_id').value = '';

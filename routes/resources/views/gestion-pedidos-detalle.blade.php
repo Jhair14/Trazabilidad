@@ -198,7 +198,7 @@
                                     <p class="text-muted">Esta acción rechazará todos los productos del pedido de una vez.</p>
                                     <div class="form-group">
                                         <label>Razón del Rechazo <span class="text-danger">*</span></label>
-                                        <textarea class="form-control" name="razon_rechazo" rows="3" required></textarea>
+                                        <textarea class="form-control" name="rejection_reason" rows="3" required></textarea>
                                     </div>
                                 </div>
                                 <div class="modal-footer">

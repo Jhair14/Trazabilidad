@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <title>Planta</title>
         <!-- AdminLTE 3 CSS with Bootstrap Icons and FontAwesome -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" crossorigin="anonymous" />
@@ -785,22 +785,44 @@
     <!-- Brand Logo -->
     <a href="{{ route('dashboard') }}" class="brand-link">
         <img src="https://adminlte.io/themes/v3/dist/img/AdminLTELogo.png" alt="Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
-        <span class="brand-text font-weight-light">Trazabilidad</span>
+        <span class="brand-text font-weight-light">Planta</span>
     </a>
     
     <!-- Sidebar user panel -->
-    <div class="user-panel mt-3 pb-3 mb-3 d-flex">
-        <div class="image">
-            <img src="https://adminlte.io/themes/v3/dist/img/user2-160x160.jpg" class="img-circle elevation-2" alt="User Image">
+    <div class="user-panel mt-3 pb-3 mb-3 d-flex" style="align-items: flex-start;">
+        <div class="image" style="flex-shrink: 0;">
+            <img src="https://adminlte.io/themes/v3/dist/img/user2-160x160.jpg" class="img-circle elevation-2" alt="User Image" style="width: 40px; height: 40px; object-fit: cover;">
         </div>
-        <div class="info">
-            <a href="#" class="d-block">
-                @auth
-                    {{ Auth::user()->first_name }} {{ Auth::user()->last_name }}
-                @else
-                    Usuario
-                @endauth
-            </a>
+        <div class="info" style="flex: 1; min-width: 0; margin-left: 8px; padding-top: 2px;">
+            @auth
+                @php
+                    $user = Auth::user();
+                    $nombre = $user->nombre ?? '';
+                    $apellido = $user->apellido ?? '';
+                    $nombreCompleto = trim($nombre . ' ' . $apellido);
+                    $usuario = $user->usuario ?? $user->email ?? '';
+                @endphp
+                <a href="#" class="d-block" style="color: #c2c7d0; text-decoration: none; line-height: 1.3;">
+                    @if($nombreCompleto)
+                        <div style="font-weight: 600; font-size: 14px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;">
+                            {{ $nombreCompleto }}
+                        </div>
+                        @if($usuario)
+                            <div style="font-size: 12px; color: #c2c7d0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {{ $usuario }}
+                            </div>
+                        @endif
+                    @else
+                        <div style="font-weight: 600; font-size: 14px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            {{ $usuario ?: 'Usuario' }}
+                        </div>
+                    @endif
+                </a>
+            @else
+                <a href="#" class="d-block" style="color: #c2c7d0; text-decoration: none; line-height: 1.3;">
+                    <div style="font-weight: 600; font-size: 14px; color: #fff;">Usuario</div>
+                </a>
+            @endauth
         </div>
     </div>
     
@@ -1030,8 +1052,8 @@
 
             <!-- Footer -->
             <footer class="main-footer">
-                <strong>Copyright &copy; 2014-2021 <a href="https://adminlte.io">AdminLTE.io</a>.</strong>
-                All rights reserved.
+                <strong>Copyright &copy; {{ date('Y') }} <a href="#">Planta</a>.</strong>
+                Todos los derechos reservados.
                 <div class="float-right d-none d-sm-inline-block">
                     <b>Version</b> 3.2.0
                 </div>

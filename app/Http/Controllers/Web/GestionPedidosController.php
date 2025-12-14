@@ -20,8 +20,8 @@ class GestionPedidosController extends Controller
     {
         $query = CustomerOrder::with(['customer', 'orderProducts.product']);
         
-        // Filtro por estado - por defecto mostrar pendientes, aprobados y almacenados
-        $estadoFiltro = $request->get('estado', 'pendientes_aprobados_almacenados');
+        // Filtro por estado - por defecto mostrar todos los estados
+        $estadoFiltro = $request->get('estado', '');
         
         if ($estadoFiltro === 'pendientes_aprobados') {
             $query->whereIn('estado', ['pendiente', 'aprobado']);
@@ -30,6 +30,7 @@ class GestionPedidosController extends Controller
         } elseif ($estadoFiltro && $estadoFiltro !== '') {
             $query->where('estado', $estadoFiltro);
         }
+        // Si $estadoFiltro está vacío, no se aplica filtro y se muestran todos los estados
         
         // Filtro por cliente
         if ($request->has('cliente') && $request->cliente) {

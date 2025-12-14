@@ -10,6 +10,8 @@ use App\Models\RawMaterialBase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class SolicitarMateriaPrimaController extends Controller
 {
@@ -168,11 +170,15 @@ class SolicitarMateriaPrimaController extends Controller
         $validator = Validator::make($request->all(), [
             'pedido_id' => 'required|integer|exists:pedido_cliente,pedido_id',
             'fecha_requerida' => ['required', 'date', 'after_or_equal:today'],
+            'direccion' => 'required|string|max:500',
+            'latitud' => 'nullable|numeric|between:-90,90',
+            'longitud' => 'nullable|numeric|between:-180,180',
             'materials' => 'required|array|min:1',
             'materials.*.material_id' => 'required|integer|exists:materia_prima_base,material_id',
             'materials.*.cantidad_solicitada' => 'required|numeric|min:0',
         ], [
             'fecha_requerida.after_or_equal' => 'La fecha requerida no puede ser anterior a hoy.',
+            'direccion.required' => 'La dirección de entrega es obligatoria.',
         ]);
 
         if ($validator->fails()) {
@@ -202,8 +208,12 @@ class SolicitarMateriaPrimaController extends Controller
                 'fecha_solicitud' => now()->toDateString(),
                 'fecha_requerida' => $request->fecha_requerida,
                 'observaciones' => $request->observaciones ?? null,
+                'direccion' => $request->direccion,
+                'latitud' => $request->latitud ?? null,
+                'longitud' => $request->longitud ?? null,
             ]);
 
+            $details = [];
             foreach ($request->materials as $material) {
                 // Sincronizar secuencia y obtener el siguiente ID para detail
                 $maxDetailId = DB::table('detalle_solicitud_material')->max('detalle_id');
@@ -213,15 +223,28 @@ class SolicitarMateriaPrimaController extends Controller
                 
                 $detailId = DB::selectOne("SELECT nextval('detalle_solicitud_material_seq') as id")->id;
                 
-                MaterialRequestDetail::create([
+                $detail = MaterialRequestDetail::create([
                     'detalle_id' => $detailId,
                     'solicitud_id' => $materialRequest->solicitud_id,
                     'material_id' => $material['material_id'],
                     'cantidad_solicitada' => $material['cantidad_solicitada'],
                 ]);
+                
+                $details[] = $detail;
             }
 
             DB::commit();
+
+            // Enviar solicitud al endpoint externo (no debe afectar si falla)
+            try {
+                $this->enviarSolicitudAProductores($materialRequest, $details);
+            } catch (\Exception $e) {
+                // Log del error pero no afectar la creación de la solicitud
+                Log::warning('Error al enviar solicitud a productores API', [
+                    'solicitud_id' => $materialRequest->solicitud_id,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             return redirect()->route('solicitar-materia-prima')
                 ->with('success', 'Solicitud de materia prima creada exitosamente');
@@ -230,6 +253,93 @@ class SolicitarMateriaPrimaController extends Controller
             return redirect()->back()
                 ->with('error', 'Error al crear solicitud: ' . $e->getMessage())
                 ->withInput();
+        }
+    }
+
+    /**
+     * Envía la solicitud de materia prima al endpoint de productores
+     */
+    private function enviarSolicitudAProductores(MaterialRequest $materialRequest, array $details)
+    {
+        $apiUrl = env('PRODUCTORES_API_URL', 'http://127.0.0.1:8003/api');
+        
+        if (empty($apiUrl)) {
+            Log::warning('PRODUCTORES_API_URL no está configurada, omitiendo envío');
+            return;
+        }
+
+        // Obtener los IDs de materiales para cargar sus nombres
+        $materialIds = array_map(function($detail) {
+            return $detail->material_id;
+        }, $details);
+        
+        // Cargar las materias primas con sus nombres
+        $materiasPrimas = RawMaterialBase::whereIn('material_id', $materialIds)
+            ->pluck('nombre', 'material_id')
+            ->toArray();
+        
+        // Construir el array de detalles con nombres de productos
+        $detallesArray = [];
+        foreach ($details as $detail) {
+            $nombreProducto = $materiasPrimas[$detail->material_id] ?? null;
+            if ($nombreProducto) {
+                $detallesArray[] = [
+                    'nombre_producto' => $nombreProducto,
+                    'cantidad_solicitada' => (float) $detail->cantidad_solicitada
+                ];
+            }
+        }
+
+        // Construir el JSON según el formato especificado
+        $data = [
+            'solicitud_id' => $materialRequest->solicitud_id,
+            'numero_solicitud' => $materialRequest->numero_solicitud,
+            'fecha_solicitud' => $materialRequest->fecha_solicitud->format('Y-m-d'),
+            'fecha_requerida' => $materialRequest->fecha_requerida->format('Y-m-d'),
+            'direccion' => $materialRequest->direccion,
+            'latitud' => $materialRequest->latitud ? (float) $materialRequest->latitud : null,
+            'longitud' => $materialRequest->longitud ? (float) $materialRequest->longitud : null,
+            'detalles' => $detallesArray
+        ];
+
+        $url = rtrim($apiUrl, '/') . '/pedidos';
+
+        Log::info('Enviando solicitud a productores API', [
+            'url' => $url,
+            'solicitud_id' => $materialRequest->solicitud_id,
+            'numero_solicitud' => $materialRequest->numero_solicitud,
+            'data' => $data
+        ]);
+
+        try {
+            $response = Http::timeout(10)
+                ->post($url, $data);
+
+            if ($response->successful()) {
+                Log::info('Solicitud enviada exitosamente a productores API', [
+                    'solicitud_id' => $materialRequest->solicitud_id,
+                    'status' => $response->status(),
+                    'response' => $response->json()
+                ]);
+            } else {
+                Log::warning('Error al enviar solicitud a productores API', [
+                    'solicitud_id' => $materialRequest->solicitud_id,
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+            }
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::warning('No se pudo conectar con productores API', [
+                'solicitud_id' => $materialRequest->solicitud_id,
+                'error' => $e->getMessage(),
+                'url' => $url
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Excepción al enviar solicitud a productores API', [
+                'solicitud_id' => $materialRequest->solicitud_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 }

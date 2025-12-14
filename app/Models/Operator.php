@@ -55,5 +55,21 @@ class Operator extends Authenticatable implements JWTSubject
     {
         return $this->attributes['password_hash'] ?? null;
     }
+
+    // Accessors para compatibilidad con código que usa first_name y last_name
+    public function getFirstNameAttribute()
+    {
+        return $this->attributes['nombre'] ?? null;
+    }
+
+    public function getLastNameAttribute()
+    {
+        return $this->attributes['apellido'] ?? null;
+    }
+
+    public function getUsernameAttribute()
+    {
+        return $this->attributes['usuario'] ?? null;
+    }
 }
 

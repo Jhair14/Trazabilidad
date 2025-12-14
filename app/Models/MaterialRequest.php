@@ -18,12 +18,17 @@ class MaterialRequest extends Model
         'numero_solicitud',
         'fecha_solicitud',
         'fecha_requerida',
-        'observaciones'
+        'observaciones',
+        'direccion',
+        'latitud',
+        'longitud'
     ];
 
     protected $casts = [
         'fecha_solicitud' => 'date',
         'fecha_requerida' => 'date',
+        'latitud' => 'decimal:8',
+        'longitud' => 'decimal:8',
     ];
 
     public function order(): BelongsTo

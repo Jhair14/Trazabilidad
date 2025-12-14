@@ -542,6 +542,7 @@ class PedidosController extends Controller
                 'observations' => $pedido->observaciones,
                 'editable_until' => $pedido->editable_hasta ? $pedido->editable_hasta->format('Y-m-d H:i:s') : null,
                 'approved_at' => $pedido->aprobado_en ? $pedido->aprobado_en->format('Y-m-d H:i:s') : null,
+                'rejection_reason' => $pedido->razon_rechazo,
                 'can_be_edited' => $pedido->canBeEdited(),
                 'almacen_nombre' => $almacenNombre, // Nombre del almacén si viene del sistema de almacenes
                 'products' => $pedido->orderProducts->map(function ($op) {

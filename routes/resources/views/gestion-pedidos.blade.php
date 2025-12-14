@@ -102,9 +102,9 @@
                 <div class="row mb-3">
                     <div class="col-md-3">
                         <select class="form-control" id="filtroEstado">
+                            <option value="" {{ (!isset($estadoFiltro) || $estadoFiltro == '') ? 'selected' : '' }}>Todos los estados</option>
                             <option value="pendientes_aprobados_almacenados" {{ (isset($estadoFiltro) && $estadoFiltro == 'pendientes_aprobados_almacenados') ? 'selected' : '' }}>Pendientes, Aprobados y Almacenados</option>
                             <option value="pendientes_aprobados" {{ (isset($estadoFiltro) && $estadoFiltro == 'pendientes_aprobados') ? 'selected' : '' }}>Pendientes y Aprobados</option>
-                            <option value="">Todos los estados</option>
                             <option value="pendiente" {{ (isset($estadoFiltro) && $estadoFiltro == 'pendiente') ? 'selected' : '' }}>Pendiente</option>
                             <option value="aprobado" {{ (isset($estadoFiltro) && $estadoFiltro == 'aprobado') ? 'selected' : '' }}>Aprobado</option>
                             <option value="almacenado" {{ (isset($estadoFiltro) && $estadoFiltro == 'almacenado') ? 'selected' : '' }}>Almacenado</option>
@@ -240,6 +240,34 @@ function aplicarFiltros() {
     
     window.location = url;
 }
+
+// Permitir aplicar filtros con Enter en los campos de búsqueda
+document.addEventListener('DOMContentLoaded', function() {
+    const buscarCliente = document.getElementById('buscarCliente');
+    const filtroFecha = document.getElementById('filtroFecha');
+    const filtroEstado = document.getElementById('filtroEstado');
+    
+    if (buscarCliente) {
+        buscarCliente.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                aplicarFiltros();
+            }
+        });
+    }
+    
+    if (filtroFecha) {
+        filtroFecha.addEventListener('change', function() {
+            aplicarFiltros();
+        });
+    }
+    
+    if (filtroEstado) {
+        filtroEstado.addEventListener('change', function() {
+            aplicarFiltros();
+        });
+    }
+});
 </script>
 @endpush
 

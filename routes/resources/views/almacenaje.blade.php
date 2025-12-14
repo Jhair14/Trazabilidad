@@ -307,11 +307,13 @@
                                                 <button class="btn btn-info btn-sm" title="Ver Detalles" onclick="verAlmacenaje({{ $lote->lote_id }})">
                                                     <i class="fas fa-eye"></i> Ver
                                                 </button>
+                                                {{-- Ocultado: PDF Propuesta
                                                 @if($envioId && $propuestaPdfUrl)
                                                     <a href="{{ $propuestaPdfUrl }}" target="_blank" class="btn btn-danger btn-sm" title="Descargar PDF Propuesta">
                                                         <i class="fas fa-file-pdf"></i> PDF Propuesta
                                                     </a>
                                                 @endif
+                                                --}}
                                                 @if($envioId && $aprobarRechazarUrl && $mostrarAprobarRechazar)
                                                     <button class="btn btn-success btn-sm" title="Aprobar Propuesta" onclick="abrirModalAprobarAlmacenaje('{{ $aprobarRechazarUrl }}', {{ $envioId }})">
                                                         <i class="fas fa-check"></i> Aprobar

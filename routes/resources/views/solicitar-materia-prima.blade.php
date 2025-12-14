@@ -191,6 +191,33 @@
 </div>
 
 <!-- Modal Crear Solicitud -->
+<style>
+    #crearSolicitudModal .modal-body {
+        max-height: calc(100vh - 200px);
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    #crearSolicitudModal .modal-dialog {
+        max-height: calc(100vh - 50px);
+        margin: 25px auto;
+    }
+    
+    #crearSolicitudModal .modal-content {
+        max-height: calc(100vh - 50px);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #crearSolicitudModal .modal-footer {
+        flex-shrink: 0;
+    }
+    
+    #crearSolicitudModal .modal-header {
+        flex-shrink: 0;
+    }
+</style>
+
 <div class="modal fade" id="crearSolicitudModal" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
@@ -250,12 +277,41 @@
                                 </label>
                                 <input type="date" class="form-control @error('fecha_requerida') is-invalid @enderror" 
                                        id="fecha_requerida" name="fecha_requerida" 
-                                       value="{{ old('fecha_requerida') }}" required min="{{ date('Y-m-d') }}">
+                                       value="{{ old('fecha_requerida') }}" required 
+                                       min="{{ date('Y-m-d') }}">
                                 @error('fecha_requerida')
                                     <span class="invalid-feedback">{{ $message }}</span>
                                 @enderror
+                                <small class="form-text text-muted" id="fechaRequeridaHelp">
+                                    Seleccione una fecha entre hoy y la fecha de entrega del pedido
+                                </small>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- Dirección de Entrega -->
+                    <div class="form-group">
+                        <label for="direccion_entrega">
+                            <i class="fas fa-map-marker-alt mr-1"></i>
+                            Dirección de Entrega <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="text" class="form-control @error('direccion') is-invalid @enderror" 
+                                   id="direccion_entrega" name="direccion" 
+                                   value="{{ old('direccion') }}" required 
+                                   placeholder="Ingrese la dirección donde debe llegar la materia prima">
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-info" onclick="openMapSolicitud()">
+                                    <i class="fas fa-map"></i> Mapa
+                                </button>
+                            </div>
+                        </div>
+                        @error('direccion')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
+                        <small class="form-text text-muted">Puede ingresar la dirección manualmente o seleccionarla en el mapa</small>
+                        <input type="hidden" id="latitud_solicitud" name="latitud" value="{{ old('latitud') }}">
+                        <input type="hidden" id="longitud_solicitud" name="longitud" value="{{ old('longitud') }}">
                     </div>
                     
                     <!-- Materias Primas -->
@@ -336,9 +392,54 @@
     </div>
 </div>
 
+<!-- Modal para Mapa -->
+<div class="modal fade" id="mapModalSolicitud" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Seleccionar Ubicación en el Mapa</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="mapSolicitud" style="height: 400px; width: 100%;"></div>
+                <div class="mt-3">
+                    <div class="form-group">
+                        <label>Dirección</label>
+                        <input type="text" class="form-control" id="mapAddressSolicitud">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Latitud</label>
+                                <input type="text" class="form-control" id="mapLatitudeSolicitud" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Longitud</label>
+                                <input type="text" class="form-control" id="mapLongitudeSolicitud" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveMapLocationSolicitud()">Guardar Ubicación</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 let materialIndex = 1;
 const materiasPrimas = @json($materias_primas_json ?? []);
@@ -378,11 +479,31 @@ function cargarMateriasPrimasDelPedido(pedidoId) {
             // Mostrar recordatorio del pedido
             mostrarRecordatorioPedido(data.pedido, data.materias_primas || []);
             
-            // Actualizar fecha requerida si viene del pedido
+            // Actualizar fecha requerida y límites si viene del pedido
+            const fechaInput = document.getElementById('fecha_requerida');
+            const fechaHelp = document.getElementById('fechaRequeridaHelp');
+            
             if (data.pedido && data.pedido.fecha_entrega) {
-                const fechaInput = document.getElementById('fecha_requerida');
+                // Establecer el máximo como la fecha de entrega del pedido
+                fechaInput.setAttribute('max', data.pedido.fecha_entrega);
+                
+                // Actualizar el texto de ayuda
+                if (fechaHelp) {
+                    const fechaEntregaFormatted = data.pedido.fecha_entrega_formatted || data.pedido.fecha_entrega;
+                    fechaHelp.textContent = `Seleccione una fecha entre hoy y ${fechaEntregaFormatted} (fecha de entrega del pedido)`;
+                    fechaHelp.className = 'form-text text-info';
+                }
+                
+                // Si no hay fecha seleccionada, establecer la fecha de entrega como valor por defecto
                 if (fechaInput && !fechaInput.value) {
                     fechaInput.value = data.pedido.fecha_entrega;
+                }
+            } else {
+                // Si no hay fecha de entrega, quitar el límite máximo
+                fechaInput.removeAttribute('max');
+                if (fechaHelp) {
+                    fechaHelp.textContent = 'Seleccione una fecha a partir de hoy';
+                    fechaHelp.className = 'form-text text-muted';
                 }
             }
             
@@ -538,6 +659,18 @@ function limpiarTablaMateriasPrimas() {
         </tr>
     `;
     materialIndex = 1;
+    
+    // Limpiar límites de fecha requerida
+    const fechaInput = document.getElementById('fecha_requerida');
+    const fechaHelp = document.getElementById('fechaRequeridaHelp');
+    if (fechaInput) {
+        fechaInput.removeAttribute('max');
+        fechaInput.value = '';
+    }
+    if (fechaHelp) {
+        fechaHelp.textContent = 'Seleccione una fecha a partir de hoy';
+        fechaHelp.className = 'form-text text-muted';
+    }
     
     // Ocultar recordatorio
     ocultarRecordatorio();
@@ -740,6 +873,58 @@ $('#crearSolicitudModal').on('shown.bs.modal', function() {
     if (pedidoSelect && pedidoSelect.value) {
         cargarMateriasPrimasDelPedido(pedidoSelect.value);
     }
+});
+
+// Variables para el mapa de solicitud
+let mapSolicitud = null;
+let markerSolicitud = null;
+
+// Función para abrir el mapa de solicitud
+function openMapSolicitud() {
+    $('#mapModalSolicitud').modal('show');
+    
+    setTimeout(() => {
+        if (!mapSolicitud) {
+            mapSolicitud = L.map('mapSolicitud').setView([-17.8146, -63.1561], 13); // Santa Cruz de la Sierra, Bolivia
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(mapSolicitud);
+            
+            mapSolicitud.on('click', function(e) {
+                if (markerSolicitud) {
+                    mapSolicitud.removeLayer(markerSolicitud);
+                }
+                markerSolicitud = L.marker([e.latlng.lat, e.latlng.lng]).addTo(mapSolicitud);
+                document.getElementById('mapLatitudeSolicitud').value = e.latlng.lat;
+                document.getElementById('mapLongitudeSolicitud').value = e.latlng.lng;
+            });
+        }
+    }, 300);
+}
+
+// Función para guardar la ubicación del mapa de solicitud
+function saveMapLocationSolicitud() {
+    if (markerSolicitud) {
+        const lat = document.getElementById('mapLatitudeSolicitud').value;
+        const lng = document.getElementById('mapLongitudeSolicitud').value;
+        const address = document.getElementById('mapAddressSolicitud').value;
+        
+        document.getElementById('latitud_solicitud').value = lat;
+        document.getElementById('longitud_solicitud').value = lng;
+        if (address) {
+            document.getElementById('direccion_entrega').value = address;
+        }
+        
+        $('#mapModalSolicitud').modal('hide');
+    } else {
+        alert('Por favor, seleccione una ubicación en el mapa haciendo clic');
+    }
+}
+
+// Limpiar el mapa cuando se cierra el modal
+$('#mapModalSolicitud').on('hidden.bs.modal', function() {
+    // No limpiar el mapa para mantener la selección
 });
 </script>
 @endpush

@@ -90,6 +90,10 @@ class RecepcionMateriaPrimaController extends Controller
             return [
                 'request_id' => $s->solicitud_id,
                 'request_number' => $s->numero_solicitud,
+                'fecha_solicitud' => $s->fecha_solicitud ? $s->fecha_solicitud->format('Y-m-d') : null,
+                'fecha_requerida' => $s->fecha_requerida ? $s->fecha_requerida->format('Y-m-d') : null,
+                'fecha_solicitud_formatted' => $s->fecha_solicitud ? $s->fecha_solicitud->format('d/m/Y') : null,
+                'fecha_requerida_formatted' => $s->fecha_requerida ? $s->fecha_requerida->format('d/m/Y') : null,
                 'details' => $details,
             ];
         })->values()->toArray();
