@@ -188,4 +188,9 @@ Route::middleware(['auth'])->group(function () {
     // Carga de imágenes
     Route::post('/upload-image', [\App\Http\Controllers\Web\ImageUploadController::class, 'upload'])->name('upload-image');
     Route::delete('/delete-image', [\App\Http\Controllers\Web\ImageUploadController::class, 'delete'])->name('delete-image');
+    
+    // Helpdesk - Centro de Soporte
+    Route::get('/helpdesk', function () {
+        return view('helpdesk');
+    })->name('helpdesk');
 });

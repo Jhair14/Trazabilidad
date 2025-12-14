@@ -1005,6 +1005,15 @@
                     </a>
                 </li>
                 @endcan
+                
+                <!-- SOPORTE -->
+                <li class="nav-header">SOPORTE</li>
+                <li class="nav-item">
+                    <a href="{{ route('helpdesk') }}" class="nav-link">
+                        <i class="nav-icon fas fa-headset"></i>
+                        <p>Centro de Soporte</p>
+                    </a>
+                </li>
             </ul>
         </nav>
         
