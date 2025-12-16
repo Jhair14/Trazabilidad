@@ -748,7 +748,7 @@ function verDetallesPedido(orderId) {
         });
 }
 
-// Polling cada 2 segundos para actualizar datos en tiempo real
+// Polling cada 1 segundo para actualizar datos en tiempo real
 let pollingIntervalCliente = null;
 let totalPedidosAnterior = {{ $stats['total_pedidos'] ?? 0 }};
 let ultimoPedidoIdAnterior = {{ isset($ultimoPedido) && $ultimoPedido ? $ultimoPedido->pedido_id : 'null' }};
@@ -842,11 +842,11 @@ function actualizarDashboardCliente() {
 
 // Iniciar polling cuando la página esté lista
 $(document).ready(function() {
-    // Primera actualización después de 2 segundos
-    setTimeout(actualizarDashboardCliente, 2000);
+    // Primera actualización después de 1 segundo
+    setTimeout(actualizarDashboardCliente, 1000);
     
-    // Luego actualizar cada 2 segundos
-    pollingIntervalCliente = setInterval(actualizarDashboardCliente, 2000);
+    // Luego actualizar cada 1 segundo
+    pollingIntervalCliente = setInterval(actualizarDashboardCliente, 1000);
 });
 
 // Detener polling cuando se sale de la página
