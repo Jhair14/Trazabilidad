@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page_title', 'Gestiรณn de Procesos')
+@section('page_title', 'Gestión de Procesos')
 
 @section('content')
 <div class="row">
@@ -9,7 +9,7 @@
             <div class="card-header">
                 <h3 class="card-title">
                     <i class="fas fa-project-diagram mr-1"></i>
-                    Gestiรณn de Procesos
+                    Gestión de Procesos
                 </h3>
                 <div class="card-tools">
                     <a href="{{ route('procesos.create') }}" class="btn btn-primary btn-sm">
@@ -31,7 +31,7 @@
                     </div>
                 @endif
 
-                <!-- Estadรญsticas -->
+                <!-- Estadísticas -->
                 <div class="row mb-4">
     <div class="col-lg-3 col-6">
         <div class="small-box bg-info">
@@ -59,7 +59,7 @@
         <div class="small-box bg-warning">
             <div class="inner">
                                 <h3>0</h3>
-                <p>En Revisiรณn</p>
+                <p>En Revisión</p>
             </div>
             <div class="icon">
                 <i class="fas fa-clock"></i>
@@ -86,8 +86,8 @@
                     <tr>
                         <th>ID</th>
                         <th>Nombre</th>
-                        <th>Descripciรณn</th>
-                                <th>Mรกquinas</th>
+                        <th>Descripción</th>
+                                <th>Máquinas</th>
                         <th>Estado</th>
                         <th class="text-right">Acciones</th>
                     </tr>
@@ -97,12 +97,12 @@
                     <tr>
                                 <td>#{{ $proceso->proceso_id }}</td>
                                 <td>{{ $proceso->nombre }}</td>
-                                <td>{{ $proceso->descripcion ?? 'Sin descripciรณn' }}</td>
+                                <td>{{ $proceso->descripcion ?? 'Sin descripción' }}</td>
                                 <td>
                                     @if($proceso->processMachines && $proceso->processMachines->count() > 0)
-                                        <span class="badge badge-info">{{ $proceso->processMachines->count() }} mรกquina(s)</span>
+                                        <span class="badge badge-info">{{ $proceso->processMachines->count() }} máquina(s)</span>
                                     @else
-                                        <span class="badge badge-secondary">Sin mรกquinas</span>
+                                        <span class="badge badge-secondary">Sin máquinas</span>
                                     @endif
                                 </td>
                                 <td>
@@ -192,11 +192,11 @@
                             <div class="form-group">
                         <label for="descripcion">
                             <i class="fas fa-align-left mr-1"></i>
-                            Descripciรณn
+                            Descripción
                         </label>
                         <textarea class="form-control @error('descripcion') is-invalid @enderror" 
                                   id="descripcion" name="descripcion" rows="3" 
-                                  placeholder="Descripciรณn detallada del proceso...">{{ old('descripcion') }}</textarea>
+                                  placeholder="Descripción detallada del proceso...">{{ old('descripcion') }}</textarea>
                         @error('descripcion')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
@@ -204,7 +204,7 @@
                     
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle mr-1"></i>
-                        <strong>Nota:</strong> Las mรกquinas y variables del proceso se pueden configurar despuรฉs de crear el proceso bรกsico.
+                        <strong>Nota:</strong> Las máquinas y variables del proceso se pueden configurar después de crear el proceso básico.
                     </div>
                     
                     <div class="modal-footer">
@@ -253,23 +253,23 @@
                         </div>
                     </div>
 
-<!-- Modal Confirmar Eliminaciรณn -->
+<!-- Modal Confirmar Eliminación -->
 <div class="modal fade" id="confirmarEliminarProcesoModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h4 class="modal-title">
                     <i class="fas fa-exclamation-triangle mr-1"></i>
-                    Confirmar Eliminaciรณn
+                    Confirmar Eliminación
                 </h4>
                 <button type="button" class="close text-white" data-dismiss="modal">
                     <span>&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <p>ยฟEstรก seguro de eliminar este proceso?</p>
+                <p>¿Está seguro de eliminar este proceso?</p>
                 <p class="font-weight-bold" id="procesoNombreEliminar"></p>
-                <p class="text-danger"><small>Esta acciรณn no se puede deshacer.</small></p>
+                <p class="text-danger"><small>Esta acción no se puede deshacer.</small></p>
                 <form method="POST" id="eliminarProcesoForm" style="display: none;">
                     @csrf
                     @method('DELETE')
@@ -282,7 +282,7 @@
                 </button>
                 <button type="button" class="btn btn-danger" onclick="eliminarProceso()">
                     <i class="fas fa-trash mr-1"></i>
-                    Sรญ, Eliminar
+                    Sí, Eliminar
                 </button>
             </div>
         </div>
@@ -331,7 +331,7 @@
                     <div class="form-group">
                         <label for="edit_descripcion">
                             <i class="fas fa-align-left mr-1"></i>
-                            Descripciรณn
+                            Descripción
                         </label>
                         <textarea class="form-control" id="edit_descripcion" name="descripcion" rows="3"></textarea>
                     </div>
@@ -345,21 +345,21 @@
 
                     <hr class="my-4">
 
-                    <!-- Selecciรณn de mรกquinas -->
+                    <!-- Selección de máquinas -->
                     <div class="mb-4">
                         <h5 class="mb-3">
                             <i class="fas fa-cogs mr-1"></i>
-                            Mรกquinas del Proceso
+                            Máquinas del Proceso
                         </h5>
                         
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle mr-1"></i>
-                            Selecciona las mรกquinas disponibles y luego agrega variables estรกndar a cada una.
+                            Selecciona las máquinas disponibles y luego agrega variables estándar a cada una.
                         </div>
 
-                        <!-- Mรกquinas disponibles -->
+                        <!-- Máquinas disponibles -->
                         <div class="mb-4">
-                            <h6 class="mb-2">Mรกquinas Disponibles:</h6>
+                            <h6 class="mb-2">Máquinas Disponibles:</h6>
                             <div class="row" id="editMaquinasDisponibles">
                                 @foreach($maquinas as $maquina)
                                 <div class="col-md-3 mb-3">
@@ -387,11 +387,11 @@
                             </div>
                         </div>
 
-                        <!-- Mรกquinas seleccionadas -->
+                        <!-- Máquinas seleccionadas -->
                         <div id="editMaquinasSeleccionadas" class="mb-4">
-                            <h6 class="mb-3">Mรกquinas Seleccionadas:</h6>
+                            <h6 class="mb-3">Máquinas Seleccionadas:</h6>
                             <div id="editListaMaquinas">
-                                <p class="text-muted">No hay mรกquinas seleccionadas. Haz clic en "Agregar" para seleccionar mรกquinas.</p>
+                                <p class="text-muted">No hay máquinas seleccionadas. Haz clic en "Agregar" para seleccionar máquinas.</p>
                             </div>
                         </div>
                     </div>
@@ -440,7 +440,7 @@ function verProceso(id) {
                                 <strong>${pm.nombre}</strong> - ${pm.maquina_nombre} (Paso ${pm.orden_paso})
                             </div>
                             <div class="card-body">
-                                <p><strong>Descripciรณn:</strong> ${pm.descripcion || 'Sin descripciรณn'}</p>
+                                <p><strong>Descripción:</strong> ${pm.descripcion || 'Sin descripción'}</p>
                                 <p><strong>Tiempo Estimado:</strong> ${pm.tiempo_estimado || 'N/A'} minutos</p>
                                 <p><strong>Variables:</strong></p>
                                 ${variablesHtml}
@@ -449,7 +449,7 @@ function verProceso(id) {
                     `;
                 });
             } else {
-                machinesHtml = '<p class="text-muted">No hay mรกquinas configuradas</p>';
+                machinesHtml = '<p class="text-muted">No hay máquinas configuradas</p>';
             }
             
             const content = `
@@ -465,8 +465,8 @@ function verProceso(id) {
                                 <td>${data.nombre}</td>
                             </tr>
                             <tr>
-                                <th>Descripciรณn</th>
-                                <td>${data.descripcion || 'Sin descripciรณn'}</td>
+                                <th>Descripción</th>
+                                <td>${data.descripcion || 'Sin descripción'}</td>
                             </tr>
                             <tr>
                                 <th>Estado</th>
@@ -477,7 +477,7 @@ function verProceso(id) {
                                 </td>
                             </tr>
                             <tr>
-                                <th>Mรกquinas del Proceso</th>
+                                <th>Máquinas del Proceso</th>
                                 <td>${machinesHtml}</td>
                             </tr>
                         </table>
@@ -505,7 +505,7 @@ function editarProceso(id) {
             document.getElementById('edit_descripcion').value = data.descripcion || '';
             document.getElementById('edit_activo').checked = data.activo || false;
             
-            // Cargar mรกquinas existentes
+            // Cargar máquinas existentes
             editMaquinasSeleccionadas = [];
             if (data.proceso_maquinas && data.proceso_maquinas.length > 0) {
                 data.proceso_maquinas.forEach(pm => {
@@ -542,15 +542,15 @@ function editarProceso(id) {
         });
 }
 
-// Agregar mรกquina al proceso (ediciรณn)
+// Agregar máquina al proceso (edición)
 $(document).on('click', '.edit-agregar-maquina', function() {
     const machineId = $(this).data('machine-id');
     const machineName = $(this).data('machine-name');
     const machineImage = $(this).data('machine-image');
     
-    // Verificar si ya estรก agregada
+    // Verificar si ya está agregada
     if (editMaquinasSeleccionadas.find(m => m.maquina_id === machineId)) {
-        alert('Esta mรกquina ya estรก agregada al proceso');
+        alert('Esta máquina ya está agregada al proceso');
         return;
     }
     
@@ -569,7 +569,7 @@ $(document).on('click', '.edit-agregar-maquina', function() {
     editRenderizarMaquinas();
 });
 
-// Eliminar mรกquina (ediciรณn)
+// Eliminar máquina (edición)
 function editEliminarMaquina(index) {
     editMaquinasSeleccionadas.splice(index, 1);
     // Reordenar orden_paso
@@ -579,7 +579,7 @@ function editEliminarMaquina(index) {
     editRenderizarMaquinas();
 }
 
-// Agregar variable a una mรกquina (ediciรณn)
+// Agregar variable a una máquina (edición)
 function editAgregarVariable(maquinaIndex) {
     if (!editMaquinasSeleccionadas[maquinaIndex].variables) {
         editMaquinasSeleccionadas[maquinaIndex].variables = [];
@@ -592,13 +592,13 @@ function editAgregarVariable(maquinaIndex) {
     editRenderizarMaquinas();
 }
 
-// Eliminar variable (ediciรณn)
+// Eliminar variable (edición)
 function editEliminarVariable(maquinaIndex, variableIndex) {
     editMaquinasSeleccionadas[maquinaIndex].variables.splice(variableIndex, 1);
     editRenderizarMaquinas();
 }
 
-// Actualizar variable (ediciรณn)
+// Actualizar variable (edición)
 function editActualizarVariable(maquinaIndex, variableIndex, campo, valor) {
     if (!editMaquinasSeleccionadas[maquinaIndex] || !editMaquinasSeleccionadas[maquinaIndex].variables || !editMaquinasSeleccionadas[maquinaIndex].variables[variableIndex]) {
         return;
@@ -615,7 +615,7 @@ function editActualizarVariable(maquinaIndex, variableIndex, campo, valor) {
     }
 }
 
-// Sincronizar cuando se cambian los valores en los inputs (ediciรณn)
+// Sincronizar cuando se cambian los valores en los inputs (edición)
 $(document).on('change', '#editarProcesoModal input[name*="[valor_minimo]"], #editarProcesoModal input[name*="[valor_maximo]"]', function() {
     const name = $(this).attr('name');
     const matches = name.match(/maquinas\[(\d+)\]\[variables\]\[(\d+)\]/);
@@ -627,12 +627,12 @@ $(document).on('change', '#editarProcesoModal input[name*="[valor_minimo]"], #ed
     }
 });
 
-// Renderizar mรกquinas seleccionadas (ediciรณn)
+// Renderizar máquinas seleccionadas (edición)
 function editRenderizarMaquinas() {
     const container = $('#editListaMaquinas');
     
     if (editMaquinasSeleccionadas.length === 0) {
-        container.html('<p class="text-muted">No hay mรกquinas seleccionadas. Haz clic en "Agregar" para seleccionar mรกquinas.</p>');
+        container.html('<p class="text-muted">No hay máquinas seleccionadas. Haz clic en "Agregar" para seleccionar máquinas.</p>');
         return;
     }
     
@@ -654,9 +654,9 @@ function editRenderizarMaquinas() {
                 <div class="card-body">
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label>Descripciรณn (opcional)</label>
+                            <label>Descripción (opcional)</label>
                             <input type="text" class="form-control" name="maquinas[${mIndex}][descripcion]" 
-                                   value="${maquina.descripcion || ''}" placeholder="Descripciรณn de esta mรกquina en el proceso">
+                                   value="${maquina.descripcion || ''}" placeholder="Descripción de esta máquina en el proceso">
                         </div>
                         <div class="col-md-6">
                             <label>Tiempo Estimado (minutos, opcional)</label>
@@ -665,7 +665,7 @@ function editRenderizarMaquinas() {
                         </div>
                     </div>
                     
-                    <h6 class="mb-2">Variables Estรกndar:</h6>
+                    <h6 class="mb-2">Variables Estándar:</h6>
                     <div id="edit_variables_${mIndex}">
         `;
         
@@ -692,13 +692,13 @@ function editRenderizarMaquinas() {
                                    value="${varEstandar ? (varEstandar.unidad || '') : ''}" readonly>
                         </div>
                         <div class="col-md-2">
-                            <label>Valor Mรญnimo <span class="text-danger">*</span></label>
+                            <label>Valor Mínimo <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control" 
                                    name="maquinas[${mIndex}][variables][${vIndex}][valor_minimo]" 
                                    value="${variable.valor_minimo || ''}" required>
                         </div>
                         <div class="col-md-2">
-                            <label>Valor Mรกximo <span class="text-danger">*</span></label>
+                            <label>Valor Máximo <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control" 
                                    name="maquinas[${mIndex}][variables][${vIndex}][valor_maximo]" 
                                    value="${variable.valor_maximo || ''}" required>
@@ -730,13 +730,13 @@ function editRenderizarMaquinas() {
     container.html(html);
 }
 
-// Limpiar al cerrar el modal de ediciรณn
+// Limpiar al cerrar el modal de edición
 $('#editarProcesoModal').on('hidden.bs.modal', function () {
     editMaquinasSeleccionadas = [];
-    $('#editListaMaquinas').html('<p class="text-muted">No hay mรกquinas seleccionadas. Haz clic en "Agregar" para seleccionar mรกquinas.</p>');
+    $('#editListaMaquinas').html('<p class="text-muted">No hay máquinas seleccionadas. Haz clic en "Agregar" para seleccionar máquinas.</p>');
 });
 
-// Variables para el modal de eliminaciรณn de proceso
+// Variables para el modal de eliminación de proceso
 let procesoIdAEliminar = null;
 
 function confirmarEliminarProceso(id, nombre) {

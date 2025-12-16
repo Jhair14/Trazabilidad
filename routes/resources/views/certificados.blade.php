@@ -9,7 +9,7 @@
             <div class="card-header">
                 <h3 class="card-title">
                     <i class="fas fa-certificate mr-1"></i>
-                    Gestiรณn de Certificados
+                    Gestión de Certificados
                 </h3>
                 <div class="card-tools">
                     <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#generarCertificadoModal">
@@ -25,7 +25,7 @@
                     </div>
                 @endif
 
-                <!-- Estadรญsticas -->
+                <!-- Estadísticas -->
                 <div class="row mb-4">
                     <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
@@ -43,7 +43,7 @@
                             <div class="inner">
                                 <h3>{{ $certificados->getCollection()->filter(function($c) { 
                                     $eval = $c->latestFinalEvaluation;
-                                    return $eval && !str_contains(strtolower($eval->razon ?? ''), 'fallรณ'); 
+                                    return $eval && !str_contains(strtolower($eval->razon ?? ''), 'falló'); 
                                 })->count() }}</h3>
                                 <p>Certificados</p>
                             </div>
@@ -57,7 +57,7 @@
                             <div class="inner">
                                 <h3>{{ $certificados->getCollection()->filter(function($c) { 
                                     $eval = $c->latestFinalEvaluation;
-                                    return $eval && str_contains(strtolower($eval->razon ?? ''), 'fallรณ'); 
+                                    return $eval && str_contains(strtolower($eval->razon ?? ''), 'falló'); 
                                 })->count() }}</h3>
                                 <p>No Certificados</p>
                             </div>
@@ -118,7 +118,7 @@
                     @foreach($certificados as $certificado)
                     @php
                         $finalEval = $certificado->latestFinalEvaluation;
-                        $esFallido = $finalEval && str_contains(strtolower($finalEval->razon ?? ''), 'fallรณ');
+                        $esFallido = $finalEval && str_contains(strtolower($finalEval->razon ?? ''), 'falló');
                     @endphp
                     <div class="col-md-4 mb-4">
                         <div class="card h-100 border {{ $esFallido ? 'border-danger' : 'border-success' }}">
@@ -132,11 +132,11 @@
                                     <strong>Nombre:</strong> {{ $certificado->nombre ?? 'Sin nombre' }}
                                 </p>
                                 <p class="text-gray-500 text-sm mb-2">
-                                    <strong>Fecha de Creaciรณn:</strong> {{ $certificado->fecha_creacion ? \Carbon\Carbon::parse($certificado->fecha_creacion)->format('d/m/Y') : 'N/A' }}
+                                    <strong>Fecha de Creación:</strong> {{ $certificado->fecha_creacion ? \Carbon\Carbon::parse($certificado->fecha_creacion)->format('d/m/Y') : 'N/A' }}
                                 </p>
                                 @if($finalEval)
                                 <p class="text-sm mb-2">
-                                    <strong>Fecha de Evaluaciรณn:</strong> {{ $finalEval->fecha_evaluacion ? \Carbon\Carbon::parse($finalEval->fecha_evaluacion)->format('d/m/Y') : 'N/A' }}
+                                    <strong>Fecha de Evaluación:</strong> {{ $finalEval->fecha_evaluacion ? \Carbon\Carbon::parse($finalEval->fecha_evaluacion)->format('d/m/Y') : 'N/A' }}
                                 </p>
                                 @endif
                             </div>
@@ -192,9 +192,9 @@
                                 <label for="loteCertificado">Lote</label>
                                 <select class="form-control" id="loteCertificado">
                                     <option value="">Seleccionar lote...</option>
-                                    <option value="1">#L001 - Lote Producciรณn A</option>
-                                    <option value="2">#L002 - Lote Producciรณn B</option>
-                                    <option value="3">#L003 - Lote Producciรณn C</option>
+                                    <option value="1">#L001 - Lote Producción A</option>
+                                    <option value="2">#L002 - Lote Producción B</option>
+                                    <option value="3">#L003 - Lote Producción C</option>
                                 </select>
                             </div>
                         </div>
@@ -209,7 +209,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="fechaEmision">Fecha de Emisiรณn</label>
+                                <label for="fechaEmision">Fecha de Emisión</label>
                                 <input type="date" class="form-control" id="fechaEmision">
                             </div>
                         </div>
