@@ -30,12 +30,25 @@ class SupplierController extends Controller
         $data = $request->validated();
         
         // Manual ID generation if not auto-increment
-        if (empty($data['supplier_id'])) {
-            $maxId = Supplier::max('supplier_id') ?? 0;
-            $data['supplier_id'] = $maxId + 1;
+        // Map English keys to Spanish DB columns
+        $mappedData = [
+            'razon_social' => $data['business_name'],
+            'nombre_comercial' => $data['trading_name'] ?? null,
+            'nit' => $data['tax_id'] ?? null,
+            'contacto' => $data['contact_person'] ?? null,
+            'telefono' => $data['phone'] ?? null,
+            'email' => $data['email'] ?? null,
+            'direccion' => $data['address'] ?? null,
+            'activo' => $data['active'] ?? true,
+        ];
+
+        // Manual ID generation if not auto-increment
+        if (empty($data['proveedor_id'])) {
+            $maxId = Supplier::max('proveedor_id') ?? 0;
+            $mappedData['proveedor_id'] = $maxId + 1;
         }
 
-        $supplier = Supplier::create($data);
+        $supplier = Supplier::create($mappedData);
 
         return response()->json(new SupplierResource($supplier), 201);
     }
