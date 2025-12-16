@@ -19,6 +19,7 @@ services:
       PRODUCTORES_API_URL: http://productores.dasalas.shop/api
       TRAZABILIDAD_API_URL: https://orgtrack.dasalas.shop/api
       HELPDESK_API_URL: https://proyecto-de-ultimo-minuto.online
+      APP_ENV: local
     depends_on:
       - db
     networks:

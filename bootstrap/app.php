@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,35 +14,60 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+
+        /*
+        |--------------------------------------------------------------------------
+        | TRUST PROXIES (Nginx Proxy Manager / HTTPS)
+        |--------------------------------------------------------------------------
+        */
+        $middleware->trustProxies(
+            at: '*',
+            headers:
+                Request::HEADER_X_FORWARDED_FOR |
+                Request::HEADER_X_FORWARDED_PROTO |
+                Request::HEADER_X_FORWARDED_HOST |
+                Request::HEADER_X_FORWARDED_PORT
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | API MIDDLEWARE
+        |--------------------------------------------------------------------------
+        */
         $middleware->api(prepend: [
             \App\Http\Middleware\Cors::class,
         ]);
-        
-        // Establecer idioma español para todas las rutas web
+
+        /*
+        |--------------------------------------------------------------------------
+        | WEB MIDDLEWARE
+        |--------------------------------------------------------------------------
+        */
         $middleware->web(prepend: [
             \App\Http\Middleware\SetLocale::class,
         ]);
-        
-        // Registrar middleware de Spatie Permission
+
+        /*
+        |--------------------------------------------------------------------------
+        | ALIAS
+        |--------------------------------------------------------------------------
+        */
         $middleware->alias([
-            // 'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
-            // 'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Return JSON responses for ALL API routes errors
+
         $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
-                // Handle AuthenticationException explicitly
+
                 if ($e instanceof \Illuminate\Auth\AuthenticationException) {
                     return response()->json(['message' => 'Unauthenticated.'], 401);
                 }
 
                 $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
-
-                // Don't expose sensitive error details in production
                 $message = $e->getMessage();
+
                 if (config('app.env') === 'production' && $status === 500) {
                     $message = 'Internal server error';
                 }
@@ -53,11 +79,14 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        // Manejar error 419 (Page Expired) para la creación de pedidos
-        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
+        $exceptions->render(function (
+            \Illuminate\Session\TokenMismatchException $e,
+            \Illuminate\Http\Request $request
+        ) {
             if ($request->is('mis-pedidos') && $request->isMethod('post')) {
                 return redirect()->route('mis-pedidos')
-                    ->with('error', 'Su sesión ha expirado. Por favor, intente crear el pedido nuevamente.');
+                    ->with('error', 'Su sesión ha expirado. Por favor, intente nuevamente.');
             }
         });
-    })->create();
+    })
+    ->create();

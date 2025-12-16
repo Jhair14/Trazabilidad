@@ -4,34 +4,49 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
-use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        // Add custom views path where we placed Blade files
+        /*
+        |--------------------------------------------------------------------------
+        | FORZAR HTTPS EN PRODUCCIÓN
+        |--------------------------------------------------------------------------
+        */
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | VISTAS PERSONALIZADAS
+        |--------------------------------------------------------------------------
+        */
         $customPath = base_path('routes/resources/views');
         if (is_dir($customPath)) {
             View::addLocation($customPath);
         }
 
-        // Configurar paginación para usar Bootstrap 4 (compatible con AdminLTE)
+        /*
+        |--------------------------------------------------------------------------
+        | PAGINACIÓN
+        |--------------------------------------------------------------------------
+        */
         \Illuminate\Pagination\Paginator::defaultView('vendor.pagination.bootstrap-4');
         \Illuminate\Pagination\Paginator::defaultSimpleView('vendor.pagination.simple-bootstrap-4');
 
-        // Use custom permission logic
+        /*
+        |--------------------------------------------------------------------------
+        | PERMISSIONS
+        |--------------------------------------------------------------------------
+        */
         \Illuminate\Support\Facades\Gate::before(function ($user, $ability) {
             if (method_exists($user, 'hasPermissionTo')) {
                 return $user->hasPermissionTo($ability) ?: null;
