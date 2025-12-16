@@ -31,7 +31,7 @@ class MachineController extends Controller
         
         // Manual ID generation if not auto-increment
         if (empty($data['machine_id'])) {
-            $maxId = Machine::max('machine_id') ?? 0;
+            $maxId = Machine::max('maquina_id') ?? 0;
             $nextId = $maxId + 1;
             $data['machine_id'] = $nextId;
             
@@ -41,7 +41,17 @@ class MachineController extends Controller
             }
         }
 
-        $machine = Machine::create($data);
+        // Map English field names to Spanish column names
+        $machineData = [
+            'maquina_id' => $data['machine_id'],
+            'codigo' => $data['code'],
+            'nombre' => $data['name'],
+            'descripcion' => $data['description'] ?? null,
+            'imagen_url' => $data['image_url'] ?? null,
+            'activo' => $data['active'] ?? true,
+        ];
+
+        $machine = Machine::create($machineData);
 
         return response()->json(new MachineResource($machine), 201);
     }

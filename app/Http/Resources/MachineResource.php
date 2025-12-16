@@ -14,6 +14,14 @@ class MachineResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        $data = parent::toArray($request);
+
+        if (isset($data['imagen_url']) && $data['imagen_url']) {
+            if (!str_starts_with($data['imagen_url'], 'http')) {
+                $data['imagen_url'] = url($data['imagen_url']);
+            }
+        }
+
+        return $data;
     }
 }

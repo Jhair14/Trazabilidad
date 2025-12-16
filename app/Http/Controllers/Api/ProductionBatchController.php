@@ -56,6 +56,9 @@ class ProductionBatchController extends Controller
     /**
      * Create a new production batch
      */
+    /**
+     * Create a new production batch
+     */
     public function store(ProductionBatchRequest $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -64,7 +67,7 @@ class ProductionBatchController extends Controller
             'target_quantity' => 'nullable|numeric|min:0',
             'observations' => 'nullable|string|max:500',
             'raw_materials' => 'nullable|array',
-            'raw_materials.*.raw_material_id' => 'required|integer|exists:materia_prima,materia_prima_id',
+            'raw_materials.*.raw_material_id' => 'required|integer|exists:materia_prima_base,material_id',
             'raw_materials.*.planned_quantity' => 'required|numeric|min:0',
         ]);
 
@@ -77,10 +80,12 @@ class ProductionBatchController extends Controller
 
         DB::beginTransaction();
         try {
-            // Get the next ID manually since sequence doesn't exist
-            // Get the next ID manually since sequence doesn't exist
-            $maxId = ProductionBatch::max('lote_id') ?? 0;
-            $nextId = $maxId + 1;
+            // Get the next ID manually using sequence to match Web Controller
+            $maxId = DB::table('lote_produccion')->max('lote_id');
+            if ($maxId !== null && $maxId > 0) {
+                DB::statement("SELECT setval('lote_produccion_seq', {$maxId}, true)");
+            }
+            $nextId = DB::selectOne("SELECT nextval('lote_produccion_seq') as id")->id;
             
             // Generar código de lote automáticamente
             $batchCode = 'LOTE-' . str_pad($nextId, 4, '0', STR_PAD_LEFT) . '-' . date('Ymd');
@@ -95,24 +100,91 @@ class ProductionBatchController extends Controller
                 'observaciones' => $request->observations,
             ]);
 
-            // Create batch raw materials
+            // Create batch raw materials with FIFO logic
             if ($request->has('raw_materials')) {
                 foreach ($request->raw_materials as $rm) {
-                    // Get the next ID manually
-                    $maxBatchMaterialId = BatchRawMaterial::max('lote_material_id') ?? 0;
-                    $batchMaterialId = $maxBatchMaterialId + 1;
+                    // The frontend sends material_id (base) as raw_material_id
+                    $materialBaseId = $rm['raw_material_id'];
+                    $plannedQty = $rm['planned_quantity'];
+
+                    $materialBase = \App\Models\RawMaterialBase::with('rawMaterials')->findOrFail($materialBaseId);
+                    
+                    // Calculate available quantity dynamically
+                    $calculatedAvailable = $materialBase->rawMaterials
+                        ->where('conformidad_recepcion', true)
+                        ->sum('cantidad_disponible') ?? 0;
+                    
+                    if ($calculatedAvailable == 0 && $materialBase->rawMaterials->count() == 0) {
+                        $calculatedAvailable = $materialBase->cantidad_disponible ?? 0;
+                    }
+                    
+                    if ($calculatedAvailable < $plannedQty) {
+                        throw new \Exception("No hay suficiente cantidad disponible de {$materialBase->nombre}. Disponible: {$calculatedAvailable}");
+                    }
+
+                    // Find specific RawMaterial instance (FIFO)
+                    $rawMaterial = \App\Models\RawMaterial::where('material_id', $materialBaseId)
+                        ->where('cantidad_disponible', '>=', $plannedQty)
+                        ->orderBy('fecha_recepcion', 'asc')
+                        ->first();
+
+                    if (!$rawMaterial) {
+                        throw new \Exception("No hay materia prima recibida disponible para {$materialBase->nombre} con la cantidad requerida.");
+                    }
+
+                    // Get next ID for batch material
+                    $maxBatchMaterialId = DB::table('lote_materia_prima')->max('lote_material_id');
+                    if ($maxBatchMaterialId !== null && $maxBatchMaterialId > 0) {
+                        DB::statement("SELECT setval('lote_materia_prima_seq', {$maxBatchMaterialId}, true)");
+                    }
+                    $batchMaterialNextId = DB::selectOne("SELECT nextval('lote_materia_prima_seq') as id")->id;
                     
                     BatchRawMaterial::create([
-                        'lote_material_id' => $batchMaterialId,
+                        'lote_material_id' => $batchMaterialNextId,
                         'lote_id' => $batch->lote_id,
-                        'materia_prima_id' => $rm['raw_material_id'],
-                        'cantidad_planificada' => $rm['planned_quantity'],
+                        'materia_prima_id' => $rawMaterial->materia_prima_id, // Use specific instance ID
+                        'cantidad_planificada' => $plannedQty,
                         'cantidad_usada' => 0,
+                    ]);
+
+                    // Deduct from base
+                    $materialBase->cantidad_disponible -= $plannedQty;
+                    $materialBase->save();
+
+                    // Deduct from instance
+                    $rawMaterial->cantidad_disponible -= $plannedQty;
+                    $rawMaterial->save();
+
+                    // Log movement
+                    $maxLogId = DB::table('registro_movimiento_material')->max('registro_id');
+                    if ($maxLogId !== null && $maxLogId > 0) {
+                        DB::statement("SELECT setval('registro_movimiento_material_seq', {$maxLogId}, true)");
+                    }
+                    $logNextId = DB::selectOne("SELECT nextval('registro_movimiento_material_seq') as id")->id;
+                    
+                    DB::table('registro_movimiento_material')->insert([
+                        'registro_id' => $logNextId,
+                        'material_id' => $materialBaseId,
+                        'tipo_movimiento_id' => 2, // Salida
+                        'operador_id' => auth()->id() ?? 1, // Default to 1 if no auth
+                        'cantidad' => $plannedQty,
+                        'saldo_anterior' => $materialBase->cantidad_disponible + $plannedQty,
+                        'saldo_nuevo' => $materialBase->cantidad_disponible,
+                        'descripcion' => "Descuento por creación de lote (Código: {$batch->codigo_lote})",
+                        'fecha_movimiento' => now()
                     ]);
                 }
             }
 
-            // Update order status
+            // Update order status to "en_proceso" when a batch is created (matching web logic)
+            if ($request->order_id) {
+                $order = \App\Models\CustomerOrder::find($request->order_id);
+                if ($order && $order->estado == 'pendiente') {
+                    $order->update(['estado' => 'en_proceso']);
+                }
+            }
+
+            // Update order status based on batch progress (keeps existing logic for other states)
             $this->updateOrderStatus($request->order_id);
 
             DB::commit();

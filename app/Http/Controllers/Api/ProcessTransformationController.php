@@ -89,7 +89,7 @@ class ProcessTransformationController extends Controller
                 // Actualizar registro existente
                 $existingRecord->update([
                     'operador_id' => $operator->operador_id,
-                    'variables_ingresadas' => json_encode($enteredVariables),
+                    'variables_ingresadas' => $enteredVariables,
                     'cumple_estandar' => $meetsStandard,
                     'observaciones' => $request->observations,
                     'hora_inicio' => $request->start_time ?? now(),
@@ -108,7 +108,7 @@ class ProcessTransformationController extends Controller
                     'lote_id' => $batchId,
                     'proceso_maquina_id' => $processMachineId,
                     'operador_id' => $operator->operador_id,
-                    'variables_ingresadas' => json_encode($enteredVariables),
+                    'variables_ingresadas' => $enteredVariables,
                     'cumple_estandar' => $meetsStandard,
                     'observaciones' => $request->observations,
                     'hora_inicio' => $request->start_time ?? now(),

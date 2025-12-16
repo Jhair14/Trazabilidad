@@ -33,6 +33,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Return JSON responses for ALL API routes errors
         $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
+                // Handle AuthenticationException explicitly
+                if ($e instanceof \Illuminate\Auth\AuthenticationException) {
+                    return response()->json(['message' => 'Unauthenticated.'], 401);
+                }
+
                 $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
 
                 // Don't expose sensitive error details in production

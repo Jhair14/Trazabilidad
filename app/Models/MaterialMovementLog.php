@@ -7,27 +7,28 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MaterialMovementLog extends Model
 {
-    protected $table = 'material_movement_log';
-    protected $primaryKey = 'log_id';
+    protected $table = 'registro_movimiento_material';
+    protected $primaryKey = 'registro_id';
     public $timestamps = false;
     
     protected $fillable = [
-        'log_id',
+        'registro_id',
         'material_id',
-        'movement_type_id',
-        'user_id',
-        'quantity',
-        'previous_balance',
-        'new_balance',
-        'description',
-        'movement_date'
+        'tipo_movimiento_id',
+        'operador_id',
+        'cantidad',
+        'saldo_anterior',
+        'saldo_nuevo',
+        'descripcion',
+        'observaciones',
+        'fecha_movimiento'
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:4',
-        'previous_balance' => 'decimal:4',
-        'new_balance' => 'decimal:4',
-        'movement_date' => 'datetime',
+        'cantidad' => 'decimal:4',
+        'saldo_anterior' => 'decimal:4',
+        'saldo_nuevo' => 'decimal:4',
+        'fecha_movimiento' => 'datetime',
     ];
 
     public function material(): BelongsTo
@@ -37,11 +38,11 @@ class MaterialMovementLog extends Model
 
     public function movementType(): BelongsTo
     {
-        return $this->belongsTo(MovementType::class, 'movement_type_id', 'movement_type_id');
+        return $this->belongsTo(MovementType::class, 'tipo_movimiento_id', 'tipo_movimiento_id');
     }
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(Operator::class, 'user_id', 'operator_id');
+        return $this->belongsTo(Operator::class, 'operador_id', 'operador_id');
     }
 }

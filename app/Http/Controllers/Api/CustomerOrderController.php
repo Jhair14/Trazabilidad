@@ -22,7 +22,7 @@ class CustomerOrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $orders = CustomerOrder::with(['customer', 'orderProducts'])
+            $orders = CustomerOrder::with(['customer', 'orderProducts.product.unit'])
                 ->orderBy('fecha_creacion', 'desc')
                 ->paginate($request->get('per_page', 15));
 

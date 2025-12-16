@@ -41,7 +41,17 @@ class StandardVariableController extends Controller
             }
         }
 
-        $standardVariable = StandardVariable::create($data);
+        // Map English field names to Spanish column names
+        $variableData = [
+            'variable_id' => $data['variable_id'],
+            'codigo' => $data['code'],
+            'nombre' => $data['name'],
+            'unidad' => $data['unit'] ?? null,
+            'descripcion' => $data['description'] ?? null,
+            'activo' => $data['active'] ?? true,
+        ];
+
+        $standardVariable = StandardVariable::create($variableData);
 
         return response()->json(new StandardVariableResource($standardVariable), 201);
     }

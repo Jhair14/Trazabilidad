@@ -45,4 +45,21 @@ class MaterialRequest extends Model
     {
         return $this->hasMany(SupplierResponse::class, 'solicitud_id', 'solicitud_id');
     }
+
+    protected $appends = ['estado'];
+
+    public function getEstadoAttribute(): string
+    {
+        $details = $this->details;
+        
+        if ($details->isEmpty()) {
+            return 'pendiente';
+        }
+
+        $allCompleted = $details->every(function ($detail) {
+            return ($detail->cantidad_aprobada ?? 0) >= $detail->cantidad_solicitada;
+        });
+
+        return $allCompleted ? 'completada' : 'pendiente';
+    }
 }

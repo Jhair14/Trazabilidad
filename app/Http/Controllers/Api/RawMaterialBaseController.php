@@ -43,8 +43,8 @@ class RawMaterialBaseController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'category_id' => 'required|integer|exists:raw_material_category,category_id',
-            'unit_id' => 'required|integer|exists:unit_of_measure,unit_id',
+            'category_id' => 'required|integer|exists:categoria_materia_prima,categoria_id',
+            'unit_id' => 'required|integer|exists:unidad_medida,unidad_id',
             'name' => 'required|string|max:100',
             'description' => 'nullable|string|max:255',
             'minimum_stock' => 'nullable|numeric|min:0',
